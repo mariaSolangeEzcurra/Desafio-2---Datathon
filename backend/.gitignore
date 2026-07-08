@@ -1,0 +1,20 @@
+﻿# Entorno virtual
+env_datathon/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.class
+
+# Variables
+.env
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# SQLite
+*.sqlite3
+
+# Logs
+*.log
