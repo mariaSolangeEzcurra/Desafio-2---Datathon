@@ -1,33 +1,45 @@
 import { useState } from "react";
 
 import Login from "./pages/Login";
-import Supervisor from "./pages/Supervisor";
-import Coordinador from "./pages/Coordinador";
-import Gerencia from "./pages/Gerencia";
+import DashboardLayout from "./layouts/DashboardLayout";
+import Usuarios from "./pages/Usuarios";
+
+import {
+  getUsuario,
+  logout,
+} from "./services/authService";
 
 export default function App() {
 
-  const [rol, setRol] = useState(null);
+  const [usuario, setUsuario] = useState(getUsuario());
 
-  const logout = () => {
-    setRol(null);
+  const handleLogout = () => {
+
+    logout();
+
+    setUsuario(null);
+
   };
 
-  if (rol === null) {
-    return <Login onLogin={setRol} />;
+  if (!usuario) {
+
+    return (
+
+      <Login
+        onLogin={setUsuario}
+      />
+
+    );
+
   }
 
-  if (rol === "Supervisor") {
-    return <Supervisor onLogout={logout} />;
-  }
+  return (
 
-  if (rol === "Coordinador") {
-    return <Coordinador onLogout={logout} />;
-  }
+    <DashboardLayout
+      usuario={usuario}
+      onLogout={handleLogout}
+    />
 
-  if (rol === "Gerencia") {
-    return <Gerencia onLogout={logout} />;
-  }
+  );
 
-  return <Login onLogin={setRol} />;
 }
