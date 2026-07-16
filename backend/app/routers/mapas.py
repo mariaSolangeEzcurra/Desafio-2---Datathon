@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import model
-
+from sqlalchemy import func
 router = APIRouter(
     prefix="/api/mapa",
     tags=["Mapas"]
@@ -61,3 +61,19 @@ def mapa_overview(db: Session = Depends(get_db)):
         "impedimentos": db.query(model.Impedimento).count(),
         "alertas": db.query(model.Alerta).count()
     }
+
+@router.get("/impedimentos_heatmap")
+def mapa_impedimentos_heatmap(db: Session = Depends(get_db)):
+    resultados = (
+        db.query(
+            model.Impedimento.latitud,
+            model.Impedimento.longitud,
+            func.count(model.Impedimento.impedimento_id).label("count")
+        )
+        .group_by(model.Impedimento.latitud, model.Impedimento.longitud)
+        .all()
+    )
+    return [
+        {"lat": lat, "lon": lon, "count": count}
+        for lat, lon, count in resultados
+    ]
