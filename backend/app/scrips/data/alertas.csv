@@ -1,0 +1,130 @@
+id	actividad_id	trabajador_id	segmento_id	distrito	zona_operativa	cuadrante	nivel	estado_alerta	kpi	motivo	fecha	fecha_generacion	lat	lon
+AL-00001	ACT-000002	T-007	SEG-025	José Luis Bustamante y Rivero	ZO-007	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	14/06/2026	15/06/2026	-16.421997	-71.509276
+AL-00002	ACT-000006	T-017	SEG-047	Miraflores	ZO-012	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	08/06/2026	08/06/2026	-16.391744	-71.511455
+AL-00003	ACT-000007	T-001	SEG-017	Cayma	ZO-005	A	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	04/06/2026	05/06/2026	-16.383511	-71.556533
+AL-00004	ACT-000010	T-008	SEG-014	Yanahuara	ZO-004	B	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	27/06/2026	27/06/2026	-16.393545	-71.538966
+AL-00005	ACT-000012	T-007	SEG-043	Miraflores	ZO-011	C	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	12/07/2026	12/07/2026	-16.398316	-71.526298
+AL-00006	ACT-000024	T-009	SEG-095	Sabandía	ZO-024	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/07/2026	07/07/2026	-16.453379	-71.475515
+AL-00007	ACT-000026	T-016	SEG-075	Sachaca	ZO-019	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	27/06/2026	27/06/2026	-16.422798	-71.558301
+AL-00008	ACT-000029	T-001	SEG-020	Cayma	ZO-005	D	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	09/06/2026	09/06/2026	-16.367112	-71.53813
+AL-00009	ACT-000034	T-017	SEG-087	Hunter	ZO-022	C	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	06/07/2026	07/07/2026	-16.435267	-71.549762
+AL-00010	ACT-000036	T-024	SEG-062	Socabaya	ZO-016	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	13/07/2026	13/07/2026	-16.460306	-71.496181
+AL-00011	ACT-000044	T-006	SEG-068	Characato	ZO-017	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	01/07/2026	01/07/2026	-16.477965	-71.469748
+AL-00012	ACT-000047	T-007	SEG-052	Mariano Melgar	ZO-013	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	15/06/2026	15/06/2026	-16.392045	-71.510823
+AL-00013	ACT-000055	T-012	SEG-062	Socabaya	ZO-016	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	30/06/2026	30/06/2026	-16.443891	-71.503622
+AL-00014	ACT-000059	T-022	SEG-015	Yanahuara	ZO-004	C	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/07/2026	08/07/2026	-16.402033	-71.552057
+AL-00015	ACT-000080	T-013	SEG-064	Socabaya	ZO-016	D	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/06/2026	05/06/2026	-16.450908	-71.489165
+AL-00016	ACT-000084	T-015	SEG-023	Cayma	ZO-006	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	18/06/2026	19/06/2026	-16.371393	-71.540763
+AL-00017	ACT-000085	T-003	SEG-059	Socabaya	ZO-015	C	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	08/07/2026	09/07/2026	-16.448117	-71.501154
+AL-00018	ACT-000086	T-007	SEG-070	Characato	ZO-018	B	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	11/06/2026	11/06/2026	-16.479514	-71.460925
+AL-00019	ACT-000093	T-006	SEG-083	Hunter	ZO-021	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	26/06/2026	27/06/2026	-16.428037	-71.533094
+AL-00020	ACT-000095	T-013	SEG-019	Cayma	ZO-005	C	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	02/06/2026	03/06/2026	-16.379553	-71.543886
+AL-00021	ACT-000096	T-007	SEG-095	Sabandía	ZO-024	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/07/2026	07/07/2026	-16.453179	-71.460169
+AL-00022	ACT-000097	T-009	SEG-033	Paucarpata	ZO-009	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	10/06/2026	10/06/2026	-16.433729	-71.519512
+AL-00023	ACT-000099	T-012	SEG-016	Yanahuara	ZO-004	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	09/06/2026	09/06/2026	-16.39128	-71.544946
+AL-00024	ACT-000101	T-007	SEG-082	Hunter	ZO-021	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	20/06/2026	20/06/2026	-16.441443	-71.539875
+AL-00025	ACT-000103	T-006	SEG-035	Paucarpata	ZO-009	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	12/06/2026	12/06/2026	-16.445146	-71.518562
+AL-00026	ACT-000104	T-011	SEG-070	Characato	ZO-018	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	11/07/2026	11/07/2026	-16.467224	-71.459463
+AL-00027	ACT-000105	T-019	SEG-075	Sachaca	ZO-019	C	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	29/06/2026	29/06/2026	-16.419833	-71.56764
+AL-00028	ACT-000107	T-011	SEG-021	Cayma	ZO-006	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	09/06/2026	10/06/2026	-16.372955	-71.547722
+AL-00029	ACT-000109	T-015	SEG-048	Miraflores	ZO-012	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	14/06/2026	14/06/2026	-16.402798	-71.520372
+AL-00030	ACT-000110	T-022	SEG-002	Cercado	ZO-001	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	26/06/2026	26/06/2026	-16.400298	-71.538706
+AL-00031	ACT-000112	T-005	SEG-096	Sabandía	ZO-024	D	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	25/06/2026	25/06/2026	-16.451467	-71.459689
+AL-00032	ACT-000119	T-009	SEG-077	Sachaca	ZO-020	A	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	13/07/2026	13/07/2026	-16.424362	-71.556205
+AL-00033	ACT-000120	T-008	SEG-094	Sabandía	ZO-024	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	11/06/2026	11/06/2026	-16.455854	-71.466924
+AL-00034	ACT-000123	T-023	SEG-087	Hunter	ZO-022	C	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	14/07/2026	14/07/2026	-16.451138	-71.555358
+AL-00035	ACT-000124	T-020	SEG-060	Socabaya	ZO-015	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	15/06/2026	15/06/2026	-16.462636	-71.501909
+AL-00036	ACT-000126	T-011	SEG-042	Miraflores	ZO-011	B	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/07/2026	05/07/2026	-16.391098	-71.525389
+AL-00037	ACT-000128	T-025	SEG-057	Socabaya	ZO-015	A	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	07/06/2026	08/06/2026	-16.45719	-71.498879
+AL-00038	ACT-000129	T-008	SEG-049	Mariano Melgar	ZO-013	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/07/2026	06/07/2026	-16.397945	-71.500836
+AL-00039	ACT-000133	T-011	SEG-088	Hunter	ZO-022	D	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	19/06/2026	20/06/2026	-16.439214	-71.541123
+AL-00040	ACT-000137	T-023	SEG-035	Paucarpata	ZO-009	C	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	03/06/2026	03/06/2026	-16.441363	-71.517516
+AL-00041	ACT-000140	T-022	SEG-070	Characato	ZO-018	B	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	05/06/2026	06/06/2026	-16.458763	-71.459224
+AL-00042	ACT-000145	T-008	SEG-019	Cayma	ZO-005	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	17/06/2026	17/06/2026	-16.379553	-71.543886
+AL-00043	ACT-000148	T-012	SEG-020	Cayma	ZO-005	D	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	04/07/2026	04/07/2026	-16.371197	-71.545222
+AL-00044	ACT-000149	T-023	SEG-049	Mariano Melgar	ZO-013	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	21/06/2026	21/06/2026	-16.402675	-71.495912
+AL-00045	ACT-000155	T-011	SEG-060	Socabaya	ZO-015	D	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/06/2026	05/06/2026	-16.462636	-71.501909
+AL-00046	ACT-000166	T-010	SEG-060	Socabaya	ZO-015	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	03/06/2026	03/06/2026	-16.44429	-71.499695
+AL-00047	ACT-000167	T-020	SEG-052	Mariano Melgar	ZO-013	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	09/07/2026	10/07/2026	-16.392045	-71.510823
+AL-00048	ACT-000169	T-022	SEG-055	Mariano Melgar	ZO-014	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	10/07/2026	10/07/2026	-16.387702	-71.495093
+AL-00049	ACT-000170	T-002	SEG-083	Hunter	ZO-021	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	13/07/2026	13/07/2026	-16.447714	-71.533899
+AL-00050	ACT-000173	T-019	SEG-048	Miraflores	ZO-012	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	02/06/2026	02/06/2026	-16.398514	-71.519032
+AL-00051	ACT-000174	T-015	SEG-031	José Luis Bustamante y Rivero	ZO-008	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	04/06/2026	05/06/2026	-16.436532	-71.514923
+AL-00052	ACT-000175	T-017	SEG-020	Cayma	ZO-005	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	09/07/2026	09/07/2026	-16.386195	-71.550193
+AL-00053	ACT-000178	T-016	SEG-060	Socabaya	ZO-015	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	20/06/2026	20/06/2026	-16.449815	-71.484353
+AL-00054	ACT-000179	T-021	SEG-042	Miraflores	ZO-011	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	10/06/2026	10/06/2026	-16.391098	-71.525389
+AL-00055	ACT-000184	T-023	SEG-040	Paucarpata	ZO-010	D	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/07/2026	08/07/2026	-16.436086	-71.506556
+AL-00056	ACT-000189	T-010	SEG-008	Cercado	ZO-002	D	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	12/07/2026	12/07/2026	-16.407473	-71.532418
+AL-00057	ACT-000191	T-007	SEG-051	Mariano Melgar	ZO-013	C	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	17/06/2026	17/06/2026	-16.402352	-71.512622
+AL-00058	ACT-000193	T-005	SEG-068	Characato	ZO-017	D	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	25/06/2026	25/06/2026	-16.467719	-71.465795
+AL-00059	ACT-000194	T-006	SEG-001	Cercado	ZO-001	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	13/06/2026	13/06/2026	-16.397491	-71.530967
+AL-00060	ACT-000201	T-025	SEG-043	Miraflores	ZO-011	C	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	11/07/2026	12/07/2026	-16.398316	-71.526298
+AL-00061	ACT-000203	T-024	SEG-033	Paucarpata	ZO-009	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	15/07/2026	16/07/2026	-16.433729	-71.519512
+AL-00062	ACT-000205	T-022	SEG-057	Socabaya	ZO-015	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	10/06/2026	10/06/2026	-16.45719	-71.498879
+AL-00063	ACT-000206	T-012	SEG-084	Hunter	ZO-021	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	30/06/2026	30/06/2026	-16.447927	-71.554965
+AL-00064	ACT-000214	T-021	SEG-005	Cercado	ZO-002	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	29/06/2026	29/06/2026	-16.405298	-71.540651
+AL-00065	ACT-000217	T-019	SEG-013	Yanahuara	ZO-004	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	05/06/2026	06/06/2026	-16.389667	-71.543866
+AL-00066	ACT-000220	T-020	SEG-030	José Luis Bustamante y Rivero	ZO-008	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	06/06/2026	07/06/2026	-16.415295	-71.524001
+AL-00067	ACT-000224	T-011	SEG-029	José Luis Bustamante y Rivero	ZO-008	A	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	06/07/2026	06/07/2026	-16.419524	-71.530366
+AL-00068	ACT-000225	T-009	SEG-008	Cercado	ZO-002	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	02/07/2026	02/07/2026	-16.407473	-71.532418
+AL-00069	ACT-000231	T-013	SEG-062	Socabaya	ZO-016	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	12/06/2026	12/06/2026	-16.443891	-71.503622
+AL-00070	ACT-000233	T-004	SEG-015	Yanahuara	ZO-004	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	11/06/2026	11/06/2026	-16.399208	-71.534573
+AL-00071	ACT-000236	T-007	SEG-077	Sachaca	ZO-020	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	02/06/2026	03/06/2026	-16.413609	-71.567722
+AL-00072	ACT-000238	T-002	SEG-048	Miraflores	ZO-012	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	25/06/2026	25/06/2026	-16.398514	-71.519032
+AL-00073	ACT-000239	T-002	SEG-046	Miraflores	ZO-012	B	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	15/06/2026	16/06/2026	-16.384892	-71.514309
+AL-00074	ACT-000240	T-019	SEG-083	Hunter	ZO-021	C	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	06/06/2026	06/06/2026	-16.447714	-71.533899
+AL-00075	ACT-000242	T-018	SEG-036	Paucarpata	ZO-009	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	03/07/2026	03/07/2026	-16.447115	-71.505544
+AL-00076	ACT-000244	T-009	SEG-049	Mariano Melgar	ZO-013	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	08/07/2026	08/07/2026	-16.397945	-71.500836
+AL-00077	ACT-000245	T-025	SEG-035	Paucarpata	ZO-009	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	02/06/2026	02/06/2026	-16.431525	-71.508339
+AL-00078	ACT-000250	T-005	SEG-066	Characato	ZO-017	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/07/2026	05/07/2026	-16.47455	-71.462642
+AL-00079	ACT-000251	T-009	SEG-058	Socabaya	ZO-015	B	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	01/06/2026	01/06/2026	-16.456446	-71.495746
+AL-00080	ACT-000254	T-008	SEG-032	José Luis Bustamante y Rivero	ZO-008	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	03/07/2026	04/07/2026	-16.433215	-71.528996
+AL-00081	ACT-000255	T-021	SEG-041	Miraflores	ZO-011	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	06/06/2026	06/06/2026	-16.395379	-71.51761
+AL-00082	ACT-000259	T-007	SEG-063	Socabaya	ZO-016	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	15/07/2026	15/07/2026	-16.458823	-71.483828
+AL-00083	ACT-000262	T-009	SEG-043	Miraflores	ZO-011	C	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	30/06/2026	30/06/2026	-16.398316	-71.526298
+AL-00084	ACT-000263	T-008	SEG-031	José Luis Bustamante y Rivero	ZO-008	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	02/06/2026	02/06/2026	-16.429307	-71.527033
+AL-00085	ACT-000264	T-021	SEG-049	Mariano Melgar	ZO-013	A	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	17/06/2026	17/06/2026	-16.397945	-71.500836
+AL-00086	ACT-000265	T-023	SEG-059	Socabaya	ZO-015	C	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	11/06/2026	11/06/2026	-16.448117	-71.501154
+AL-00087	ACT-000267	T-024	SEG-033	Paucarpata	ZO-009	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	06/06/2026	07/06/2026	-16.447853	-71.499025
+AL-00088	ACT-000269	T-002	SEG-087	Hunter	ZO-022	C	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	03/07/2026	03/07/2026	-16.435267	-71.549762
+AL-00089	ACT-000270	T-001	SEG-009	Yanahuara	ZO-003	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	10/07/2026	10/07/2026	-16.394095	-71.549507
+AL-00090	ACT-000271	T-012	SEG-010	Yanahuara	ZO-003	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	28/06/2026	28/06/2026	-16.395631	-71.554414
+AL-00091	ACT-000272	T-007	SEG-046	Miraflores	ZO-012	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	09/06/2026	10/06/2026	-16.384892	-71.514309
+AL-00092	ACT-000274	T-011	SEG-058	Socabaya	ZO-015	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	25/06/2026	25/06/2026	-16.456446	-71.495746
+AL-00093	ACT-000280	T-017	SEG-068	Characato	ZO-017	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	09/06/2026	09/06/2026	-16.467719	-71.465795
+AL-00094	ACT-000287	T-023	SEG-016	Yanahuara	ZO-004	D	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	21/06/2026	21/06/2026	-16.382505	-71.546411
+AL-00095	ACT-000292	T-005	SEG-095	Sabandía	ZO-024	C	Advertencia	En revisión	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	12/06/2026	12/06/2026	-16.453179	-71.460169
+AL-00096	ACT-000293	T-010	SEG-025	José Luis Bustamante y Rivero	ZO-007	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	11/06/2026	11/06/2026	-16.429335	-71.518041
+AL-00097	ACT-000297	T-025	SEG-020	Cayma	ZO-005	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/06/2026	07/06/2026	-16.379135	-71.54113
+AL-00098	ACT-000303	T-021	SEG-028	José Luis Bustamante y Rivero	ZO-007	D	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	08/07/2026	08/07/2026	-16.418511	-71.521353
+AL-00099	ACT-000307	T-001	SEG-068	Characato	ZO-017	D	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	28/06/2026	29/06/2026	-16.477693	-71.48166
+AL-00100	ACT-000309	T-020	SEG-070	Characato	ZO-018	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	07/06/2026	07/06/2026	-16.480853	-71.466262
+AL-00101	ACT-000312	T-023	SEG-037	Paucarpata	ZO-010	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	25/06/2026	25/06/2026	-16.437489	-71.510149
+AL-00102	ACT-000313	T-024	SEG-094	Sabandía	ZO-024	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	04/07/2026	04/07/2026	-16.455854	-71.466924
+AL-00103	ACT-000317	T-014	SEG-010	Yanahuara	ZO-003	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	26/06/2026	26/06/2026	-16.395631	-71.554414
+AL-00104	ACT-000318	T-005	SEG-081	Hunter	ZO-021	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	24/06/2026	24/06/2026	-16.446605	-71.553424
+AL-00105	ACT-000320	T-007	SEG-049	Mariano Melgar	ZO-013	A	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	14/07/2026	14/07/2026	-16.402675	-71.495912
+AL-00106	ACT-000322	T-020	SEG-095	Sabandía	ZO-024	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	13/07/2026	13/07/2026	-16.453179	-71.460169
+AL-00107	ACT-000328	T-015	SEG-090	Sabandía	ZO-023	B	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución por encima del estándar	01/07/2026	01/07/2026	-16.446163	-71.471516
+AL-00108	ACT-000335	T-019	SEG-022	Cayma	ZO-006	B	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	18/06/2026	19/06/2026	-16.365544	-71.552411
+AL-00109	ACT-000337	T-023	SEG-076	Sachaca	ZO-019	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	18/06/2026	18/06/2026	-16.403015	-71.55652
+AL-00110	ACT-000341	T-025	SEG-081	Hunter	ZO-021	A	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	10/07/2026	10/07/2026	-16.446605	-71.553424
+AL-00111	ACT-000349	T-018	SEG-019	Cayma	ZO-005	C	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	18/06/2026	18/06/2026	-16.373555	-71.556945
+AL-00112	ACT-000361	T-016	SEG-036	Paucarpata	ZO-009	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	11/06/2026	11/06/2026	-16.430882	-71.516477
+AL-00113	ACT-000362	T-013	SEG-052	Mariano Melgar	ZO-013	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	04/06/2026	04/06/2026	-16.392045	-71.510823
+AL-00114	ACT-000363	T-024	SEG-014	Yanahuara	ZO-004	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	14/07/2026	14/07/2026	-16.393545	-71.538966
+AL-00115	ACT-000371	T-016	SEG-035	Paucarpata	ZO-009	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	03/06/2026	03/06/2026	-16.445146	-71.518562
+AL-00116	ACT-000374	T-016	SEG-043	Miraflores	ZO-011	C	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	18/06/2026	19/06/2026	-16.398316	-71.526298
+AL-00117	ACT-000376	T-011	SEG-060	Socabaya	ZO-015	D	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	07/06/2026	07/06/2026	-16.462636	-71.501909
+AL-00118	ACT-000380	T-001	SEG-020	Cayma	ZO-005	D	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	05/07/2026	05/07/2026	-16.379135	-71.54113
+AL-00119	ACT-000384	T-011	SEG-041	Miraflores	ZO-011	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	04/06/2026	04/06/2026	-16.395379	-71.51761
+AL-00120	ACT-000389	T-021	SEG-044	Miraflores	ZO-011	D	Crítico	Activa	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	24/06/2026	25/06/2026	-16.393082	-71.519161
+AL-00121	ACT-000393	T-016	SEG-086	Hunter	ZO-022	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	25/06/2026	26/06/2026	-16.43244	-71.535592
+AL-00122	ACT-000394	T-019	SEG-035	Paucarpata	ZO-009	C	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	09/06/2026	09/06/2026	-16.441363	-71.517516
+AL-00123	ACT-000395	T-008	SEG-077	Sachaca	ZO-020	A	Advertencia	Activa	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	25/06/2026	25/06/2026	-16.424362	-71.556205
+AL-00124	ACT-000398	T-014	SEG-017	Cayma	ZO-005	A	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	18/06/2026	18/06/2026	-16.381615	-71.555459
+AL-00125	ACT-000403	T-014	SEG-020	Cayma	ZO-005	D	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	15/06/2026	15/06/2026	-16.376106	-71.549012
+AL-00126	ACT-000412	T-012	SEG-010	Yanahuara	ZO-003	B	Crítico	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	13/06/2026	14/06/2026	-16.402572	-71.550314
+AL-00127	ACT-000413	T-007	SEG-086	Hunter	ZO-022	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	05/07/2026	05/07/2026	-16.443147	-71.542459
+AL-00128	ACT-000414	T-004	SEG-034	Paucarpata	ZO-009	B	Crítico	En revisión	Tiempo promedio por tarea	Tiempo de ejecución muy por encima del estándar	21/06/2026	22/06/2026	-16.431452	-71.502034
+AL-00129	ACT-000418	T-020	SEG-062	Socabaya	ZO-016	B	Advertencia	Resuelta	Tiempo promedio por tarea	Tiempo de ejecución sospechosamente bajo	18/06/2026	19/06/2026	-16.443891	-71.503622
