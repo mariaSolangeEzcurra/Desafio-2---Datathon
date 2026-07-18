@@ -132,117 +132,199 @@ def registrar_ingesta_masiva(payload: List[IngestaLecturaSchema], db: Session = 
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error transaccional: {str(e)}")
 
+
 @router.get("/kpis-desempeno", response_model=List[InformeTrabajadorResponse])
-def obtener_kpis_desempeno(cMetFac: Optional[str] = None, db: Session = Depends(get_db)):
-    # 💡 CORREGIDO: Consulta y agregación de datos para evitar que 'data_trabajadores' salga vacío
-    query = db.query(Actividad, ActividadLectura).join(ActividadLectura, Actividad.actividad_id == ActividadLectura.actividad_id)
-    
-    # Si pasas método de facturación por filtro opcional
+def obtener_kpis_desempeno(
+    cMetFac: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+
+    query = (
+        db.query(Actividad, ActividadLectura)
+        .join(
+            ActividadLectura,
+            Actividad.actividad_id == ActividadLectura.actividad_id
+        )
+    )
+
     if cMetFac:
-        query = query.join(Conexion, Actividad.cCodCnx == Conexion.cCodCnx).join(Zona, Conexion.zona_id == Zona.zona_id).filter(Zona.cMetFac == cMetFac)
-        
+        query = (
+            query.join(Conexion, Actividad.cCodCnx == Conexion.cCodCnx)
+            .join(Zona, Conexion.zona_id == Zona.zona_id)
+            .filter(Zona.cMetFac == cMetFac)
+        )
+
     resultados = query.all()
+
     data_trabajadores = {}
 
+    # ==========================
+    # AGRUPAR INFORMACIÓN
+    # ==========================
     for actividad, lectura in resultados:
-        lector = actividad.cCodPrs if actividad.cCodPrs else "OPER-ANONIMO"
+
+        lector = actividad.cCodPrs or "OPER-ANONIMO"
+
         if lector not in data_trabajadores:
             data_trabajadores[lector] = {
-                "total_programadas": 0,
-                "ejecutadas_ok": 0,
-                "tiempo_total_min": 0,
+                "total_lecturas": 0,
+                "lecturas_exitosas": 0,
                 "con_impedimento": 0,
                 "gps_valido": 0,
-                "fuera_de_radio": 0
+                "fuera_de_radio": 0,
+                "fechas": []
             }
-        
+
         m = data_trabajadores[lector]
-        m["total_programadas"] += 1
-        
-        if actividad.estado == "Completado":
-            m["ejecutadas_ok"] += 1
-        if lectura.cImpLec and lectura.cImpLec != "00":
+
+        m["total_lecturas"] += 1
+
+        # Lectura exitosa
+        if lectura.cImpLec in (None, "", "0", "00", 0):
+            m["lecturas_exitosas"] += 1
+        else:
             m["con_impedimento"] += 1
-        if lectura.cGPSLat and lectura.cGPSLat != 9999:
+
+        # GPS válido
+        if lectura.cGPSLat not in (None, "", 9999):
             m["gps_valido"] += 1
+
+        # Fuera de radio
         if actividad.resultado == "Fuera de Radio":
             m["fuera_de_radio"] += 1
-            
-        m["tiempo_total_min"] += getattr(actividad, "duracion_min", 4.0)
 
-    # Armado final del informe procesado
+        # Fecha de lectura
+        if lectura.dLectur:
+            m["fechas"].append(lectura.dLectur)
+
+    # ==========================
+    # CALCULAR KPIs
+    # ==========================
     informe_kpis = []
-    
+
     for lector, m in data_trabajadores.items():
-        prog = m["total_programadas"]
-        ejec = m["ejecutadas_ok"]
-        if prog == 0: continue
-        
-        # Fórmulas matemáticas
-        cumplimiento = (ejec / prog) * 100
-        horas_campo = m["tiempo_total_min"] / 60.0
-        productividad = prog / horas_campo if horas_campo > 0 else 0
-        tiempo_promedio = m["tiempo_total_min"] / prog
-        pct_impedimentos = (m["con_impedimento"] / prog) * 100
-        pct_cobertura_gps = (m["gps_valido"] / prog) * 100
-        pct_fuera_punto = (m["fuera_de_radio"] / prog) * 100
 
-        # Evaluamos semáforos
-        alerta_cumplimiento = "Verde" if cumplimiento >= 90 else ("Amarillo" if cumplimiento >= 80 else "Rojo")
-        alerta_cobertura = "Verde" if pct_cobertura_gps >= 90 else ("Amarillo" if pct_cobertura_gps >= 80 else "Rojo")
-        alerta_fuera_punto = "Verde" if pct_fuera_punto < 5 else ("Amarillo" if pct_fuera_punto <= 10 else "Rojo")
+        total = m["total_lecturas"]
 
-        lista_alertas_pydantic = []
+        if total == 0:
+            continue
+
+        fechas = sorted(m["fechas"])
+
+        horas_campo = 0
+        tiempo_promedio = 0
+
+        if len(fechas) >= 2:
+            intervalos = []
+            for i in range(1, len(fechas)):
+                minutos = (
+                    (fechas[i] - fechas[i-1])
+                    .total_seconds()
+                    / 60
+                )
+                # solo tiempos reales de trabajo
+                if 0 < minutos <= 30:
+                    intervalos.append(minutos)
+
+            if intervalos:
+                tiempo_promedio = (
+                    sum(intervalos)
+                    /
+                    len(intervalos)
+                )
+                # tiempo efectivo acumulado
+                minutos_efectivos = sum(intervalos)
+                horas_campo = minutos_efectivos / 60
+
+            else:
+                horas_campo = 0
+                tiempo_promedio = 0
+
+        productividad = (
+            total / horas_campo
+            if horas_campo > 0
+            else 0
+        )
+
+        pct_impedimentos = (
+            m["con_impedimento"] / total
+        ) * 100
+
+        pct_cobertura_gps = (
+            m["gps_valido"] / total
+        ) * 100
+
+        pct_fuera_punto = (
+            m["fuera_de_radio"] / total
+        ) * 100
+
+        # Este KPI requiere la tabla de programación
+        cumplimiento = (
+            m["lecturas_exitosas"]
+            /
+            total
+        )*100
+
+        alerta_cobertura = (
+            "Verde"
+            if pct_cobertura_gps >= 90
+            else (
+                "Amarillo"
+                if pct_cobertura_gps >= 80
+                else "Rojo"
+            )
+        )
+
+        alerta_fuera_punto = (
+            "Verde"
+            if pct_fuera_punto < 5
+            else (
+                "Amarillo"
+                if pct_fuera_punto <= 10
+                else "Rojo"
+            )
+        )
+
+        lista_alertas = []
+
         fecha_actual = datetime.now()
 
-        if alerta_cumplimiento == "Rojo":
-            lista_alertas_pydantic.append({
-                "alerta_id": f"ALE-{str(uuid.uuid4())[:6].upper()}",
-                "nivel": "Rojo",
-                "kpi": "Cumplimiento de Lectura",
-                "motivo": f"Bajo rendimiento: {round(cumplimiento, 1)}% de efectividad.",
-                "fecha_generacion": fecha_actual,
-                "estado_alerta": "Activa",
-                "cCodPrs": lector
-            })
-
         if alerta_cobertura == "Rojo":
-            lista_alertas_pydantic.append({
+            lista_alertas.append({
                 "alerta_id": f"ALE-{str(uuid.uuid4())[:6].upper()}",
                 "nivel": "Rojo",
                 "kpi": "Cobertura GPS",
-                "motivo": f"Lector apagó el GPS: solo {round(pct_cobertura_gps, 1)}% de tracks válidos.",
+                "motivo": f"Solo {round(pct_cobertura_gps,1)}% de registros tienen GPS válido.",
                 "fecha_generacion": fecha_actual,
                 "estado_alerta": "Activa",
                 "cCodPrs": lector
             })
 
         if alerta_fuera_punto == "Rojo":
-            lista_alertas_pydantic.append({
+            lista_alertas.append({
                 "alerta_id": f"ALE-{str(uuid.uuid4())[:6].upper()}",
                 "nivel": "Rojo",
                 "kpi": "Fuera de Radio",
-                "motivo": f"Lecturas forzadas: {round(pct_fuera_punto, 1)}% fuera de la coordenada del medidor.",
+                "motivo": f"{round(pct_fuera_punto,1)}% de registros fuera de radio.",
                 "fecha_generacion": fecha_actual,
                 "estado_alerta": "Activa",
                 "cCodPrs": lector
             })
 
-        # Estructuramos la respuesta final
-        informe_trabajador = {
+        informe_kpis.append({
             "trabajador_id": lector,
             "resumen": {
-                "total_programadas": prog,
-                "ejecutadas": ejec,
-                "cumplimiento_pct": round(cumplimiento, 2),
+                "total_lecturas": total,
+                "lecturas_exitosas": m["lecturas_exitosas"],
+                "cumplimiento_pct": None,
                 "productividad_hora": round(productividad, 2),
                 "tiempo_promedio_min": round(tiempo_promedio, 2),
-                "impedimentos_pct": round(pct_impedimentos, 2)
+                "impedimentos_pct": round(pct_impedimentos, 2),
+                "cobertura_gps_pct": round(pct_cobertura_gps, 2),
+                "fuera_radio_pct": round(pct_fuera_punto, 2)
             },
-            "estado_critico": len(lista_alertas_pydantic) > 0,
-            "alertas_activas": lista_alertas_pydantic  
-        }
-        
-        informe_kpis.append(informe_trabajador)
+            "estado_critico": len(lista_alertas) > 0,
+            "alertas_activas": lista_alertas
+        })
 
     return informe_kpis

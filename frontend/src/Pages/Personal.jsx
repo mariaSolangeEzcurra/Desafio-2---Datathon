@@ -1,117 +1,115 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 
-export default function PersonalResponsable({ actividadesTotales, procesoActivo, mapaProcesos }) {
+export default function PersonalResponsable({ procesoActivo }) {
+  // Estados locales para el control de la API y el ciclo de vida
+  const [personalProcesado, setPersonalProcesado] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   // Estado local para controlar el modal de auditoría
   const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState(null);
 
-  // useMemo se encarga de agrupar, calcular la criticidad y ordenar al personal
-  const personalProcesado = useMemo(() => {
-    if (!Array.isArray(actividadesTotales) || actividadesTotales.length === 0) {
-      return [];
-    }
+useEffect(() => {
 
-    // 1. Obtener el nombre del proceso real en la API (ej: "Lectura Comercial", "Corte")
-    const tipoBuscado = mapaProcesos[procesoActivo] || procesoActivo || "Lectura Comercial";
-    const tipoBuscadoLimpio = tipoBuscado.trim().toLowerCase();
+const obtenerKPIs = async () => {
 
-    // 2. Filtrar actividades SOLO para el proceso que está visualizando el usuario
-    const actividadesDelProceso = actividadesTotales.filter((act) => {
-      if (!act || !act.tipo_actividad) return false;
-      return act.tipo_actividad.trim().toLowerCase() === tipoBuscadoLimpio;
-    });
+try {
 
-    // 3. Agrupar y calcular las métricas por técnico adaptado a tu Base de Datos
-    const resumen = {};
+setLoading(true);
 
-    actividadesDelProceso.forEach((act) => {
-      let identificadorTecnico = act.tecnico || act.operario || act.nombre_usuario;
-      
-      if (!identificadorTecnico && act.cCodPrs) {
-        identificadorTecnico = `Operario Código: ${String(act.cCodPrs).trim()}`;
-      }
-      
-      const nombreFinal = identificadorTecnico || "Técnico No Asignado";
-      const contratista = act.contratista || act.empresa || "Propio";
+const response = await fetch(
+"http://localhost:8000/api/actividades/kpis-desempeno"
+);
 
-      if (!resumen[nombreFinal]) {
-        resumen[nombreFinal] = {
-          nombre: nombreFinal,
-          empresa: contratista,
-          total: 0,
-          completados: 0,
-          impedimentos: 0,
-          detallesImpedimentos: []
-        };
-      }
+const data = await response.json();
 
-      resumen[nombreFinal].total += 1;
-      
-      // Validar si la orden está completada exitosamente
-      const estadoLimpio = String(act.estado || "").trim().toLowerCase();
-      const resultadoLimpio = String(act.resultado || "").trim().toLowerCase();
-      const impLecLimpio = String(act.cImpLec || "").trim();
 
-      if (estadoLimpio === "completado" || estadoLimpio === "ok" || (act.nLecAct && Number(act.nLecAct) > 0)) {
-        resumen[nombreFinal].completados += 1;
-      }
-      
-      // 🚨 CONTROL DE ALERTAS CRÍTICAS (Sincronizado con el Mapa)
-      const tieneImpedimento = 
-        (impLecLimpio !== "" && impLecLimpio !== "00" && impLecLimpio !== "0") || 
-        estadoLimpio.includes("inconcluso") || 
-        estadoLimpio.includes("impedimento") ||
-        estadoLimpio.includes("critico") ||
-        resultadoLimpio.includes("fuera de radio") ||
-        resultadoLimpio.includes("anomalia") ||
-        resultadoLimpio.includes("alerta") ||
-        resultadoLimpio.includes("falla");
+const trabajadores = data.map((item)=>{
 
-      if (tieneImpedimento) {
-        resumen[nombreFinal].impedimentos += 1;
-        
-        // Extraer identificador único del suministro afectado
-        const idSuministro = act.cCodCnx || act.id_orden || act.orden || act.suministro || "N/A";
-        
-        // Extraer la descripción exacta del error para mostrarla en el modal
-        const motivoFalla = 
-          act.txtImpedimento || 
-          act.motivo_impedimento || 
-          act.resultado || 
-          act.estado || 
-          `Código de Impedimento: ${impLecLimpio}`;
 
-        resumen[nombreFinal].detallesImpedimentos.push({
-          idOrden: idSuministro,
-          motivo: motivoFalla
-        });
-      }
-    });
+const cumplimiento =
+item.resumen.cumplimiento_pct !== null
+? item.resumen.cumplimiento_pct
+: -1;
 
-    // 4. Convertir a Array, calcular alertas y ordenar de forma estable
-    return Object.values(resumen)
-      .map((tecnico) => {
-        const porcEficiencia = Math.round((tecnico.completados / tecnico.total) * 100) || 0;
-        const porcImpedimentos = Math.round((tecnico.impedimentos / tecnico.total) * 100) || 0;
 
-        // REGLA DE CRITICIDAD AUTOMÁTICA
-        const estaCritico = porcEficiencia < 50 || porcImpedimentos > 30 || tecnico.impedimentos > 0;
+return {
 
-        return {
-          ...tecnico,
-          eficiencia: porcEficiencia,
-          porcentajeImpedimentos: porcImpedimentos,
-          critico: estaCritico
-        };
-      })
-      .sort((a, b) => {
-        // Ordenamiento estable: Verdaderos (críticos) van primero
-        if (a.critico && !b.critico) return -1;
-        if (!a.critico && b.critico) return 1;
-        // Si ambos tienen el mismo estado, ordenar por mayor número de impedimentos
-        return b.impedimentos - a.impedimentos;
-      });
+nombre:`Operario Código: ${item.trabajador_id}`,
 
-  }, [actividadesTotales, procesoActivo, mapaProcesos]);
+empresa:"SEDAPAR",
+
+
+totalLecturas:
+item.resumen.total_programadas,
+
+
+lecturasExitosas:
+item.resumen.ejecutadas,
+
+
+cumplimiento,
+
+
+productividad:
+item.resumen.productividad_hora ?? 0,
+
+
+tiempoPromedio:
+item.resumen.tiempo_promedio_min ?? 0,
+
+
+impedimentos:
+item.resumen.impedimentos_pct ?? 0,
+
+
+critico:
+item.estado_critico,
+
+
+detallesImpedimentos:
+item.alertas_activas || []
+
+};
+
+
+});
+
+
+setPersonalProcesado(trabajadores);
+
+
+}catch(error){
+
+console.error(
+"Error cargando KPIs:",
+error
+);
+
+}
+
+finally{
+
+setLoading(false);
+
+}
+
+};
+
+
+obtenerKPIs();
+
+
+},[]);
+
+  
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-xs text-slate-500 font-medium">
+        Cargando indicadores de rendimiento operativos...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 mt-6">
@@ -139,10 +137,11 @@ export default function PersonalResponsable({ actividadesTotales, procesoActivo,
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
                   <th className="pb-3">Nombre / Código del Técnico</th>
                   <th className="pb-3">Contratista / Empresa</th>
-                  <th className="pb-3 text-center">Asignadas</th>
-                  <th className="pb-3 text-center">Ejecutadas</th>
+                  <th className="pb-3 text-center">Total Lecturas</th>
+                  <th className="pb-3 text-center">Productividad</th>
+                  <th className="pb-3 text-center">Tiempo Promedio</th>
                   <th className="pb-3 text-center">Impedimentos</th>
-                  <th className="pb-3 text-center">Eficiencia</th>
+                  <th className="pb-3 text-center">Cumplimiento</th>
                   <th className="pb-3 text-right">Estado</th>
                 </tr>
               </thead>
@@ -165,14 +164,15 @@ export default function PersonalResponsable({ actividadesTotales, procesoActivo,
                         </span>
                       </td>
                       <td className="py-3.5 text-slate-500 font-mono text-[11px]">{person.empresa}</td>
-                      <td className="py-3.5 text-center font-bold text-slate-700">{person.total}</td>
-                      <td className="py-3.5 text-center text-green-600 font-semibold">{person.completados}</td>
-                      <td className="py-3.5 text-center text-amber-600 font-semibold">{person.impedimentos}</td>
+                      <td className="py-3.5 text-center font-bold text-slate-700">{person.totalLecturas}</td>
+                      <td className="py-3.5 text-center text-green-600 font-semibold">{person.productividad.toFixed(2)} lec/h</td>
+                      <td className="py-3.5 text-center text-slate-600 font-medium">{person.tiempoPromedio.toFixed(2)} min</td>
+                      <td className="py-3.5 text-center text-amber-600 font-semibold">{person.impedimentos.toFixed(1)}%</td>
                       <td className="py-3.5 text-center font-mono">
                         <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                          person.eficiencia > 85 ? "bg-green-50 text-green-700" : person.eficiencia > 50 ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"
+                          person.cumplimiento === -1 ? "bg-slate-100 text-slate-600" : person.cumplimiento > 85 ? "bg-green-50 text-green-700" : person.cumplimiento > 50 ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"
                         }`}>
-                          {person.eficiencia}%
+                          {person.cumplimiento === -1 ? "N/D" : `${person.cumplimiento.toFixed(1)}%`}
                         </span>
                       </td>
                       <td className="py-3.5 text-right">
@@ -225,24 +225,24 @@ export default function PersonalResponsable({ actividadesTotales, procesoActivo,
             </div>
 
             <div className="p-5 space-y-5">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Asignadas</p>
-                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">{tecnicoSeleccionado.total}</p>
+                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Total Lecturas</p>
+                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">{tecnicoSeleccionado.totalLecturas}</p>
                 </div>
                 <div className="bg-green-50/40 border border-green-100 p-3 rounded-xl text-center">
-                  <p className="text-green-600 text-[10px] uppercase font-bold tracking-wider">Eficiencia</p>
-                  <p className="text-lg font-extrabold text-green-600 mt-0.5">{tecnicoSeleccionado.eficiencia}%</p>
+                  <p className="text-green-600 text-[10px] uppercase font-bold tracking-wider">Cumplimiento</p>
+                  <p className="text-lg font-extrabold text-green-600 mt-0.5">
+                    {tecnicoSeleccionado.cumplimiento === -1 ? "No disponible" : `${tecnicoSeleccionado.cumplimiento.toFixed(1)}%`}
+                  </p>
                 </div>
-                <div className={`border p-3 rounded-xl text-center ${
-                  tecnicoSeleccionado.impedimentos > 0 ? 'bg-red-50/40 border-red-100' : 'bg-amber-50/40 border-amber-100'
-                }`}>
-                  <p className={`text-[10px] uppercase font-bold tracking-wider ${
-                    tecnicoSeleccionado.impedimentos > 0 ? 'text-red-600' : 'text-amber-600'
-                  }`}>Impedimentos</p>
-                  <p className={`text-lg font-extrabold mt-0.5 ${
-                    tecnicoSeleccionado.impedimentos > 0 ? 'text-red-600' : 'text-amber-600'
-                  }`}>{tecnicoSeleccionado.impedimentos}</p>
+                <div className="bg-blue-50/40 border border-blue-100 p-3 rounded-xl text-center">
+                  <p className="text-blue-600 text-[10px] uppercase font-bold tracking-wider">Productividad</p>
+                  <p className="text-lg font-extrabold text-blue-600 mt-0.5">{tecnicoSeleccionado.productividad.toFixed(2)} lec/h</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
+                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Tiempo Promedio</p>
+                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">{tecnicoSeleccionado.tiempoPromedio.toFixed(2)} min</p>
                 </div>
               </div>
 
@@ -266,16 +266,16 @@ export default function PersonalResponsable({ actividadesTotales, procesoActivo,
                 <p className="text-xs font-bold text-slate-700 mb-2.5">Detalle de Anomalías / Impedimentos Detectados</p>
                 {tecnicoSeleccionado.detallesImpedimentos.length === 0 ? (
                   <p className="text-xs text-slate-400 italic bg-slate-50 p-4 border border-slate-100 rounded-xl text-center">
-                    El operario no presenta incidencias de campo. Su baja efectividad responde netamente a órdenes en cola pendientes por iniciar.
+                    El operario no presenta incidencias de campo activas.
                   </p>
                 ) : (
                   <div className="max-h-48 overflow-y-auto space-y-2 pr-1 border border-slate-100 rounded-xl p-2 bg-slate-50/50">
-                    {tecnicoSeleccionado.detallesImpedimentos.map((imp, i) => (
-                      <div key={i} className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center text-xs shadow-xs">
-                        <span className="font-mono text-blue-600 font-bold">Suministro #{imp.idOrden}</span>
-                        <span className="text-red-600 bg-red-50 font-semibold px-2 py-0.5 rounded text-[11px] max-w-[240px] truncate">
-                          {imp.motivo}
-                        </span>
+                    {tecnicoSeleccionado.detallesImpedimentos.map((alerta, i) => (
+                      <div key={i} className="bg-white p-3 rounded-lg border border-slate-200 text-xs shadow-xs space-y-1">
+                        <div className="text-red-600 bg-red-50 font-bold px-2 py-0.5 rounded text-[10px] uppercase inline-block">
+                          {alerta.kpi}
+                        </div>
+                        <p className="text-slate-700 font-medium pl-1">{alerta.motivo}</p>
                       </div>
                     ))}
                   </div>

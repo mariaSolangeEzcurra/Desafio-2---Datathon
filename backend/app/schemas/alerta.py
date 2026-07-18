@@ -18,19 +18,27 @@ class AlertaResponse(BaseModel):
 
 
 class ResumenTrabajadorKPI(BaseModel):
-    total_programadas: int
-    ejecutadas: int
-    cumplimiento_pct: float
+    total_lecturas: int
+    lecturas_exitosas: int
+
+    # No puede calcularse aún porque no existe la programación
+    cumplimiento_pct: Optional[float] = None
+    # KPI 2
     productividad_hora: float
+    # KPI 3
     tiempo_promedio_min: float
+    # Indicadores adicionales
     impedimentos_pct: float
+    cobertura_gps_pct: float
+    fuera_radio_pct: float
 
 class InformeTrabajadorResponse(BaseModel):
     trabajador_id: str
     resumen: ResumenTrabajadorKPI
     estado_critico: bool
-    # Aquí inyectamos directamente tu lista de alertas usando tu propio esquema
-    alertas_activas: List[AlertaResponse] 
+    alertas_activas: List[AlertaResponse]
 
+    class Config:
+        from_attributes = True
     class Config:
         from_attributes = True
