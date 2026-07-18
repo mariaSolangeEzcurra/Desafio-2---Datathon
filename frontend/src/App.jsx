@@ -21,6 +21,8 @@ export default function App() {
 
   };
 
+const [seccionActiva, setSeccionActiva] = useState("lecturas_resumen");
+
   if (!usuario) {
 
     return (
@@ -38,6 +40,8 @@ export default function App() {
     <DashboardLayout
       usuario={usuario}
       onLogout={handleLogout}
+      seccionActiva={seccionActiva}       
+      setSeccionActiva={setSeccionActiva} 
     />
 
   );

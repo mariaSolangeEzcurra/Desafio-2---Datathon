@@ -1,96 +1,52 @@
 import {
   LayoutDashboard,
-  Workflow,
+  Eye,
+  Boxes,
+  ZapOff,
+  SearchCode,
   Users,
-  Gauge,
-  Bell,
   Map,
-  ClipboardList,
-  Settings,
-  BarChart3,
-  Shuffle,
-  MessagesSquare,
+  Bell,
+  FileText
 } from "lucide-react";
 
 const navigation = [
-
   {
-    id: "dashboard",
-    label: "Dashboard",
+    id: "dashboard_general",
+    label: "Panel de Control General",
     icon: LayoutDashboard,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
   },
-
   {
-    id: "procesos",
-    label: "Procesos",
-    icon: Workflow,
+    id: "proceso_lecturas",
+    label: "Proceso: Lecturas",
+    icon: Eye,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
+    children: [
+      { id: "lecturas_resumen", label: "Resumen Ejecutivo", icon: FileText },
+      { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
+      { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
+      { id: "lecturas_alertas", label: "Alertas e Impedimentos", icon: Bell },
+    ]
   },
-
   {
-    id: "usuarios",
-    label: "Usuarios",
+    id: "proceso_cortes",
+    label: "Proceso: Cortes y Reap.",
+    icon: ZapOff,
+    roles: ["Supervisor", "Coordinador", "Gerencia"],
+    children: [
+      { id: "cortes_resumen", label: "Resumen Ejecutivo", icon: FileText },
+      { id: "cortes_personal", label: "Personal Asignado", icon: Users },
+      { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
+      { id: "cortes_alertas", label: "Alertas e Impedimentos", icon: Bell },
+    ]
+  },
+  {
+    id: "gestion_usuarios",
+    label: "Usuarios del Sistema",
     icon: Users,
-    roles: ["Gerencia"],
-  },
-
-  {
-    id: "kpis",
-    label: "KPIs",
-    icon: Gauge,
-    roles: ["Coordinador", "Gerencia"],
-  },
-
-  {
-    id: "alertas",
-    label: "Alertas",
-    icon: Bell,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
-  },
-
-  {
-    id: "incidencias",
-    label: "Incidencias",
-    icon: ClipboardList,
-    roles: ["Coordinador"],
-  },
-
-  {
-    id: "redistribucion",
-    label: "Redistribución",
-    icon: Shuffle,
-    roles: ["Coordinador"],
-  },
-
-  {
-    id: "mensajes",
-    label: "Mensajes",
-    icon: MessagesSquare,
-    roles: ["Supervisor"],
-  },
-
-  {
-    id: "mapa",
-    label: "Mapa GIS",
-    icon: Map,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
-  },
-
-  {
-    id: "reportes",
-    label: "Reportes",
-    icon: BarChart3,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
-  },
-
-  {
-    id: "configuracion",
-    label: "Configuración",
-    icon: Settings,
-    roles: ["Gerencia"],
-  },
-
+    roles: ["Gerencia", "Supervisor"],
+  }
 ];
 
 export default navigation;

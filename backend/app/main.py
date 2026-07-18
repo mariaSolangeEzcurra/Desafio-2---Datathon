@@ -7,7 +7,7 @@ from app import model
 # Routers
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
-from app.routers import usuarios, zonas, conexiones, trabajadores, actividades, impedimentos, alertas, mapas
+from app.routers import usuarios, zonas, conexiones, trabajadores, actividades, impedimentos, alertas, mapas, upload
 
 # crear tablas (si no existen)
 model.Base.metadata.create_all(bind=engine)
@@ -40,6 +40,7 @@ app.include_router(actividades.router)
 app.include_router(impedimentos.router)
 app.include_router(alertas.router)
 app.include_router(mapas.router)
+app.include_router(upload.router)
 
 @app.get("/")
 def root():
