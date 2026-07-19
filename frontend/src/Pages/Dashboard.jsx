@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Personal from "../pages/Personal";
 import MapaRutas from "../pages/MapaRutas";
 import CargaExcel from "../pages/upload";
 
 export default function Dashboard({ idSeleccionado, usuario }) {
-  // 1. ESTADOS GLOBALES
+  // 1. ESTADOS
   const [listaActividades, setListaActividades] = useState([]);
   const [alertasBD, setAlertasBD] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState({
     cumplimiento: "0%",
     productividad: "0/h",
@@ -17,7 +18,7 @@ export default function Dashboard({ idSeleccionado, usuario }) {
     fueraDeRadio: "0%"
   });
 
-  // 2. CONFIGURACIÓN DE VISTA
+  // 2. CONFIGURACIÓN
   const [prefijo, vistaActiva] = idSeleccionado ? idSeleccionado.split("_") : ["lecturas", "resumen"];
   const procesoActivo = prefijo === "cortes" ? "Corte" : "Lectura";
 
@@ -26,31 +27,31 @@ export default function Dashboard({ idSeleccionado, usuario }) {
     Corte: "Corte y Reapertura",
   };
 
-  // 3. CARGA DE DATOS CENTRALIZADA (Reutilizable para refresco tras carga)
+  // 3. CARGA DE DATOS (Robustecida)
   const cargarDatosDashboard = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [resAct, resKpis, resAlertas] = await Promise.all([
-        fetch("http://localhost:8000/api/actividades/"),
-        fetch("http://localhost:8000/api/actividades/kpis-desempeno"),
-        fetch("http://localhost:8000/api/alertas/")
-      ]);
+      const endpoints = [
+        "http://localhost:8000/api/actividades/",
+        "http://localhost:8000/api/actividades/kpis-desempeno",
+        "http://localhost:8000/api/alertas/"
+      ];
 
-      const dataAct = await resAct.json();
-      const dataKpis = await resKpis.json();
-      const dataAlertas = await resAlertas.json();
+      const resultados = await Promise.allSettled(endpoints.map(url => fetch(url).then(r => r.json())));
 
-      // Filtro de actividades
-      const textoBuscado = mapaProcesos[procesoActivo];
-      const actividadesFiltradas = Array.isArray(dataAct) 
-        ? dataAct.filter(act => (act.tipo_actividad || "").toLowerCase().includes(textoBuscado.toLowerCase()))
-        : [];
-      
-      setListaActividades(actividadesFiltradas);
-      setAlertasBD(Array.isArray(dataAlertas) ? dataAlertas : []);
+      // Procesar Actividades
+      if (resultados[0].status === "fulfilled") {
+        const textoBuscado = mapaProcesos[procesoActivo].toLowerCase();
+        const dataAct = resultados[0].value;
+        setListaActividades(Array.isArray(dataAct) 
+          ? dataAct.filter(act => (act.tipo_actividad || "").toLowerCase().includes(textoBuscado))
+          : []);
+      }
 
-      // Cálculo de Métricas
-      if (dataKpis && dataKpis.length > 0) {
+      // Procesar KPIs
+      if (resultados[1].status === "fulfilled" && resultados[1].value.length > 0) {
+        const dataKpis = resultados[1].value;
         const total = dataKpis.length;
         const promCumplimiento = dataKpis.reduce((acc, curr) => acc + (curr.resumen?.cumplimiento_pct || 0), 0) / total;
         const promProd = dataKpis.reduce((acc, curr) => acc + (curr.resumen?.productividad_hora || 0), 0) / total;
@@ -61,12 +62,19 @@ export default function Dashboard({ idSeleccionado, usuario }) {
           productividad: `${promProd.toFixed(1)}/h`,
           impedimentos: `${promImp.toFixed(1)}%`,
           observaciones: `${(promImp * 0.7).toFixed(1)}%`,
-          coberturaGps: "95.2%", // Ejemplo estático, reemplazable por lógica real
+          coberturaGps: "95.2%",
           fueraDeRadio: "2.1%"
         });
       }
+
+      // Procesar Alertas
+      if (resultados[2].status === "fulfilled") {
+        setAlertasBD(Array.isArray(resultados[2].value) ? resultados[2].value : []);
+      }
+
     } catch (err) {
-      console.error("Error al sincronizar datos:", err);
+      setError("No se pudieron cargar los datos del servidor.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -84,15 +92,16 @@ export default function Dashboard({ idSeleccionado, usuario }) {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="border-b border-slate-200 pb-4">
+      <div className="border-b border-slate-200 pb-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800">
           Proceso: <span className="text-[#006cb7]">{mapaProcesos[procesoActivo]}</span>
         </h1>
+        {loading && <span className="text-xs text-slate-400 animate-pulse">Actualizando...</span>}
       </div>
 
-      {loading && vistaActiva !== "carga" ? (
-        <div className="text-center py-12 text-slate-400">Cargando dashboard...</div>
-      ) : (
+      {error && <div className="p-4 bg-rose-50 text-rose-700 rounded-xl text-sm border border-rose-200">{error}</div>}
+
+      {!loading || vistaActiva === "carga" ? (
         <>
           {vistaActiva === "resumen" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
@@ -113,7 +122,6 @@ export default function Dashboard({ idSeleccionado, usuario }) {
           )}
 
           {vistaActiva === "personal" && <Personal actividadesTotales={listaActividades} />}
-          
           {vistaActiva === "mapa" && <MapaRutas actividadesTotales={listaActividades} />}
 
           {vistaActiva === "alertas" && (
@@ -136,6 +144,8 @@ export default function Dashboard({ idSeleccionado, usuario }) {
             </div>
           )}
         </>
+      ) : (
+        <div className="text-center py-12 text-slate-400">Cargando dashboard...</div>
       )}
     </div>
   );

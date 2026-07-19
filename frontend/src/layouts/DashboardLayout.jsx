@@ -3,7 +3,6 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import Dashboard from "../pages/Dashboard";
 import Usuarios from "../pages/Usuarios";
-import CargaExcel from "../pages/upload";
 
 export default function DashboardLayout({
   usuario,
@@ -12,39 +11,27 @@ export default function DashboardLayout({
   setSeccionActiva
 }) {
 
-  // Función encargada de decidir qué componente renderizar
+  // Función simplificada: Todo lo que no sea Usuarios va al Dashboard.
+  // El Dashboard se encarga internamente de renderizar "Carga", "Mapa", etc.
   const renderVista = () => {
-    // 1. Manejo específico de las vistas de Carga (según los IDs de navigation.js)
-    if (seccionActiva === "lecturas_carga") {
-      return <CargaExcel proceso="lecturas" />;
-    }
-    if (seccionActiva === "cortes_carga") {
-      return <CargaExcel proceso="cortes" />;
-    }
-
-    // 2. Manejo de vistas generales
     switch (seccionActiva) {
       case "gestion_usuarios":
         return <Usuarios />;
       
-      case "dashboard_general":
-        return <Dashboard idSeleccionado="lecturas_resumen" usuario={usuario} />;
-      
       default:
-        // 3. Manejo dinámico para Dashboard (Lecturas/Cortes)
-        // Todos los otros IDs (personal, mapa, alertas, resumen) empiezan con el prefijo
+        // Si es una vista de lecturas_... o cortes_..., el Dashboard la maneja.
+        // Si no se encuentra, por seguridad enviamos al resumen de lecturas.
         if (seccionActiva.startsWith("lecturas_") || seccionActiva.startsWith("cortes_")) {
           return <Dashboard idSeleccionado={seccionActiva} usuario={usuario} />;
         }
         
-        // Fallback por seguridad
         return <Dashboard idSeleccionado="lecturas_resumen" usuario={usuario} />;
     }
   };
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Barra Lateral: recibe el estado y el setter para la navegación */}
+      {/* Sidebar: navega a través de setSeccionActiva */}
       <Sidebar 
         usuario={usuario} 
         vista={seccionActiva} 
