@@ -8,7 +8,7 @@ from app import model
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
 from app.routers import usuarios, zonas, conexiones, trabajadores, actividades, impedimentos, alertas, mapas, upload
-
+from app.routers.personal import router as personal_router
 # crear tablas (si no existen)
 model.Base.metadata.create_all(bind=engine)
 # 1. Primero declaras la app
@@ -41,6 +41,7 @@ app.include_router(impedimentos.router)
 app.include_router(alertas.router)
 app.include_router(mapas.router)
 app.include_router(upload.router)
+app.include_router(personal_router)
 
 @app.get("/")
 def root():

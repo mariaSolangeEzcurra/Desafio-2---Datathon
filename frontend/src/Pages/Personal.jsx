@@ -1,297 +1,212 @@
 import React, { useEffect, useState } from "react";
+import { obtenerPersonalPorProceso } from "../services/personalService";
 
-export default function PersonalResponsable({ procesoActivo }) {
-  // Estados locales para el control de la API y el ciclo de vida
+export default function Personal({ procesoActivo }) {
   const [personalProcesado, setPersonalProcesado] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Estado local para controlar el modal de auditoría
   const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState(null);
 
-useEffect(() => {
+  useEffect(() => {
+    const cargarPersonal = async () => {
+      try {
+        setLoading(true);
+        const data = await obtenerPersonalPorProceso(procesoActivo);
+        
+        // Mapeo seguro adaptado a la estructura anidada (resumen) del backend
+        const trabajadores = Array.isArray(data) ? data.map((item) => {
+          const resumen = item.resumen || {};
 
-const obtenerKPIs = async () => {
+          return {
+            codigo: item.trabajador_id || "N/A",
+            // Como el servicio de desempeño usa el ID (ccodprs), usamos un fallback si no viene el campo 'nombre'
+            nombre: item.nombre || `Operario ${item.trabajador_id || "S/C"}`,
+            empresa: "SEDAPAR",
+            supervisor: item.supervisor || "No asignado",
+            distrito: item.distrito_base || "No asignado",
+            proceso: item.proceso_actual || procesoActivo,
+            
+            // Extracción de datos desde el objeto 'resumen' del backend
+            totalLecturas: resumen.total_lecturas ?? 0,
+            lecturasExitosas: resumen.lecturas_exitosas ?? 0,
+            cumplimiento: resumen.cumplimiento_pct ?? -1,
+            productividad: resumen.productividad_hora ?? 0,
+            tiempoPromedio: resumen.tiempo_promedio_min ?? 0,
+            impedimentos: resumen.impedimentos_pct ?? 0,
+            coberturaGps: resumen.cobertura_gps_pct ?? 0,
+            fueraRadio: resumen.fuera_radio_pct ?? 0,
+            
+            // Atributos de la raíz del objeto
+            critico: item.estado_critico ?? false,
+            detallesImpedimentos: item.alertas_activas || []
+          };
+        }) : [];
 
-try {
+        setPersonalProcesado(trabajadores);
+      } catch (error) {
+        console.error("Error al cargar personal:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-setLoading(true);
-
-const response = await fetch(
-"http://localhost:8000/api/actividades/kpis-desempeno"
-);
-
-const data = await response.json();
-
-
-const trabajadores = data.map((item)=>{
-
-
-const cumplimiento =
-item.resumen.cumplimiento_pct !== null
-? item.resumen.cumplimiento_pct
-: -1;
-
-
-return {
-
-nombre:`Operario Código: ${item.trabajador_id}`,
-
-empresa:"SEDAPAR",
-
-
-totalLecturas:
-item.resumen.total_programadas,
-
-
-lecturasExitosas:
-item.resumen.ejecutadas,
-
-
-cumplimiento,
-
-
-productividad:
-item.resumen.productividad_hora ?? 0,
-
-
-tiempoPromedio:
-item.resumen.tiempo_promedio_min ?? 0,
-
-
-impedimentos:
-item.resumen.impedimentos_pct ?? 0,
-
-
-critico:
-item.estado_critico,
-
-
-detallesImpedimentos:
-item.alertas_activas || []
-
-};
-
-
-});
-
-
-setPersonalProcesado(trabajadores);
-
-
-}catch(error){
-
-console.error(
-"Error cargando KPIs:",
-error
-);
-
-}
-
-finally{
-
-setLoading(false);
-
-}
-
-};
-
-
-obtenerKPIs();
-
-
-},[]);
-
-  
+    cargarPersonal();
+  }, [procesoActivo]);
 
   if (loading) {
     return (
-      <div className="text-center py-8 text-xs text-slate-500 font-medium">
-        Cargando indicadores de rendimiento operativos...
+      <div className="text-center py-10 text-slate-500 text-sm">
+        Cargando personal...
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 mt-6">
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">👷 Personal Asignado (Control de Criticidad)</h3>
-            <p className="text-xs text-slate-400">
-              Ordenados automáticamente por nivel de alerta operativa en: <span className="font-bold text-blue-600">{procesoActivo}</span>
-            </p>
-          </div>
-          <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-mono">
-            {personalProcesado.length} Operarios activos
-          </span>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 text-left">
+      <div className="flex justify-between mb-6 items-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">
+            👷 Personal Asignado
+          </h2>
+          <p className="text-sm text-slate-500">
+            Proceso: <b className="text-[#006cb7]">{procesoActivo}</b>
+          </p>
         </div>
-
-        {personalProcesado.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            No hay personal registrado trabajando en {procesoActivo} en este momento.
+        <div className="text-right">
+          <div className="text-3xl font-bold text-blue-600">
+            {personalProcesado.length}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                  <th className="pb-3">Nombre / Código del Técnico</th>
-                  <th className="pb-3">Contratista / Empresa</th>
-                  <th className="pb-3 text-center">Total Lecturas</th>
-                  <th className="pb-3 text-center">Productividad</th>
-                  <th className="pb-3 text-center">Tiempo Promedio</th>
-                  <th className="pb-3 text-center">Impedimentos</th>
-                  <th className="pb-3 text-center">Cumplimiento</th>
-                  <th className="pb-3 text-right">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {personalProcesado.map((person) => {
-                  return (
-                    <tr 
-                      key={person.nombre} 
-                      onClick={() => setTecnicoSeleccionado(person)}
-                      className="transition-colors cursor-pointer hover:bg-slate-50/80"
-                    >
-                      <td className="py-3.5 font-medium text-slate-800 flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-[10px] shrink-0 ${
-                          person.critico ? "bg-red-100 text-red-600 animate-pulse" : "bg-blue-50 text-blue-600"
-                        }`}>
-                          {person.nombre.replace("Operario Código: ", "").substring(0, 2).toUpperCase()}
-                        </div>
-                        <span className="text-blue-600 hover:underline font-semibold">
-                          {person.nombre}
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-slate-500 font-mono text-[11px]">{person.empresa}</td>
-                      <td className="py-3.5 text-center font-bold text-slate-700">{person.totalLecturas}</td>
-                      <td className="py-3.5 text-center text-green-600 font-semibold">{person.productividad.toFixed(2)} lec/h</td>
-                      <td className="py-3.5 text-center text-slate-600 font-medium">{person.tiempoPromedio.toFixed(2)} min</td>
-                      <td className="py-3.5 text-center text-amber-600 font-semibold">{person.impedimentos.toFixed(1)}%</td>
-                      <td className="py-3.5 text-center font-mono">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                          person.cumplimiento === -1 ? "bg-slate-100 text-slate-600" : person.cumplimiento > 85 ? "bg-green-50 text-green-700" : person.cumplimiento > 50 ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"
-                        }`}>
-                          {person.cumplimiento === -1 ? "N/D" : `${person.cumplimiento.toFixed(1)}%`}
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right">
-                        {person.critico ? (
-                          <span className="px-2 py-1 rounded bg-red-600 text-white text-[10px] font-bold uppercase tracking-wide shadow-sm">
-                            🚨 Crítico
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-medium uppercase tracking-wide">
-                            Estable
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          <div className="text-xs text-slate-400">Operarios</div>
+        </div>
       </div>
 
-      {/* 🔮 MODAL FLOTANTE DE DETALLE DE CRITICIDAD */}
+      {personalProcesado.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 italic">
+          No existe personal asignado para este proceso.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-slate-150 rounded-xl">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold">
+                <th className="p-3">Operario</th>
+                <th className="p-3">Distrito</th>
+                <th className="p-3">Supervisor</th>
+                <th className="p-3 text-center">Total</th>
+                <th className="p-3 text-center">Productividad</th>
+                <th className="p-3 text-center">GPS</th>
+                <th className="p-3 text-center">Impedimentos</th>
+                <th className="p-3 text-center">Cumplimiento</th>
+                <th className="p-3 text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-600">
+              {personalProcesado.map((p) => (
+                <tr
+                  key={p.codigo}
+                  className="hover:bg-slate-50 cursor-pointer transition-colors"
+                  onClick={() => setTecnicoSeleccionado(p)}
+                >
+                  <td className="p-3 font-medium text-slate-900">{p.nombre}</td>
+                  <td className="p-3">{p.distrito}</td>
+                  <td className="p-3">{p.supervisor}</td>
+                  <td className="p-3 text-center font-semibold">{p.totalLecturas}</td>
+                  <td className="p-3 text-center">{p.productividad.toFixed(2)}/h</td>
+                  <td className="p-3 text-center">{p.coberturaGps.toFixed(1)}%</td>
+                  <td className="p-3 text-center text-amber-600">{p.impedimentos.toFixed(1)}%</td>
+                  <td className="p-3 text-center font-medium">
+                    {p.cumplimiento === -1 ? "N/D" : `${p.cumplimiento.toFixed(1)}%`}
+                  </td>
+                  <td className="p-3 text-center">
+                    {p.critico ? (
+                      <span className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-md text-[11px]">
+                        🚨 Crítico
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-[11px]">
+                        Normal
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* MODAL DETALLE OPERARIO */}
       {tecnicoSeleccionado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-          <div className="absolute inset-0" onClick={() => setTecnicoSeleccionado(null)}></div>
-          
-          <div className="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl relative z-10 overflow-hidden transform transition-all">
-            
-            <div className={`p-5 border-b border-slate-100 flex justify-between items-start ${
-              tecnicoSeleccionado.critico ? 'bg-gradient-to-r from-red-50/50 to-white' : 'bg-gradient-to-r from-blue-50/50 to-white'
-            }`}>
-              <div>
-                <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${
-                  tecnicoSeleccionado.critico ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  Auditoría de Control Operativo
-                </span>
-                <h4 className="text-base font-bold text-slate-800 mt-1.5">
-                  Análisis: <span className="text-blue-600">{tecnicoSeleccionado.nombre}</span>
-                </h4>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">Empresa: {tecnicoSeleccionado.empresa}</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 shadow-xl border border-slate-100 mx-4">
+            <h3 className="font-bold text-lg text-slate-800 mb-4 pb-2 border-b">
+              🔎 Detalle del Operario: <span className="text-blue-600">{tecnicoSeleccionado.nombre}</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Código</span>
+                <span className="text-slate-800 font-mono font-bold text-sm">{tecnicoSeleccionado.codigo}</span>
               </div>
-              <button 
-                onClick={() => setTecnicoSeleccionado(null)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 h-7 w-7 rounded-full flex items-center justify-center font-medium transition-colors"
-              >
-                ✕
-              </button>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Distrito Base</span>
+                <span className="text-slate-800 font-semibold">{tecnicoSeleccionado.distrito}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Supervisor</span>
+                <span className="text-slate-800 font-semibold">{tecnicoSeleccionado.supervisor}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Proceso</span>
+                <span className="text-slate-800 font-semibold">{tecnicoSeleccionado.proceso}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Total Asignado</span>
+                <span className="text-slate-800 font-bold text-sm">{tecnicoSeleccionado.totalLecturas}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Productividad</span>
+                <span className="text-slate-800 font-bold text-sm">{tecnicoSeleccionado.productividad.toFixed(2)}/h</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Cobertura GPS</span>
+                <span className="text-slate-800 font-semibold">{tecnicoSeleccionado.coberturaGps.toFixed(1)}%</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Fuera de Radio</span>
+                <span className="text-slate-800 font-semibold text-rose-600">{tecnicoSeleccionado.fueraRadio.toFixed(1)}%</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <span className="text-slate-400 block font-medium">Tiempo Promedio</span>
+                <span className="text-slate-800 font-semibold">{tecnicoSeleccionado.tiempoPromedio.toFixed(1)} min</span>
+              </div>
             </div>
 
-            <div className="p-5 space-y-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Total Lecturas</p>
-                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">{tecnicoSeleccionado.totalLecturas}</p>
-                </div>
-                <div className="bg-green-50/40 border border-green-100 p-3 rounded-xl text-center">
-                  <p className="text-green-600 text-[10px] uppercase font-bold tracking-wider">Cumplimiento</p>
-                  <p className="text-lg font-extrabold text-green-600 mt-0.5">
-                    {tecnicoSeleccionado.cumplimiento === -1 ? "No disponible" : `${tecnicoSeleccionado.cumplimiento.toFixed(1)}%`}
-                  </p>
-                </div>
-                <div className="bg-blue-50/40 border border-blue-100 p-3 rounded-xl text-center">
-                  <p className="text-blue-600 text-[10px] uppercase font-bold tracking-wider">Productividad</p>
-                  <p className="text-lg font-extrabold text-blue-600 mt-0.5">{tecnicoSeleccionado.productividad.toFixed(2)} lec/h</p>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Tiempo Promedio</p>
-                  <p className="text-lg font-extrabold text-slate-700 mt-0.5">{tecnicoSeleccionado.tiempoPromedio.toFixed(2)} min</p>
-                </div>
-              </div>
-
-              <div className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                tecnicoSeleccionado.critico 
-                  ? 'bg-red-50/60 border-red-100 text-red-800' 
-                  : 'bg-emerald-50/60 border-emerald-100 text-emerald-800'
-              }`}>
-                <span className="text-sm">{tecnicoSeleccionado.critico ? "⚠️" : "✅"}</span>
-                <div>
-                  <p className="font-bold">Diagnóstico Automatizado del Sistema</p>
-                  <p className="opacity-90 mt-0.5">
-                    {tecnicoSeleccionado.critico 
-                      ? "Alerta operativa encendida. El operario registra anomalías de campo o un rendimiento inferior al promedio esperado."
-                      : "Flujo de actividades estable. El rendimiento se mantiene dentro de los márgenes corporativos aceptables."}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-slate-700 mb-2.5">Detalle de Anomalías / Impedimentos Detectados</p>
+            <div className="mt-6">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2">
+                🚨 Incidencias / Alertas Activas
+              </h4>
+              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
                 {tecnicoSeleccionado.detallesImpedimentos.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic bg-slate-50 p-4 border border-slate-100 rounded-xl text-center">
-                    El operario no presenta incidencias de campo activas.
-                  </p>
+                  <p className="text-xs text-slate-400 italic">El operario no registra incidencias críticas en el sistema.</p>
                 ) : (
-                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1 border border-slate-100 rounded-xl p-2 bg-slate-50/50">
-                    {tecnicoSeleccionado.detallesImpedimentos.map((alerta, i) => (
-                      <div key={i} className="bg-white p-3 rounded-lg border border-slate-200 text-xs shadow-xs space-y-1">
-                        <div className="text-red-600 bg-red-50 font-bold px-2 py-0.5 rounded text-[10px] uppercase inline-block">
-                          {alerta.kpi}
-                        </div>
-                        <p className="text-slate-700 font-medium pl-1">{alerta.motivo}</p>
-                      </div>
-                    ))}
-                  </div>
+                  tecnicoSeleccionado.detallesImpedimentos.map((a, i) => (
+                    <div key={i} className="border border-slate-150 rounded-xl p-3 bg-rose-50/30 text-xs">
+                      <b className="text-rose-700 block text-[13px]">{a.kpi}</b>
+                      <p className="text-slate-600 mt-1">{a.motivo}</p>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="mt-6 text-right border-t pt-4">
               <button
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
                 onClick={() => setTecnicoSeleccionado(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
               >
-                Entendido, Cerrar
+                Cerrar Ventana
               </button>
             </div>
-
           </div>
         </div>
       )}

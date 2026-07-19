@@ -4,13 +4,12 @@ import re
 from app.database import get_db
 from app import model
 from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
-from app.services.auth_utils import obtener_password_hash
+from backend.app.services.auth_service import obtener_password_hash
 
 router = APIRouter(
     prefix="/api/usuarios",
     tags=["Usuarios"]
 )
-
 
 # generar codigo
 def generar_codigo_usuario(db: Session):
@@ -52,7 +51,6 @@ def crear_usuario(
         id_usuario=generar_codigo_usuario(db),
         nombre=datos.nombre,
         correo=datos.correo,
-        contrasena=obtener_password_hash(datos.password),
         rol=datos.rol,
         estado=datos.estado
     )

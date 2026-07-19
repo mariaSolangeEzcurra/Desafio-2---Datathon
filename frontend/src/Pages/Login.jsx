@@ -1,26 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ShieldCheckIcon } from "lucide-react";
-import { login } from "../services/authService";
+import { loginConGoogle } from "../services/authService";
 
 export default function Login({ onLogin }) {
-
-  const [correo, setCorreo] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const googleInicializado = useRef(false); 
+
+  useEffect(() => {
+    if (typeof google !== "undefined" && !googleInicializado.current) {
+      google.accounts.id.initialize({
+        client_id: "249701213502-v0nmel3t0r6otgu71r0fek42p2olchbc.apps.googleusercontent.com",
+        callback: handleGoogleResponse,
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("btnGoogleLogin"),
+        { theme: "outline", size: "large", width: "356", text: "signin_with", shape: "pill" }
+      );
+      googleInicializado.current = true; 
+    }
+  }, []);
+
+  const handleGoogleResponse = async (response) => {
     setLoading(true);
     setError("");
     try {
-      const usuario = await login(
-        correo,
-        password
-      );
+      const usuario = await loginConGoogle(response.credential);
       onLogin(usuario);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Error al autenticar con la cuenta institucional.");
     } finally {
       setLoading(false);
     }
@@ -45,10 +53,7 @@ export default function Login({ onLogin }) {
             </div>
           </div>
         </div>
-        <div className="max-w-md">
-          <p className="mb-4 text-sm font-semibold tracking-[0.2em] text-sky-200">
-            INTELIGENCIA OPERATIVA
-          </p>
+        <div className="max-w-md">         
           <h1 className="text-5xl font-bold leading-tight text-white">
             Decisiones oportunas<br />para una operación<br />eficiente.
           </h1>
@@ -61,7 +66,8 @@ export default function Login({ onLogin }) {
           © 2026 SEDAPAR · Uso institucional autorizado
         </p>
       </section>
-      {/* Login */}
+
+      {/* Login con Google */}
       <section className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-[420px] rounded-2xl bg-white p-8 shadow-xl">
           <div className="mb-8">
@@ -72,64 +78,28 @@ export default function Login({ onLogin }) {
               Bienvenido
             </h2>
             <p className="mt-2 text-slate-500">
-              Ingrese sus credenciales institucionales.
+              Acceda de forma segura usando su correo institucional registrado.
             </p>
           </div>
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
-         >
+
+          <div className="space-y-5">
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                 {error}
-             </div>
-            )}
-            <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Correo institucional
-              </label>
-              <input
-                type="email"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#006cb7] focus:ring-4 focus:ring-blue-100"
-                placeholder="usuario@sedapar.com.pe"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-700">
-                Contraseña
-              </label>
-              <div className="relative mt-2">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-24 outline-none transition focus:border-[#006cb7] focus:ring-4 focus:ring-blue-100"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowPassword(!showPassword)
-                  }
-                  className="absolute right-4 top-3 text-sm font-semibold text-[#006cb7]"
-                >
-                  {showPassword ? "Ocultar" : "Mostrar"}
-                </button>
               </div>
-            </div>
-            <button
-              disabled={loading}
-              type="submit"
-              className="w-full rounded-xl bg-[#006cb7] py-3 font-bold text-white transition hover:bg-[#005895] disabled:opacity-60"
-            >
-              {loading
-               ? "Validando..."
-                : "Iniciar sesión"}
-            </button>
-          </form>
+            )}
+
+            {/* Contenedor donde Google renderizará el botón nativo e inviolable */}
+            <div className="flex flex-col items-center justify-center pt-2">
+              {loading ? (
+                <div className="text-sm font-semibold text-slate-600 flex items-center gap-2 py-3">
+                  <span className="animate-pulse">Validando cuenta institucional...</span>
+                </div>
+              ) : (
+                <div id="btnGoogleLogin" className="w-full flex justify-center"></div>
+              )}
+            </div>            
+          </div>
         </div>
       </section>
     </main>

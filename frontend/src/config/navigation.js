@@ -7,7 +7,8 @@ import {
   Users,
   Map,
   Bell,
-  FileText
+  FileText,
+  UploadCloud 
 } from "lucide-react";
 
 const navigation = [
@@ -23,7 +24,9 @@ const navigation = [
     icon: Eye,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
     children: [
-      { id: "lecturas_resumen", label: "Resumen Ejecutivo", icon: FileText },
+      // Al hacer clic aquí, pasará el id "lecturas_carga" al Dashboard
+      { id: "lecturas_carga", label: "Carga de Datos (Excel)", icon: UploadCloud },
+      { id: "lecturas_resumen", label: "Resumen Ejecutivo", icon: FileText }, 
       { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
       { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
       { id: "lecturas_alertas", label: "Alertas e Impedimentos", icon: Bell },
@@ -35,6 +38,8 @@ const navigation = [
     icon: ZapOff,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
     children: [
+      // Habilitado e indexado de forma simétrica para el proceso de Cortes
+      { id: "cortes_carga", label: "Carga de Datos (Excel)", icon: UploadCloud },
       { id: "cortes_resumen", label: "Resumen Ejecutivo", icon: FileText },
       { id: "cortes_personal", label: "Personal Asignado", icon: Users },
       { id: "cortes_mapa", label: "Mapa GIS", icon: Map },

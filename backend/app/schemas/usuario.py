@@ -9,7 +9,6 @@ class UsuarioUpdate(BaseModel):
 class UsuarioCreate(BaseModel):
     nombre: str
     correo: EmailStr
-    password: str
     rol: str
     estado: str = "Activo"
 
@@ -19,5 +18,6 @@ class UsuarioResponse(BaseModel):
     correo: EmailStr
     rol: str
     estado: str
+    
     class Config:
         from_attributes = True

@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/api/usuarios";
+const API_URL = "http://localhost:8000/api/usuarios/";
 
 export async function obtenerUsuarios() {
     const token = localStorage.getItem("token");
