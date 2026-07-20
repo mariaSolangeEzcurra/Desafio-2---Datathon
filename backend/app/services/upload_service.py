@@ -1,122 +1,151 @@
 import io
 import pandas as pd
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from fastapi import HTTPException, status
-from datetime import date, datetime
+from fastapi import HTTPException
+from app.model import Zona, Ruta, Trabajador, Conexion, Actividad, ActividadLectura, RegistroCarga
+from app.services.geo_utils import limpiar_coordenada, limpiar_fecha, distancia_metros, RADIO_TOLERANCIA_METROS
 
-from app.model import (
-    Zona, Ruta, Conexion, Trabajador, Actividad, ActividadLectura,
-    Impedimento, Observacion, CatalogoImpedimento, CatalogoObservacion, RegistroCarga
-)
-from app.services.geo_utils import (
-    limpiar_coordenada, distancia_metros, limpiar_fecha, 
-    CODIGOS_VACIOS, GAP_MAXIMO_VALIDO_MIN, RADIO_TOLERANCIA_METROS
-)
+COLUMNAS_REQUERIDAS = {"CCODCNX", "CCODPRS", "CMETFAC", "DISTRITO"}
+def _valor_o_none(row, columna):
+    """Devuelve None si la celda no existe o es NaN, en vez de NaN 'crudo'."""
+    valor = row.get(columna)
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return None
+    return valor
+
+def _to_int(valor, default=0):
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return default
+    try:
+        return int(float(valor))
+    except (ValueError, TypeError):
+        return default
 
 def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Session) -> dict:
-    df = pd.read_excel(io.BytesIO(contents))
-    df.columns = [col.upper().strip() for col in df.columns]
-
-    columnas_requeridas = ['CCODCNX', 'CCODPRS', 'DISTRITO', 'CMETFAC', 'NLECACT', 'DLECTUR']
-    for col in columnas_requeridas:
-        if col not in df.columns:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Falta la columna mandatoria en el archivo Excel: {col}"
-            )
-
-    total_filas_excel = len(df)
+    try:
+        df = pd.read_excel(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo leer el Excel: {e}")
+    df.columns = [str(col).upper().strip() for col in df.columns]
+    faltantes = COLUMNAS_REQUERIDAS - set(df.columns)
+    if faltantes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Faltan columnas obligatorias en el Excel: {sorted(faltantes)}"
+        )
+    if df.empty:
+        raise HTTPException(status_code=400, detail="El archivo Excel no contiene filas.")
+    zonas_cache = {}
+    rutas_cache = {}
+    trabajadores_cache = {}
+    conexiones_cache = {}
     registros_procesados = 0
-    cache_ultima_lectura: dict[tuple[str, date], datetime] = {}
-
-    for index, row in df.iterrows():
-        ccodcnx_str = str(row['CCODCNX']).split('.')[0].strip()
-        ccodprs_str = str(row['CCODPRS']).split('.')[0].strip()
-        cmetfac_str = str(row['CMETFAC']).split('.')[0].strip()
-        distrito_txt = str(row['DISTRITO']).strip().upper()
-
-        lat = limpiar_coordenada(row.get('CGPSLAT'), 'lat')
-        lon = limpiar_coordenada(row.get('CGPSLON'), 'lon')
-        alt_raw = row.get('CGPSALT')
-        alt = float(alt_raw) if pd.notna(alt_raw) and str(alt_raw).strip() not in ("", "9999", "0") else None
-
-        # 1. ZONA
-        zona_id_gen = f"Z-{distrito_txt[:3]}-{cmetfac_str}"
-        zona = db.query(Zona).filter_by(zona_id=zona_id_gen).first()
-        if not zona:
-            zona = Zona(zona_id=zona_id_gen, distrito=distrito_txt, cmetfac=cmetfac_str, zona_operativa="Metropolitana")
-            db.add(zona)
-            db.flush()
-
-        # 2. RUTA
-        cderule_val = str(row.get('CDERULE')).strip() if pd.notna(row.get('CDERULE')) else "SIN_RUTA"
-        ruta = db.query(Ruta).filter_by(ruta_id=cderule_val).first()
-        if not ruta:
-            ruta = Ruta(ruta_id=cderule_val)
-            db.add(ruta)
-            db.flush()
-
-        # 3. TRABAJADOR
-        trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs_str).first()
-        if not trabajador:
-            trabajador = Trabajador(ccodprs=ccodprs_str, nombre=f"Operario {ccodprs_str}", proceso_actual=proceso)
-            db.add(trabajador)
-        else:
-            trabajador.proceso_actual = proceso
-        db.flush()
-
-        # 4. CONEXIÓN
-        conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx_str).first()
-        if not conexion:
-            conexion = Conexion(ccodcnx=ccodcnx_str, zona_id=zona_id_gen, ruta_id=cderule_val, estado_servicio="Activo")
-            db.add(conexion)
-            db.flush()
-
-        # 5. ACTIVIDAD
-        fecha_hora_lectura = limpiar_fecha(row.get('DLECTUR'))
-        actividad_id_gen = f"ACT-{ccodcnx_str}-{fecha_hora_lectura.strftime('%Y%m%d%H%M')}"
-        actividad_existente = db.query(Actividad).filter_by(actividad_id=actividad_id_gen).first()
-
-        if not actividad_existente:
-            cimplec_val = str(row.get('CIMPLEC')).split('.')[0].strip() if pd.notna(row.get('CIMPLEC')) else "00"
-            if cimplec_val in CODIGOS_VACIOS: cimplec_val = "00"
-            
-            estado_act = "Inconcluso" if cimplec_val != "00" else "Completado"
-            
-            dist = distancia_metros(lat, lon, conexion.latitud_real or 0, conexion.longitud_real or 0)
-            res_act = "Fuera de Radio" if dist > RADIO_TOLERANCIA_METROS else "OK"
-
-            nueva_actividad = Actividad(
-                actividad_id=actividad_id_gen, ccodcnx=ccodcnx_str, ccodprs=ccodprs_str,
-                tipo_actividad=f"{'Lectura' if 'lectura' in proceso.lower() else 'Corte'} Comercial",
-                fecha=fecha_hora_lectura.date(), hora_inicio=fecha_hora_lectura, hora_fin=fecha_hora_lectura,
-                estado=estado_act, resultado=res_act
+    errores_filas = []
+    try:
+        for idx, row in df.iterrows():
+            fila_excel = idx + 2  # +2 porque idx empieza en 0 y la fila 1 es el header
+            try:
+                ccodcnx = str(row["CCODCNX"]).split(".")[0].strip()
+                ccodprs = str(row["CCODPRS"]).split(".")[0].strip()
+                cmetfac = str(row["CMETFAC"]).split(".")[0].strip()
+                distrito = str(row["DISTRITO"]).strip().upper()
+                cderule = str(_valor_o_none(row, "CDERULE") or "SIN_RUTA").strip()
+                if not ccodcnx or ccodcnx.lower() == "nan":
+                    raise ValueError("CCODCNX vacío o inválido")
+                # 1. Zona
+                zona_id = f"Z-{distrito[:3]}-{cmetfac}"
+                zona = zonas_cache.get(zona_id)
+                if zona is None:
+                    zona = db.query(Zona).filter_by(zona_id=zona_id).first()
+                if zona is None:
+                    zona = Zona(zona_id=zona_id, distrito=distrito, cmetfac=cmetfac)
+                    db.add(zona)
+                zonas_cache[zona_id] = zona
+                # 2. Ruta
+                ruta = rutas_cache.get(cderule)
+                if ruta is None:
+                    ruta = db.query(Ruta).filter_by(ruta_id=cderule).first()
+                if ruta is None:
+                    ruta = Ruta(ruta_id=cderule)
+                    db.add(ruta)
+                rutas_cache[cderule] = ruta
+                # 3. Trabajador
+                trabajador = trabajadores_cache.get(ccodprs)
+                if trabajador is None:
+                    trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
+                if trabajador is None:
+                    trabajador = Trabajador(ccodprs=ccodprs, nombre=f"Operario {ccodprs}")
+                    db.add(trabajador)
+                trabajadores_cache[ccodprs] = trabajador
+                # 4. Conexion
+                conexion = conexiones_cache.get(ccodcnx)
+                if conexion is None:
+                    conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()
+                if conexion is None:
+                    conexion = Conexion(ccodcnx=ccodcnx, zona=zona, ruta=ruta)
+                    db.add(conexion)
+                conexiones_cache[ccodcnx] = conexion
+                # 5. Actividad + detalle de lectura
+                dlectur = limpiar_fecha(_valor_o_none(row, "DLECTUR"))
+                if dlectur is None:
+                    raise ValueError("DLECTUR vacío o con formato inválido")
+                act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M')}"
+                # Evitar reprocesar la misma actividad si el archivo se sube de nuevo
+                if db.query(Actividad).filter_by(actividad_id=act_id).first():
+                    errores_filas.append(f"Fila {fila_excel}: actividad {act_id} ya existe, se omitió")
+                    continue
+                lat = limpiar_coordenada(_valor_o_none(row, "CGPSLAT"), "lat")
+                lon = limpiar_coordenada(_valor_o_none(row, "CGPSLON"), "lon")
+                dist = distancia_metros(
+                    lat or 0, lon or 0,
+                    conexion.latitud_real or 0, conexion.longitud_real or 0
+                )
+                actividad = Actividad(
+                    actividad_id=act_id,
+                    ccodcnx=ccodcnx,
+                    ccodprs=ccodprs,
+                    tipo_actividad=proceso,
+                    fecha=dlectur.date(),
+                    estado="Completado",
+                    resultado="Fuera de Radio" if dist > RADIO_TOLERANCIA_METROS else "OK",
+                )
+                detalle = ActividadLectura(
+                    actividad_id=act_id,
+                    dlectur=dlectur,
+                    nlecact=_to_int(_valor_o_none(row, "NLECACT"), default=0),
+                    cgpslat=lat,
+                    cgpslon=lon,
+                    cutmx=_valor_o_none(row, "CUTMX"),
+                    cutmy=_valor_o_none(row, "CUTMY"),
+                )
+                db.add_all([actividad, detalle])
+                registros_procesados += 1
+            except Exception as e_fila:
+                errores_filas.append(f"Fila {fila_excel}: {e_fila}")
+                continue
+        if registros_procesados == 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se insertó ningún registro. Errores: {errores_filas[:10]}"
             )
-            db.add(nueva_actividad)
-
-            # 6. DETALLE, IMPEDIMENTOS Y OBSERVACIONES
-            if "lectura" in proceso.lower():
-                detalle = ActividadLectura(actividad_id=actividad_id_gen, dlectur=fecha_hora_lectura, 
-                                           nlecact=int(float(row['NLECACT'])) if pd.notna(row.get('NLECACT')) else 0,
-                                           cimplec=cimplec_val, cobsmdr=str(row.get('COBSMDR')).split('.')[0].strip() if pd.notna(row.get('COBSMDR')) else "00",
-                                           cgpsalt=alt, cgpslat=lat, cgpslon=lon)
-                db.add(detalle)
-            
-            registros_procesados += 1
-
-    # REGISTRO DE AUDITORÍA
-    nueva_carga = RegistroCarga(
-        nombre_archivo=filename,
-        proceso=proceso,
-        registros_insertados=registros_procesados
-    )
-    db.add(nueva_carga)
-    db.commit()
-
+        db.add(RegistroCarga(
+            nombre_archivo=filename,
+            proceso=proceso,
+            registros_insertados=registros_procesados,
+        ))
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error procesando el archivo: {e}")
+    mensaje = "Procesado correctamente"
+    if errores_filas:
+        mensaje += f" (con {len(errores_filas)} fila(s) omitida(s), ver logs)"
     return {
         "status": "success",
-        "message": f"Procesado correctamente. {registros_procesados} nuevos registros.",
+        "message": mensaje,
         "registros_insertados": registros_procesados,
-        "total_filas_excel": total_filas_excel
+        "total_filas_excel": len(df),
     }

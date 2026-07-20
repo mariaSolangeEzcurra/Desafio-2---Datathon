@@ -1,58 +1,34 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.database import engine
 from app import model
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware 
 # Routers
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
-from app.routers import usuarios, zonas, conexiones, trabajadores, actividades, impedimentos, alertas, mapas, upload
-from app.routers.personal import router as personal_router
-# crear tablas (si no existen)
+from app.routers.upload import router as upload_router
+from app.routers.lectura import router as router_lectura
+# 1. Crear las tablas
 model.Base.metadata.create_all(bind=engine)
-# 1. Primero declaras la app
+
+# 2. ÚNICA instancia de la app
 app = FastAPI()
 
-# 2. Configuras los orígenes permitidos
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-# 3. Agregas el middleware
+# 3. Configurar CORS sobre la única instancia
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
-
+# 4. Incluir routers
 app.include_router(auth_router)
 app.include_router(usuarios_router)
-app.include_router(zonas.router)
-app.include_router(conexiones.router)
-app.include_router(trabajadores.router)
-app.include_router(actividades.router)
-app.include_router(impedimentos.router)
-app.include_router(alertas.router)
-app.include_router(mapas.router)
-app.include_router(upload.router)
-app.include_router(personal_router)
+app.include_router(router_lectura)
+app.include_router(upload_router)
+
 
 @app.get("/")
 def root():
-    return {
-        "status": "online",
-        "mensaje": "Sistema Inteligente de Supervisión - SEDAPAR",
-        "version": "1.1.0"
-    }
-
-@app.get("/health")
-def health():
-    return {
-        "status": "ok"
-    }
+    return {"status": "online"}

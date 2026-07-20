@@ -105,19 +105,16 @@ class Actividad(Base):
     actividad_id = Column(String, primary_key=True)  # ID único (ej. cCodCnx + dLectur)
     ccodcnx = Column(String(20), ForeignKey("conexiones.ccodcnx"))
     ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"))
-    
-    # Aquí es donde se define qué hizo el trabajador según el Excel cargado
     tipo_actividad = Column(String, nullable=False)  # 'Lectura', 'Corte', 'Reconexión', 'Mantenimiento'
-    
     fecha = Column(Date, nullable=True)
     hora_inicio = Column(DateTime, nullable=True)
     hora_fin = Column(DateTime, nullable=True)
-    
     duracion_min = Column(Float, nullable=True)
     duracion_esperada_min = Column(Float, nullable=True)
     estado = Column(String, nullable=True)          # 'Completado', 'Inconcluso'
     resultado = Column(String, nullable=True)
-    
+    cmetfac = Column(String(10), nullable=True)
+
     # Relaciones
     conexion = relationship("Conexion", back_populates="actividades")
     trabajador = relationship("Trabajador", back_populates="actividades")
@@ -145,7 +142,8 @@ class ActividadLectura(Base):
     cgpsalt = Column(Float, nullable=True)
     cgpslat = Column(Float, nullable=True)
     cgpslon = Column(Float, nullable=True)
-    
+    cutmx = Column(Float, nullable=True) # Nuevo campo
+    cutmy = Column(Float, nullable=True) # Nuevo campo
     actividad_general = relationship("Actividad", back_populates="detalle_lectura")
 
 
@@ -208,17 +206,23 @@ class Alerta(Base):
     kpi = Column(String, nullable=False)            # Nombre de la métrica rota (ej. 'Rendimiento bajo')
     motivo = Column(Text, nullable=False)
     fecha_generacion = Column(DateTime, default=func.now())
-    estado_alerta = Column(String, default="Pendiente") # 'Pendiente', 'Revisada', 'Desestimada'
-    
+    estado_alerta = Column(String, default="Pendiente") # 'Pendiente', 'Revisada', 'Desestimada'    
+    comentario_resolucion = Column(Text, nullable=True)
+    fecha_actualizacion = Column(DateTime, onupdate=func.now())
     zona_id = Column(String, ForeignKey("zonas.zona_id"))
     ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"))
-    supervisor_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)
-    
+    supervisor_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)    
     zona = relationship("Zona", back_populates="alertas")
     trabajador = relationship("Trabajador", back_populates="alertas")
     supervisor = relationship("Usuario", back_populates="alertas_revisadas")
 
-
+class Intervencion(Base):
+    __tablename__ = "intervenciones"
+    id_intervencion = Column(Integer, primary_key=True)
+    alerta_id = Column(String, ForeignKey("alertas.alerta_id"))
+    supervisor_id = Column(String, ForeignKey("usuarios.id_usuario"))
+    fecha_accion = Column(DateTime, default=func.now())
+    accion_tomada = Column(String)
 # ==========================================
 # TRAZABILIDAD Y AUDITORÍA DE EXCEL
 # ==========================================

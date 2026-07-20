@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-
+from datetime import datetime
 
 class UploadResultResponse(BaseModel):
     status: str
@@ -7,11 +7,10 @@ class UploadResultResponse(BaseModel):
     registros_insertados: int
     total_filas_excel: int
 
-
 class HistorialCargaResponse(BaseModel):
     id_carga: int
     nombre_archivo: str
-    fecha_carga: str
+    fecha_carga: datetime
     proceso: str
     registros_insertados: int
 

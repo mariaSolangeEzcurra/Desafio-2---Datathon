@@ -4,8 +4,6 @@ import re
 from app.database import get_db
 from app import model
 from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
-from backend.app.services.auth_service import obtener_password_hash
-
 router = APIRouter(
     prefix="/api/usuarios",
     tags=["Usuarios"]
