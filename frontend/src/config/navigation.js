@@ -26,7 +26,7 @@ const navigation = [
     children: [
       // Al hacer clic aquí, pasará el id "lecturas_carga" al Dashboard
       { id: "lecturas_carga", label: "Carga de Datos (Excel)", icon: UploadCloud },
-      { id: "lecturas_resumen", label: "Resumen Ejecutivo", icon: FileText }, 
+      { id: "lecturas_kpis", label: "KPI's de Lectura", icon: FileText }, 
       { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
       { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
       { id: "lecturas_alertas", label: "Alertas e Impedimentos", icon: Bell },

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Personal from "../pages/Personal";
 import MapaRutas from "../pages/MapaRutas";
 import CargaExcel from "../pages/upload";
 
@@ -121,7 +120,6 @@ export default function Dashboard({ idSeleccionado, usuario }) {
             />
           )}
 
-          {vistaActiva === "personal" && <Personal actividadesTotales={listaActividades} />}
           {vistaActiva === "mapa" && <MapaRutas actividadesTotales={listaActividades} />}
 
           {vistaActiva === "alertas" && (
