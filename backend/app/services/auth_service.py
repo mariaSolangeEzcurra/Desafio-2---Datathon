@@ -26,6 +26,7 @@ def obtener_tipo_rol(rol: str) -> str:
     if "supervisor" in rol: return "Supervisor"
     if "coordinador" in rol: return "Coordinador"
     if "gerencia" in rol: return "Gerencia"
+    if "ti" in rol: return "TI"
     return "Usuario"
 
 # 3. Lógica de autenticación con Google

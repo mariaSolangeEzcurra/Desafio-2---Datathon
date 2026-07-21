@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import MapaRutas from "../pages/MapaRutas";
 import CargaExcel from "../pages/upload";
+import Trabajadores from "./TI/Trabajadores";
 
 export default function Dashboard({ idSeleccionado, usuario }) {
   // 1. ESTADOS

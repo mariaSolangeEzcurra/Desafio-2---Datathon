@@ -10,8 +10,12 @@ export default function Login({ onLogin }) {
   useEffect(() => {
     if (typeof google !== "undefined" && !googleInicializado.current) {
       google.accounts.id.initialize({
-        client_id: "249701213502-v0nmel3t0r6otgu71r0fek42p2olchbc.apps.googleusercontent.com",
+        //paola
+        //client_id: "249701213502-v0nmel3t0r6otgu71r0fek42p2olchbc.apps.googleusercontent.com",
+        //maria
+        client_id: "716407312580-4hkj6niqj998k76g03q0cn55e9ri5vk1.apps.googleusercontent.com",
         callback: handleGoogleResponse,
+        
       });
       google.accounts.id.renderButton(
         document.getElementById("btnGoogleLogin"),

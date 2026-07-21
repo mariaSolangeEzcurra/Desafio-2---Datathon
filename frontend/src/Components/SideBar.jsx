@@ -6,10 +6,16 @@ import SidebarItem from "./SidebarItem";
 export default function Sidebar({ usuario, vista, setVista }) {
   const [collapsed, setCollapsed] = useState(false);
   
-  // Filtra los menús basándose en el rol del usuario conectado
-  const menu = navigation.filter((item) =>
-    item.roles.includes(usuario.rol)
-  );
+  
+  console.log("USUARIO RECIBIDO:", usuario);
+console.log("ROL RECIBIDO:", usuario?.rol);
+console.log("NAVIGATION:", navigation);
+
+const menu = navigation.filter((item) =>
+  item.roles.includes(usuario?.rol)
+);
+
+console.log("MENU FILTRADO:", menu);
 
   return (
     <aside

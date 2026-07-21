@@ -51,6 +51,38 @@ const navigation = [
     label: "Usuarios del Sistema",
     icon: Users,
     roles: ["Gerencia", "Supervisor"],
+  }, 
+  {
+  id: "gestion_datos",
+  label: "Gestión de Datos",
+  icon: UploadCloud,
+  roles: ["TI"],
+  children: [
+      {
+        id: "trabajadores",
+        label: "Carga de Trabajadores",
+        icon: Users,
+        roles: ["TI"]
+      },
+      {
+        id: "lecturas_carga",
+        label: "Carga de Lecturas",
+        icon: UploadCloud,
+        roles: ["TI"]
+      },
+      {
+        id: "cortes_carga",
+        label: "Carga de Cortes",
+        icon: UploadCloud,
+        roles: ["TI"]
+      }
+    ]
+  },
+  {
+    id: "gestion_usuarios",
+    label: "Usuarios del Sistema",
+    icon: Users,
+    roles: ["TI"]
   }
 ];
 

@@ -6,6 +6,8 @@ import Usuarios from "../pages/Usuarios";
 import KPIView from "../Pages/LecturaKPI";
 import Upload from "../pages/Upload";
 import MapaLectura from "../Pages/MapaLectura";
+import Trabajadores from "../Pages/TI/Trabajadores";
+
 export default function DashboardLayout({
   usuario,
   onLogout,
@@ -28,7 +30,8 @@ export default function DashboardLayout({
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
     // 3. Caso Usuarios
     if (seccionActiva === "gestion_usuarios") return <Usuarios />;
-
+// Trabajadores (solo TI)
+    if (seccionActiva === "trabajadores") return <Trabajadores />;
     // 4. Dashboard General (Aquí entra todo lo demás: mapa, personal, etc.)
     return <Dashboard idSeleccionado={seccionActiva} usuario={usuario} />;
   };

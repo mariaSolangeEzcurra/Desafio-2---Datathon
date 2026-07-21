@@ -88,7 +88,7 @@ class Trabajador(Base):
     
     ccodprs = Column(String(20), primary_key=True)  # Código de Personal de SEDAPAR
     nombre = Column(String, nullable=False, default="Trabajador Temporal")
-    distrito_base = Column(String, nullable=True)
+    #distrito_base = Column(String, nullable=True)
     supervisor = Column(String, nullable=True)      # Nombre del supervisor asignado en campo
     
     # Relaciones operativas puras

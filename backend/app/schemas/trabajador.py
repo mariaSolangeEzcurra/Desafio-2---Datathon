@@ -1,10 +1,35 @@
 from pydantic import BaseModel
+from typing import Optional
 
-class TrabajadorResponse(BaseModel):
-    trabajador_id: str
-    nombre: str | None = None
-    rol: str | None = None
-    estado: str | None = None
+
+# ==========================
+# Base
+# ==========================
+class TrabajadorBase(BaseModel):
+    nombre: str
+    supervisor: Optional[str] = None
+
+
+# ==========================
+# Crear trabajador
+# ==========================
+class TrabajadorCreate(TrabajadorBase):
+    ccodprs: str
+
+
+# ==========================
+# Actualizar trabajador
+# ==========================
+class TrabajadorUpdate(BaseModel):
+    nombre: Optional[str] = None
+    supervisor: Optional[str] = None
+
+
+# ==========================
+# Respuesta
+# ==========================
+class TrabajadorResponse(TrabajadorBase):
+    ccodprs: str
 
     class Config:
         orm_mode = True
