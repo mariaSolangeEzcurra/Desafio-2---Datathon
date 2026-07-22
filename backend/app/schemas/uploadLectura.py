@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 class UploadResultResponse(BaseModel):
     status: str
@@ -13,6 +14,7 @@ class HistorialCargaResponse(BaseModel):
     fecha_carga: datetime
     proceso: str
     registros_insertados: int
+    usuario_id: Optional[str] = None  
 
     class Config:
         from_attributes = True

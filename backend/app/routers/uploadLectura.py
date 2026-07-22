@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.services.upload_service import procesar_archivo_excel
-from app.model import RegistroCarga
-from app.schemas.upload import UploadResultResponse, HistorialCargaResponse
 from typing import List
+
+from app.database import get_db
+from app.services.uploadLectura_service import procesar_archivo_excel
+from app.model import RegistroCarga
+from app.schemas.uploadLectura import UploadResultResponse, HistorialCargaResponse
 
 router = APIRouter(prefix="/api", tags=["Carga de Archivos"])
 
@@ -16,9 +17,9 @@ def upload_excel(
     db: Session = Depends(get_db)
 ):
     if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="El archivo debe ser un Excel (.xlsx)")
+        raise HTTPException(status_code=400, detail="El archivo debe ser un Excel (.xlsx o .xls)")
 
-    contents = file.file.read()  # ya no hace falta await
+    contents = file.file.read()
     return procesar_archivo_excel(contents, file.filename, proceso, db)
 
 # Obtener historial

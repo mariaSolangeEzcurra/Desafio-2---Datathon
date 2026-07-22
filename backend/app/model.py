@@ -55,14 +55,15 @@ class Ruta(Base):
 class Conexion(Base):
     __tablename__ = "conexiones"
     
-    ccodcnx = Column(String(20), primary_key=True)  # Código de conexión del suministro
-    cnromdr = Column(String(30), nullable=True)     # Número de medidor
+    ccodcnx = Column(String(20), primary_key=True)
+    cnromdr = Column(String(30), nullable=True)
     zona_id = Column(String, ForeignKey("zonas.zona_id"))
     ruta_id = Column(String, ForeignKey("rutas.ruta_id"))
     
-    direccion_ref = Column(String, nullable=True)
-    tipo_conexion = Column(String, nullable=True)
-    estado_servicio = Column(String, nullable=True)
+    # Nuevos campos del Excel de Catastro/Suministro
+    direccion = Column(String, nullable=True)      # DIRECCION
+    categoria = Column(String(50), nullable=True)  # CATEGORIA (Comercial, Residencial, etc.)
+    condicion = Column(String(50), nullable=True)  # CONDICION (Servicio Activo, etc.)
     
     # Coordenadas GIS fijas del suministro (Catastro)
     latitud_real = Column(Float, nullable=True)
@@ -131,19 +132,19 @@ class Actividad(Base):
 class ActividadLectura(Base):
     __tablename__ = "actividades_lectura"
     
-    actividad_id = Column(String, ForeignKey("actividades.actividad_id"), primary_key=True)
-    
-    dlectur = Column(DateTime, nullable=True)     # Fecha y hora exacta de la lectura
-    nlecact = Column(Integer, nullable=True)      # Lectura Actual (número del medidor)
-    cimplec = Column(String(10), nullable=True)   # Código de Impedimento directo
-    cobsmdr = Column(String(255), nullable=True)  # Código de Observación directo
-    
-    # Coordenadas móviles capturadas por el app del operario en el momento exacto de lectura
+    actividad_id = Column(String, ForeignKey("actividades.actividad_id"), primary_key=True)    
+    dlectur = Column(DateTime, nullable=True)
+    nlecact = Column(Integer, nullable=True)
+    cimplec = Column(String(10), nullable=True)
+    cobsmdr = Column(String(255), nullable=True)  
+    cperfac = Column(String(10), nullable=True)  # Nuevo campo: CPERFAC (Periodo/Ciclo de facturación ej. 202604)    
+    # Coordenadas móviles capturadas por el app
     cgpsalt = Column(Float, nullable=True)
     cgpslat = Column(Float, nullable=True)
     cgpslon = Column(Float, nullable=True)
-    cutmx = Column(Float, nullable=True) # Nuevo campo
-    cutmy = Column(Float, nullable=True) # Nuevo campo
+    cutmx = Column(Float, nullable=True)
+    cutmy = Column(Float, nullable=True)
+    
     actividad_general = relationship("Actividad", back_populates="detalle_lectura")
 
 

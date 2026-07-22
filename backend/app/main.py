@@ -2,13 +2,15 @@ from app.database import engine
 from app import model
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
-# Routers
+
+# Routers (Rutas corregidas y consistentes)
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
-from app.routers.upload import router as upload_router
+from app.routers.uploadLectura import router as upload_router
 from app.routers.lectura import router as router_lectura
 from app.routers import trabajadores
 from app.routers.catalogo import router as catalogo_router
+
 # 1. Crear las tablas
 model.Base.metadata.create_all(bind=engine)
 
