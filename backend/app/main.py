@@ -3,11 +3,11 @@ from app import model
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
 
-# Routers (Rutas corregidas y consistentes)
+# Routers unificados usando siempre la ruta base "app.routers"
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
-from app.routers.uploadLectura import router as upload_router
-from app.routers.lectura import router as router_lectura
+from app.routers.Lectura.uploadLectura import router as upload_router
+from app.routers.Lectura.lectura import router as router_lectura
 from app.routers import trabajadores
 from app.routers.catalogo import router as catalogo_router
 

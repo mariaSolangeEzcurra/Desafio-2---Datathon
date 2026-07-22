@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.services.uploadLectura_service import procesar_archivo_excel
+from app.services.Lectura.uploadLectura_service import procesar_archivo_excel
 from app.model import RegistroCarga
-from app.schemas.uploadLectura import UploadResultResponse, HistorialCargaResponse
+from app.schemas.Lectura.uploadLectura import UploadResultResponse, HistorialCargaResponse
 
 router = APIRouter(prefix="/api", tags=["Carga de Archivos"])
 
