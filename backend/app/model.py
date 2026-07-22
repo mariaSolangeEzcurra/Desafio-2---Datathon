@@ -153,9 +153,8 @@ class ActividadLectura(Base):
 class CatalogoImpedimento(Base):
     __tablename__ = "catalogo_impedimentos"
     
-    codigo = Column(String(10), primary_key=True)  # Código de la contingencia (ej. "13")
-    descripcion = Column(String, nullable=False)   # Descripción oficial (ej. "Medidor Inaccesible")
-    categoria = Column(String, nullable=True)
+    codigo = Column(String(10), primary_key=True)  
+    descripcion = Column(String, nullable=False)   
 
 
 class CatalogoObservacion(Base):
@@ -164,6 +163,12 @@ class CatalogoObservacion(Base):
     codigo = Column(String(10), primary_key=True)
     descripcion = Column(String, nullable=False)
 
+class CatalogoGrupoFacturacion(Base):
+    __tablename__ = "catalogo_grupos_facturacion"
+    
+    cmetfac = Column(String(10), primary_key=True) 
+    ccodmet = Column(String(10), nullable=True)   
+    cnommet = Column(String, nullable=False)
 
 # ==========================================
 # CONTINGENCIAS REGISTRADAS POR EVENTO
