@@ -24,8 +24,6 @@ const navigation = [
     icon: Eye,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
     children: [
-      // Al hacer clic aquí, pasará el id "lecturas_carga" al Dashboard
-      { id: "lecturas_carga", label: "Carga de Datos (Excel)", icon: UploadCloud },
       { id: "lecturas_kpis", label: "KPI's de Lectura", icon: FileText }, 
       { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
       { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
@@ -38,8 +36,6 @@ const navigation = [
     icon: ZapOff,
     roles: ["Supervisor", "Coordinador", "Gerencia"],
     children: [
-      // Habilitado e indexado de forma simétrica para el proceso de Cortes
-      { id: "cortes_carga", label: "Carga de Datos (Excel)", icon: UploadCloud },
       { id: "cortes_resumen", label: "Resumen Ejecutivo", icon: FileText },
       { id: "cortes_personal", label: "Personal Asignado", icon: Users },
       { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
@@ -47,17 +43,11 @@ const navigation = [
     ]
   },
   {
-    id: "gestion_usuarios",
-    label: "Usuarios del Sistema",
-    icon: Users,
-    roles: ["Gerencia", "Supervisor"],
-  }, 
-  {
-  id: "gestion_datos",
-  label: "Gestión de Datos",
-  icon: UploadCloud,
-  roles: ["TI"],
-  children: [
+    id: "gestion_datos",
+    label: "Gestión de Datos",
+    icon: UploadCloud,
+    roles: ["TI"],
+    children: [
       {
         id: "trabajadores",
         label: "Carga de Trabajadores",
@@ -79,10 +69,16 @@ const navigation = [
     ]
   },
   {
+    id: "gestion_catalogos",
+    label: "Catálogos del Sistema",
+    icon: FileText, 
+    roles: ["TI"],
+  }, 
+  {
     id: "gestion_usuarios",
     label: "Usuarios del Sistema",
     icon: Users,
-    roles: ["TI"]
+    roles: ["Gerencia", "Supervisor", "TI"]
   }
 ];
 

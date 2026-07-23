@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FileText, Printer, ArrowLeft, Database, Loader2, Search } from "lucide-react";
+import axios from "axios";
 
 export default function CatalogosDashboard() {
   const [catalogoSeleccionado, setCatalogoSeleccionado] = useState(null);
@@ -7,41 +8,47 @@ export default function CatalogosDashboard() {
   const [cargando, setCargando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
 
-  // Definición de los catálogos principales cargados en la BD
   const catalogosDisponibles = [
-    { id: "impedimentos", label: "Catálogo de Impedimentos" },
-    { id: "observaciones", label: "Catálogo de Observaciones" },
+    { id: "impedimentos", label: "Impedimentos" },
+    { id: "observaciones", label: "Observaciones" },
     { id: "grupos", label: "Grupos de Facturación" },
   ];
 
-  // Efecto para consumir la API al seleccionar un catálogo
+  // Cargar datos cuando se selecciona un catalogo
   useEffect(() => {
     if (!catalogoSeleccionado) return;
 
-    const fetchData = async () => {
+    const fetchDatos = async () => {
       setCargando(true);
-      const resultado = await catalogoService.obtenerCatalogo(catalogoSeleccionado);
-      setDatos(resultado);
-      setCargando(false);
+      try {
+        const response = await axios.get(`http://localhost:8000/api/catalogos/${catalogoSeleccionado}`);
+        setDatos(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        console.error("Error al cargar el catálogo:", err);
+        setDatos([]);
+      } finally {
+        setCargando(false);
+      }
     };
 
-    fetchData();
+    fetchDatos();
   }, [catalogoSeleccionado]);
 
-  // Vista de Cuadrícula (Menú Principal de Tarjetas)
+  // Si NO hay ningún catálogo seleccionado, mostramos el panel de tarjetas
   if (!catalogoSeleccionado) {
     return (
       <div className="space-y-6 text-left">
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
           <div className="mb-6">
             <h3 className="text-base font-bold text-slate-800 uppercase tracking-wide">
-              Gestión de Catálogos del Sistema
+              Gestión de Catálogos
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Selecciona un catálogo corporativo para consultar sus registros fijos, buscar códigos o exportarlos en PDF.
+              Selecciona un catálogo del sistema para visualizar su ficha detallada, consultar registros fijos o exportarlos en PDF.
             </p>
           </div>
 
+          {/* Cuadrícula de Tarjetas (3 elementos) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {catalogosDisponibles.map((cat) => (
               <button
@@ -56,7 +63,7 @@ export default function CatalogosDashboard() {
                   <h4 className="text-xs font-bold text-slate-800 group-hover:text-[#006cb7] transition-colors">
                     {cat.label}
                   </h4>
-                  <span className="text-[10px] text-slate-400">Ver registros en BD</span>
+                  <span className="text-[10px] text-slate-400">Ver registros</span>
                 </div>
               </button>
             ))}
@@ -66,26 +73,21 @@ export default function CatalogosDashboard() {
     );
   }
 
-  // Vista Detallada con Tabla, Buscador y Exportación PDF
-  const infoActual = catalogosDisponibles.find((c) => c.id === catalogoSeleccionado);
-  
-  const datosFiltrados = datos.filter((item) =>
-    Object.values(item).some((val) =>
+  // Vista de detalle con tabla y buscador
+  const infoActual = catalogosDisponibles.find(c => c.id === catalogoSeleccionado);
+  const datosFiltrados = datos.filter(item =>
+    Object.values(item).some(val =>
       String(val ?? "").toLowerCase().includes(busqueda.toLowerCase())
     )
   );
 
   return (
     <div className="space-y-6 text-left">
-      {/* Cabecera */}
+      {/* Cabecera con Botón de Regresar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              setCatalogoSeleccionado(null);
-              setBusqueda("");
-              setDatos([]);
-            }}
+            onClick={() => { setCatalogoSeleccionado(null); setBusqueda(""); }}
             className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
             title="Volver al panel"
           >
@@ -93,12 +95,9 @@ export default function CatalogosDashboard() {
           </button>
           <div>
             <h3 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
-              <Database size={16} className="text-[#006cb7]" /> {infoActual?.label}
+              <Database size={16} className="text-[#006cb7]" /> Catálogo: {infoActual?.label}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Valores estáticos sincronizados desde la base de datos de SEDAPAR.
-            </p>
-          </div>
+                    </div>
         </div>
 
         <button
@@ -109,28 +108,28 @@ export default function CatalogosDashboard() {
         </button>
       </div>
 
-      {/* Buscador */}
+      {/* Buscador interno */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
         <Search size={18} className="text-slate-400 ml-2" />
         <input
           type="text"
-          placeholder={`Buscar código o descripción en ${infoActual?.label}...`}
+          placeholder={`Buscar en ${infoActual?.label}...`}
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           className="w-full text-xs bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
         />
       </div>
 
-      {/* Tabla */}
+      {/* Tabla de Resultados */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         {cargando ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
             <Loader2 className="animate-spin text-[#006cb7]" size={24} />
-            <p className="text-xs">Cargando registros desde la base de datos...</p>
+            <p className="text-xs">Cargando registros del catálogo...</p>
           </div>
         ) : datosFiltrados.length === 0 ? (
           <div className="text-center py-12 text-slate-400 text-xs">
-            No se encontraron registros en este catálogo.
+            No se encontraron registros o la tabla está vacía en este catálogo.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -138,9 +137,7 @@ export default function CatalogosDashboard() {
               <thead className="text-slate-500 uppercase bg-slate-50/50 border-b">
                 <tr>
                   {Object.keys(datos[0] || {}).map((key) => (
-                    <th key={key} className="p-3 font-semibold">
-                      {key.replace(/_/g, " ")}
-                    </th>
+                    <th key={key} className="p-3 font-semibold">{key.replace(/_/g, " ")}</th>
                   ))}
                 </tr>
               </thead>

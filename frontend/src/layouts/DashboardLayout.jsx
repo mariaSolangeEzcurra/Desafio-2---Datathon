@@ -3,10 +3,12 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import Dashboard from "../pages/Dashboard";
 import Usuarios from "../pages/Usuarios";
-import KPIView from "../Pages/LecturaKPI";
-import Upload from "../pages/Upload";
-import MapaLectura from "../Pages/MapaLectura";
-import Trabajadores from "../Pages/TI/Trabajadores";
+import LecturaKPI from "../pages/LecturaKPI"; // <--- Corregido al nombre y ruta real
+import UploadLectura from "../pages/TI/UploadLectura";  
+import UploadCortes from "../pages/TI/UploadCortes";    
+import MapaLectura from "../pages/MapaLectura";
+import Trabajadores from "../pages/TI/Trabajadores";
+import CatalogosView from "../pages/TI/CatalogosDashboard";
 
 export default function DashboardLayout({
   usuario,
@@ -15,30 +17,31 @@ export default function DashboardLayout({
   setSeccionActiva
 }) {
 
-  // Función simplificada: Todo lo que no sea Usuarios va al Dashboard.
-  // El Dashboard se encarga internamente de renderizar "Carga", "Mapa", etc.
- const renderVista = () => {
+  const renderVista = () => {
     // 1. Prioridad: Vistas especiales específicas
-    if (seccionActiva === "lecturas_kpis") return <KPIView tipo="lectura" />;
-    if (seccionActiva === "cortes_kpis") return <KPIView tipo="corte" />;
+    if (seccionActiva === "lecturas_kpis") return <LecturaKPI />; // <--- Sin props innecesarias
+    if (seccionActiva === "cortes_kpis") return <LecturaKPI />; // (O el componente específico para cortes si lo creas después)
     
-    // 2. Si es carga, manejarlo aparte (puedes crear el componente UploadPage)
-    if (seccionActiva === "lecturas_carga" || seccionActiva === "cortes_carga") {
-       return <Upload />; 
-    }
-    // 3. VISTA DE MAPA (La que acabamos de crear)
+    // 2. Vistas de carga separadas con sus respectivos componentes
+    if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
+    if (seccionActiva === "cortes_carga") return <UploadCortes />; 
+
+    // 3. VISTA DE MAPA
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
-    // 3. Caso Usuarios
+    
+    // 4. Caso Usuarios y Trabajadores
     if (seccionActiva === "gestion_usuarios") return <Usuarios />;
-// Trabajadores (solo TI)
     if (seccionActiva === "trabajadores") return <Trabajadores />;
-    // 4. Dashboard General (Aquí entra todo lo demás: mapa, personal, etc.)
+
+    // 5. Catálogos del Sistema (¡DEBE IR ANTES DEL DASHBOARD GENERAL!)
+    if (seccionActiva === "gestion_catalogos") return <CatalogosView />;  
+    
+    // 6. Dashboard General (Fallback final)
     return <Dashboard idSeleccionado={seccionActiva} usuario={usuario} />;
   };
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar: navega a través de setSeccionActiva */}
       <Sidebar 
         usuario={usuario} 
         vista={seccionActiva} 
@@ -46,14 +49,12 @@ export default function DashboardLayout({
       />
       
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Cabecera */}
         <Header 
           usuario={usuario} 
           vista={seccionActiva} 
           onLogout={onLogout} 
         />
         
-        {/* Contenido Principal */}
         <main className="flex-1 overflow-y-auto p-8 bg-slate-50">
           <div className="max-w-7xl mx-auto">
             {renderVista()}
