@@ -61,8 +61,8 @@ const navigation = [
         roles: ["TI"]
       },
       {
-        id: "cortes_carga",
-        label: "Carga de Cortes",
+        id: "upload_Diario",
+        label: "Carga de Lecturas Diarias",
         icon: UploadCloud,
         roles: ["TI"]
       }

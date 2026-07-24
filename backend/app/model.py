@@ -95,7 +95,9 @@ class Trabajador(Base):
     # Relaciones operativas puras
     actividades = relationship("Actividad", back_populates="trabajador")
     alertas = relationship("Alerta", back_populates="trabajador")
-
+    ultimo_puntaje = Column(Float, nullable=True)
+    ultima_clasificacion = Column(String(30), nullable=True)   # Excelente, Bueno, Regular, Crítico
+    fecha_ultima_evaluacion = Column(Date, nullable=True)
 
 # ==========================================
 # ACTIVIDADES (TABLA MAESTRA / MULTIPROCESO)
@@ -124,6 +126,13 @@ class Actividad(Base):
     
     # Relación uno-a-uno con el detalle específico de lectura
     detalle_lectura = relationship("ActividadLectura", uselist=False, back_populates="actividad_general")
+    promedio_lectura = Column(Float, nullable=True)
+    # para analisis y clasificacion d etrabajador
+    lecturas_programadas = Column(Integer, nullable=True)
+    lecturas_realizadas = Column(Integer, nullable=True)
+    lecturas_pendientes = Column(Integer, nullable=True)
+    eficiencia = Column(Float, nullable=True)
+
 
 
 # ==========================================
@@ -221,6 +230,9 @@ class Alerta(Base):
     zona = relationship("Zona", back_populates="alertas")
     trabajador = relationship("Trabajador", back_populates="alertas")
     supervisor = relationship("Usuario", back_populates="alertas_revisadas")
+    valor_actual = Column(Float, nullable=True)
+    valor_umbral = Column(Float, nullable=True)
+
 
 class Intervencion(Base):
     __tablename__ = "intervenciones"
@@ -229,6 +241,8 @@ class Intervencion(Base):
     supervisor_id = Column(String, ForeignKey("usuarios.id_usuario"))
     fecha_accion = Column(DateTime, default=func.now())
     accion_tomada = Column(String)
+    alerta = relationship("Alerta")
+    supervisor = relationship("Usuario")   
 # ==========================================
 # TRAZABILIDAD Y AUDITORÍA DE EXCEL
 # ==========================================
@@ -243,3 +257,17 @@ class RegistroCarga(Base):
     usuario_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)
     
     usuario = relationship("Usuario")
+
+
+class EvaluacionDesempeno(Base):
+    __tablename__ = "evaluaciones_desempeno"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"))
+    fecha = Column(Date, nullable=False)
+
+    puntaje = Column(Float, nullable=False)
+    clasificacion = Column(String(30), nullable=False)   # Excelente, Bueno, Regular, Crítico
+    tendencia = Column(String(20), nullable=True)        # Mejora, Estable, Disminuye
+
+    trabajador = relationship("Trabajador")

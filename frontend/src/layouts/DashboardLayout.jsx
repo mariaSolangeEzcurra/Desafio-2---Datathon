@@ -9,6 +9,7 @@ import UploadCortes from "../pages/TI/UploadCortes";
 import MapaLectura from "../pages/MapaLectura";
 import Trabajadores from "../pages/TI/Trabajadores";
 import CatalogosView from "../pages/TI/CatalogosDashboard";
+import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
 
 export default function DashboardLayout({
   usuario,
@@ -25,6 +26,7 @@ export default function DashboardLayout({
     // 2. Vistas de carga separadas con sus respectivos componentes
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
     if (seccionActiva === "cortes_carga") return <UploadCortes />; 
+    if (seccionActiva === "upload_Diario") return <UploadLecturaDiario />;
 
     // 3. VISTA DE MAPA
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;

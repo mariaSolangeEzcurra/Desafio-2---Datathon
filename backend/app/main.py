@@ -8,6 +8,8 @@ from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as usuarios_router
 from app.routers.Lectura.uploadLectura import router as upload_router
 from app.routers.Lectura.lectura import router as router_lectura
+from app.routers.Lectura.desempeno import router as desempeno
+from app.routers.Lectura.uploadLecturaDiario import router as upload_diario
 from app.routers import trabajadores
 from app.routers.catalogo import router as catalogo_router
 
@@ -33,6 +35,9 @@ app.include_router(router_lectura)
 app.include_router(upload_router)
 app.include_router(trabajadores.router)
 app.include_router(catalogo_router)
+app.include_router(desempeno)
+app.include_router(upload_diario)
+
 
 @app.get("/")
 def root():

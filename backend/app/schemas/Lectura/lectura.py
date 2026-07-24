@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Union
 
 class KPIResponse(BaseModel):
     nombre: str
-    valor: float
+    valor: Union[float, str]
     unidad: str
     nivel_alerta: str
 
