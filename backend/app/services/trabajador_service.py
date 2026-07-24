@@ -14,9 +14,59 @@ from app.schemas.trabajador import (
 # ==========================================
 # LISTAR TRABAJADORES
 # ==========================================
+# ==========================================
+# LISTAR TRABAJADORES CON REPORTE Y DESEMPEÑO
+# ==========================================
 def listar_trabajadores(db: Session):
-    return db.query(Trabajador).order_by(Trabajador.nombre).all()
 
+    trabajadores = (
+        db.query(Trabajador)
+        .order_by(Trabajador.nombre)
+        .all()
+    )
+
+
+    resultado = []
+
+
+    for trabajador in trabajadores:
+
+
+        # sacar todos sus reportes cargados desde Excel
+        cantidad_reportes = (
+            db.query(Actividad)
+            .filter(
+                Actividad.ccodprs == trabajador.ccodprs
+            )
+            .count()
+        )
+
+
+        # calcular desempeño usando todas sus actividades
+        evaluacion = evaluar_desempeno_trabajador(
+            db,
+            trabajador.ccodprs,
+            date.min,
+            date.max
+        )
+
+
+        resultado.append({
+
+            "ccodprs": trabajador.ccodprs,
+
+            "nombre": trabajador.nombre,
+
+            "supervisor": trabajador.supervisor,
+
+            "cantidad_reportes": cantidad_reportes,
+
+            "desempeno": evaluacion
+
+        })
+
+
+    return resultado
 
 # ==========================================
 # OBTENER TRABAJADOR

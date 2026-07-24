@@ -4,12 +4,15 @@ import Sidebar from "../components/Sidebar";
 import Dashboard from "../pages/Dashboard";
 import Usuarios from "../pages/Usuarios";
 import LecturaKPI from "../pages/LecturaKPI"; // <--- Corregido al nombre y ruta real
+//TI
 import UploadLectura from "../pages/TI/UploadLectura";  
 import UploadCortes from "../pages/TI/UploadCortes";    
 import MapaLectura from "../pages/MapaLectura";
 import Trabajadores from "../pages/TI/Trabajadores";
 import CatalogosView from "../pages/TI/CatalogosDashboard";
 import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
+//SUPERVISOR
+import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
 
 export default function DashboardLayout({
   usuario,
@@ -22,7 +25,8 @@ export default function DashboardLayout({
     // 1. Prioridad: Vistas especiales específicas
     if (seccionActiva === "lecturas_kpis") return <LecturaKPI />; // <--- Sin props innecesarias
     if (seccionActiva === "cortes_kpis") return <LecturaKPI />; // (O el componente específico para cortes si lo creas después)
-    
+    if (seccionActiva === "lecturas_personal") return <TrabajadoresLecturas />;
+
     // 2. Vistas de carga separadas con sus respectivos componentes
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
     if (seccionActiva === "cortes_carga") return <UploadCortes />; 

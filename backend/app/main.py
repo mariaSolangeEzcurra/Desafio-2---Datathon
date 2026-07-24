@@ -12,6 +12,8 @@ from app.routers.Lectura.desempeno import router as desempeno
 from app.routers.Lectura.uploadLecturaDiario import router as upload_diario
 from app.routers import trabajadores
 from app.routers.catalogo import router as catalogo_router
+from app.routers import alertas
+from app.routers import actividades
 
 # 1. Crear las tablas
 model.Base.metadata.create_all(bind=engine)
@@ -37,7 +39,8 @@ app.include_router(trabajadores.router)
 app.include_router(catalogo_router)
 app.include_router(desempeno)
 app.include_router(upload_diario)
-
+app.include_router(alertas.router)
+app.include_router(actividades.router)
 
 @app.get("/")
 def root():

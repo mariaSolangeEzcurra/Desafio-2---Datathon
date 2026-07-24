@@ -7,7 +7,9 @@ from app.database import get_db
 from app.schemas.trabajador import (
     TrabajadorCreate,
     TrabajadorUpdate,
-    TrabajadorResponse
+    TrabajadorResponse,
+    TrabajadorDetalleResponse
+
 )
 from app.services import trabajador_service
 
@@ -22,7 +24,7 @@ router = APIRouter(
 # ==========================================
 @router.get(
     "/",
-    response_model=List[TrabajadorResponse]
+    response_model=List[TrabajadorDetalleResponse]
 )
 def listar_trabajadores(db: Session = Depends(get_db)):
     return trabajador_service.listar_trabajadores(db)

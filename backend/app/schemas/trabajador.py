@@ -33,3 +33,17 @@ class TrabajadorResponse(TrabajadorBase):
 
     class Config:
         orm_mode = True
+
+
+# ==========================
+# Respuesta con desempeño
+# ==========================
+class TrabajadorDetalleResponse(TrabajadorBase):
+
+    ccodprs: str
+    cantidad_reportes: int
+    desempeno: Optional[dict] = None
+
+    class Config:
+        orm_mode = True
+

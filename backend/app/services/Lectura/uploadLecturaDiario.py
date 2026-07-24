@@ -214,15 +214,10 @@ def procesar_reporte_eficiencia(
             ccodprs
         )
 
-
         registros_insertados += 1
 
-
-
-
+    db.flush()
     db.commit()
-
-
 
     # =====================================
     # EVALUAR DESEMPEÑO AUTOMÁTICO

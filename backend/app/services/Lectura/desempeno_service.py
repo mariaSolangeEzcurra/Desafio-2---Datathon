@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
+import json
 
 from app.model import (
     Actividad,
@@ -69,19 +70,19 @@ def evaluar_desempeno_trabajador(
 ):
 
     resultados = (
-        db.query(Actividad, ActividadLectura)
-        .join(
-            ActividadLectura,
-            Actividad.actividad_id == ActividadLectura.actividad_id
-        )
-        .filter(
-            Actividad.tipo_actividad == "Lectura",
-            Actividad.ccodprs == ccodprs,
-            Actividad.fecha >= fecha_inicio,
-            Actividad.fecha <= fecha_fin
-        )
-        .all()
+    db.query(Actividad, ActividadLectura)
+    .join(
+        ActividadLectura,
+        Actividad.actividad_id == ActividadLectura.actividad_id,
+        isouter=True
     )
+    .filter(
+        Actividad.ccodprs == ccodprs,
+        Actividad.fecha >= fecha_inicio,
+        Actividad.fecha <= fecha_fin
+    )
+    .all()
+)
 
 
     if not resultados:
@@ -239,6 +240,51 @@ def evaluar_desempeno_trabajador(
         puntaje
     )
 
+    problemas = []
+
+
+    if cumplimiento < 80:
+        problemas.append(
+            f"Cumplimiento bajo: {round(cumplimiento,2)}%"
+        )
+
+
+    if productividad < 10:
+        problemas.append(
+            f"Productividad baja: {round(productividad,2)} lecturas/hora"
+        )
+
+
+    if eficiencia_promedio < 0.80:
+        problemas.append(
+            f"Eficiencia baja: {round(eficiencia_promedio*100,2)}%"
+        )
+
+
+    if indice_impedimentos > 20:
+        problemas.append(
+            f"Muchos impedimentos: {round(indice_impedimentos,2)}%"
+        )
+
+
+    if indice_observaciones > 4:
+        problemas.append(
+            f"Muchas observaciones: {round(indice_observaciones,2)}%"
+        )
+
+
+    if cobertura < 80:
+        problemas.append(
+            f"Baja cobertura GPS: {round(cobertura,2)}%"
+        )
+
+
+    if not problemas:
+        problemas.append(
+            "Desempeño dentro de los parámetros esperados"
+        )
+
+
     tendencia = calcular_tendencia(
         db,
         ccodprs,
@@ -260,7 +306,8 @@ def evaluar_desempeno_trabajador(
         ),
         "puntaje": puntaje,
         "clasificacion": clasificacion,
-        "tendencia": tendencia
+        "tendencia": tendencia,
+        "problemas": problemas
     }
 
 def guardar_evaluacion_desempeno(
@@ -273,9 +320,21 @@ def guardar_evaluacion_desempeno(
         fecha=evaluacion["fecha"],
         puntaje=evaluacion["puntaje"],
         clasificacion=evaluacion["clasificacion"],
-        tendencia=evaluacion["tendencia"]
+        tendencia=evaluacion["tendencia"],
+        eficiencia=evaluacion["eficiencia"],
+        cumplimiento=evaluacion["cumplimiento"],
+        productividad=evaluacion["productividad"],
+        impedimentos=evaluacion["impedimentos"],
+        observaciones=evaluacion["observaciones"],
+        cobertura=evaluacion["cobertura"],
+
+        motivos=json.dumps(
+        evaluacion["problemas"]
+    )
     )
     db.add(registro)
+
+
 
     # Actualizar resumen actual del trabajador
     trabajador = (

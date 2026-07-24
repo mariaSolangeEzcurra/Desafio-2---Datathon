@@ -270,4 +270,12 @@ class EvaluacionDesempeno(Base):
     clasificacion = Column(String(30), nullable=False)   # Excelente, Bueno, Regular, Crítico
     tendencia = Column(String(20), nullable=True)        # Mejora, Estable, Disminuye
 
+    eficiencia = Column(Float)
+    cumplimiento = Column(Float)
+    productividad = Column(Float)
+    impedimentos = Column(Float)
+    observaciones = Column(Float)
+    cobertura = Column(Float)
+
     trabajador = relationship("Trabajador")
+    motivos = Column(Text)
