@@ -1,10 +1,10 @@
 import pandas as pd
+from datetime import date
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from fastapi import UploadFile, File
-
-
-from app.model import Trabajador
+from app.services.Lectura.desempeno_service import evaluar_desempeno_trabajador
+from app.model import Trabajador, Actividad
 from app.schemas.trabajador import (
     TrabajadorCreate,
     TrabajadorUpdate
