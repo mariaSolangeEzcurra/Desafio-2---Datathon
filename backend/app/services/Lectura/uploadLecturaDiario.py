@@ -2,6 +2,8 @@ import io
 import pandas as pd
 from datetime import datetime, date
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from fastapi import HTTPException
 
 from app.model import Trabajador, Actividad, ActividadLectura
 from app.services.Lectura.desempeno_service import (
@@ -9,20 +11,67 @@ from app.services.Lectura.desempeno_service import (
     guardar_evaluacion_desempeno
 )
 
-def convertir_hora(valor):
-    if pd.isna(valor):
+
+# --- FUNCIONES AUXILIARES DE LIMPIEZA ---
+
+def _convertir_hora(valor):
+    if pd.isna(valor) or valor is None:
         return None
     if isinstance(valor, datetime):
         return valor
-    return pd.to_datetime(valor)
+    try:
+        return pd.to_datetime(valor).to_pydatetime()
+    except Exception:
+        return None
 
-def limpiar_nombre(nombre):
-    if pd.isna(nombre):
+
+def _limpiar_nombre(nombre):
+    if pd.isna(nombre) or not nombre:
         return "Trabajador Temporal"
     return str(nombre).replace(",", "").strip()
 
+
+def _parsear_timedelta_a_segundos(valor) -> float:
+    if pd.isna(valor) or valor is None:
+        return 0.0
+    try:
+        td = pd.to_timedelta(valor)
+        return float(td.total_seconds())
+    except Exception:
+        try:
+            partes = str(valor).split(":")
+            if len(partes) == 3:
+                h, m, s = map(float, partes)
+                return h * 3600 + m * 60 + s
+            elif len(partes) == 2:
+                m, s = map(float, partes)
+                return m * 60 + s
+        except Exception:
+            pass
+        return 0.0
+
+
+def _to_int(val, default=0):
+    if val is None or pd.isna(val):
+        return default
+    try:
+        return int(float(val))
+    except Exception:
+        return default
+
+
+def _to_float(val, default=0.0):
+    if val is None or pd.isna(val):
+        return default
+    try:
+        return float(val)
+    except Exception:
+        return default
+
+
+# --- SERVICIOS PRINCIPALES ---
+
 def procesar_reporte_eficiencia(db: Session, archivo, fecha_reporte: date):
-    # 🟢 Manejo seguro de bytes para evitar 'SpooledTemporaryFile object has no attribute seekable'
     if hasattr(archivo, "file"):
         contenido = archivo.file.read()
     elif hasattr(archivo, "read"):
@@ -30,82 +79,98 @@ def procesar_reporte_eficiencia(db: Session, archivo, fecha_reporte: date):
     else:
         contenido = archivo
 
-    df = pd.read_excel(io.BytesIO(contenido))
+    try:
+        df = pd.read_excel(io.BytesIO(contenido))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al leer el archivo Excel: {e}")
+
+    if df.empty:
+        raise HTTPException(status_code=400, detail="El archivo Excel está vacío.")
+
+    df.columns = [str(col).upper().strip() for col in df.columns]
+
+    filas = df.to_dict("records")
     registros_insertados = 0
     trabajadores_procesados = set()
+    trabajadores_cache = {}
 
-    # =====================================
-    # RECORRER EXCEL
-    # =====================================
-    for index, fila in df.iterrows():
-        ccodprs = str(fila["LECTOR"]).strip()
-        nombre = limpiar_nombre(fila["NOMBRES"])
+    try:
+        for index, fila in enumerate(filas):
+            raw_lector = fila.get("LECTOR")
+            if raw_lector is None or pd.isna(raw_lector):
+                continue
+                
+            ccodprs = str(raw_lector).split(".")[0].strip()
+            nombre = _limpiar_nombre(fila.get("NOMBRES"))
 
-        # Buscar o crear trabajador
-        trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == ccodprs).first()
-        if not trabajador:
-            trabajador = Trabajador(ccodprs=ccodprs, nombre=nombre)
-            db.add(trabajador)
+            # Buscar o crear trabajador
+            trabajador = trabajadores_cache.get(ccodprs)
+            if not trabajador:
+                trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == ccodprs).first()
+                if not trabajador:
+                    trabajador = Trabajador(ccodprs=ccodprs, nombre=nombre)
+                    db.add(trabajador)
+                    db.flush()
+                trabajadores_cache[ccodprs] = trabajador
+
+            actividad_id = f"REP-{ccodprs}-{fecha_reporte.strftime('%Y%m%d')}-{index}"
+
+            # Limpieza previa a re-insertar
+            detalle_existente = db.query(ActividadLectura).filter_by(actividad_id=actividad_id).first()
+            if detalle_existente:
+                db.delete(detalle_existente)
+            
+            act_existente = db.query(Actividad).filter_by(actividad_id=actividad_id).first()
+            if act_existente:
+                db.delete(act_existente)
+            
             db.flush()
 
-        # Crear actividad
-        actividad_id = f"{ccodprs}_{fecha_reporte}_{index}"
-        
-        # Conversiones seguras para duraciones
-        duracion_min = 0.0
-        if not pd.isna(fila["DURACION"]):
-            try:
-                duracion_min = pd.to_timedelta(fila["DURACION"]).total_seconds() / 60.0
-            except Exception:
-                duracion_min = 0.0
+            duracion_seg = _parsear_timedelta_a_segundos(fila.get("DURACION"))
+            promedio_lectura = _parsear_timedelta_a_segundos(fila.get("PROMEDIO"))
 
-        promedio_lectura = None
-        if not pd.isna(fila["PROMEDIO"]):
-            try:
-                promedio_lectura = pd.to_timedelta(fila["PROMEDIO"]).total_seconds()
-            except Exception:
-                promedio_lectura = None
+            actividad = Actividad(
+                actividad_id=actividad_id,
+                ccodprs=ccodprs,
+                tipo_actividad="Lectura",
+                fecha=fecha_reporte,
+                hora_inicio=_convertir_hora(fila.get("HORA INICIO")),
+                hora_fin=_convertir_hora(fila.get("HORA FIN")),
+                duracion_min=duracion_seg / 60.0,
+                promedio_lectura=promedio_lectura if promedio_lectura > 0 else None,
+                lecturas_programadas=_to_int(fila.get("CANTIDAD LECTURAS")),
+                lecturas_realizadas=_to_int(fila.get("LECTURAS REALIZADAS")),
+                lecturas_pendientes=_to_int(fila.get("LECTURAS PENDIENTES")),
+                eficiencia=_to_float(fila.get("EFICIENCIA"))
+            )
+            db.add(actividad)
 
-        actividad = Actividad(
-            actividad_id=actividad_id,
-            ccodprs=ccodprs,
-            tipo_actividad="Lectura",
-            fecha=fecha_reporte,
-            hora_inicio=convertir_hora(fila["HORA INICIO"]),
-            hora_fin=convertir_hora(fila["HORA FIN"]),
-            duracion_min=duracion_min,
-            promedio_lectura=promedio_lectura,
-            lecturas_programadas=int(fila["CANTIDAD LECTURAS"]) if not pd.isna(fila["CANTIDAD LECTURAS"]) else 0,
-            lecturas_realizadas=int(fila["LECTURAS REALIZADAS"]) if not pd.isna(fila["LECTURAS REALIZADAS"]) else 0,
-            lecturas_pendientes=int(fila["LECTURAS PENDIENTES"]) if not pd.isna(fila["LECTURAS PENDIENTES"]) else 0,
-            eficiencia=float(fila["EFICIENCIA"]) if not pd.isna(fila["EFICIENCIA"]) else 0.0
-        )
-        db.add(actividad)
-        db.flush()
+            detalle = ActividadLectura(
+                actividad_id=actividad_id,
+                cimplec=str(_to_int(fila.get("CANTIDAD IMPEDIMENTOS"))),
+                cobsmdr=str(_to_int(fila.get("CANTIDAD OBSERVACIONES")))
+            )
+            db.add(detalle)
 
-        # Detalle de lectura
-        detalle = ActividadLectura(
-            actividad_id=actividad_id,
-            cimplec=str(fila["CANTIDAD IMPEDIMENTOS"]) if not pd.isna(fila["CANTIDAD IMPEDIMENTOS"]) else "0",
-            cobsmdr=str(fila["CANTIDAD OBSERVACIONES"]) if not pd.isna(fila["CANTIDAD OBSERVACIONES"]) else "0"
-        )
-        db.add(detalle)
+            trabajadores_procesados.add(ccodprs)
+            registros_insertados += 1
 
-        trabajadores_procesados.add(ccodprs)
-        registros_insertados += 1
+        db.commit()
 
-    db.flush()
-    db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al procesar el reporte: {e}")
 
-    # =====================================
-    # EVALUAR DESEMPEÑO AUTOMÁTICO
-    # =====================================
+    # Evaluación de desempeño
     evaluaciones = []
     for codigo in trabajadores_procesados:
-        resultado = evaluar_desempeno_trabajador(db, codigo, fecha_reporte, fecha_reporte)
-        if resultado:
-            guardar_evaluacion_desempeno(db, resultado)
-            evaluaciones.append(resultado)
+        try:
+            resultado = evaluar_desempeno_trabajador(db, codigo, fecha_reporte, fecha_reporte)
+            if resultado:
+                guardar_evaluacion_desempeno(db, resultado)
+                evaluaciones.append(resultado)
+        except Exception as e_desempeno:
+            print(f"Error evaluando desempeño para operario {codigo}: {e_desempeno}")
 
     return {
         "mensaje": "Reporte procesado correctamente",
@@ -114,3 +179,33 @@ def procesar_reporte_eficiencia(db: Session, archivo, fecha_reporte: date):
         "evaluaciones_generadas": len(evaluaciones),
         "evaluaciones": evaluaciones
     }
+
+
+def obtener_historial_reportes_service(db: Session):
+    """
+    Agrupa las actividades cargadas por fecha para armar la lista del historial.
+    """
+    reportes = (
+        db.query(
+            Actividad.fecha.label("fecha"),
+            func.count(Actividad.actividad_id).label("registros"),
+            func.count(func.distinct(Actividad.ccodprs)).label("trabajadores")
+        )
+        .filter(Actividad.tipo_actividad == "Lectura")
+        .group_by(Actividad.fecha)
+        .order_by(Actividad.fecha.desc())
+        .all()
+    )
+
+    historial = []
+    for r in reportes:
+        historial.append({
+            "id": str(r.fecha),
+            "fecha": r.fecha.strftime("%Y-%m-%d"),
+            "registros": r.registros,
+            "trabajadores": r.trabajadores,
+            "evaluaciones": r.trabajadores,
+            "estado": "Procesado"
+        })
+
+    return historial

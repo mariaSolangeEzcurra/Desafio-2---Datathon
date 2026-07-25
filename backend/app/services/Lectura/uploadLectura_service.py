@@ -5,11 +5,10 @@ from fastapi import HTTPException
 from app.model import Zona, Ruta, Trabajador, Conexion, Actividad, ActividadLectura, RegistroCarga
 from app.services.geo_utils import limpiar_coordenada, limpiar_fecha, distancia_metros, RADIO_TOLERANCIA_METROS
 
-# Añadimos CIMPLEC y COBSMDR a las columnas requeridas para evitar procesar archivos incompletos
 COLUMNAS_REQUERIDAS = {"CCODCNX", "CCODPRS", "CMETFAC", "DISTRITO", "CIMPLEC", "COBSMDR"}
 
 def _valor_o_none(row, columna):
-    """Devuelve None si la celda no existe o es NaN, en vez de NaN 'crudo'."""
+    """Devuelve None si la celda no existe o es NaN/Null."""
     valor = row.get(columna)
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return None
@@ -46,27 +45,41 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
         )
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel no contiene filas.")
-        
+    # Caches en memoria para no repetir consultas en BD
     zonas_cache = {}
     rutas_cache = {}
     trabajadores_cache = {}
-    conexiones_cache = {}
+    conexiones_cache = {}   
     registros_procesados = 0
-    errores_filas = []
-    
+    errores_filas = []    
+    # Convertimos el dataframe a lista de diccionarios (mucho más rápido que df.iterrows())
+    filas = df.to_dict("records")
+    # 1. Precarga masiva de actividades existentes para evitar db.query() dentro del bucle
+    actividades_ids_excel = []
+    for row in filas:
+        ccodcnx_raw = str(_valor_o_none(row, "CCODCNX") or "").split(".")[0].strip()
+        dlectur_raw = limpiar_fecha(_valor_o_none(row, "DLECTUR"))
+        if ccodcnx_raw and dlectur_raw:
+            actividades_ids_excel.append(f"ACT-{ccodcnx_raw}-{dlectur_raw.strftime('%Y%m%d%H%M')}")        
+    # Traemos de la BD únicamente los IDs de actividad que ya existen en este lote
+    actividades_existentes = set()
+    if actividades_ids_excel:
+        # Consultamos en bloques de 1000 para no saturar el operador IN
+        for i in range(0, len(actividades_ids_excel), 1000):
+            chunk = actividades_ids_excel[i:i + 1000]
+            existentes_chunk = db.query(Actividad.actividad_id).filter(Actividad.actividad_id.in_(chunk)).all()
+            actividades_existentes.update(r[0] for r in existentes_chunk)
     try:
-        for idx, row in df.iterrows():
-            fila_excel = idx + 2  
+        for idx, row in enumerate(filas):
+            fila_excel = idx + 2  # Fila 1 suele ser cabecera
             try:
-                ccodcnx = str(row["CCODCNX"]).split(".")[0].strip()
-                ccodprs = str(row["CCODPRS"]).split(".")[0].strip()
-                cmetfac = str(row["CMETFAC"]).split(".")[0].strip()
-                distrito = str(row["DISTRITO"]).strip().upper()
-                cderule = str(_valor_o_none(row, "CDERULE") or "SIN_RUTA").strip()
-                
+                ccodcnx = str(_valor_o_none(row, "CCODCNX") or "").split(".")[0].strip()
+                ccodprs = str(_valor_o_none(row, "CCODPRS") or "").split(".")[0].strip()
+                cmetfac = str(_valor_o_none(row, "CMETFAC") or "").split(".")[0].strip()
+                distrito = str(_valor_o_none(row, "DISTRITO") or "").strip().upper()
+                cderule = str(_valor_o_none(row, "CDERULE") or "SIN_RUTA").strip()               
                 if not ccodcnx or ccodcnx.lower() == "nan":
-                    raise ValueError("CCODCNX vacío o inválido")
-                
+                    raise ValueError("CCODCNX vacío o inválido")                
                 # 1. Zona
                 zona_id = f"Z-{distrito[:3]}-{cmetfac}"
                 zona = zonas_cache.get(zona_id)
@@ -75,8 +88,7 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                 if zona is None:
                     zona = Zona(zona_id=zona_id, distrito=distrito, cmetfac=cmetfac)
                     db.add(zona)
-                zonas_cache[zona_id] = zona
-                
+                zonas_cache[zona_id] = zona                
                 # 2. Ruta
                 ruta = rutas_cache.get(cderule)
                 if ruta is None:
@@ -84,13 +96,11 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                 if ruta is None:
                     ruta = Ruta(ruta_id=cderule)
                     db.add(ruta)
-                rutas_cache[cderule] = ruta
-                
+                rutas_cache[cderule] = ruta                
                 # 3. Trabajador
                 trabajador = trabajadores_cache.get(ccodprs)
                 if trabajador is None:
-                    trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
-                
+                    trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()            
                 cnomprs = str(_valor_o_none(row, "CNOMPRS") or f"Operario {ccodprs}").strip()
                 if trabajador is None:
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
@@ -98,20 +108,17 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                 else:
                     if cnomprs and cnomprs != f"Operario {ccodprs}":
                         trabajador.nombre = cnomprs
-                trabajadores_cache[ccodprs] = trabajador
-                
-                # 4. Conexion
+                trabajadores_cache[ccodprs] = trabajador                
+                # 4. Conexión
                 conexion = conexiones_cache.get(ccodcnx)
                 if conexion is None:
-                    conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()
-                
+                    conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()            
                 direccion = str(_valor_o_none(row, "DIRECCION") or "").strip()
                 categoria = str(_valor_o_none(row, "CATEGORIA") or "").strip()
                 condicion = str(_valor_o_none(row, "CONDICION") or "").strip()
                 utm_x = _to_float(_valor_o_none(row, "CUTMX"))
                 utm_y = _to_float(_valor_o_none(row, "CUTMY"))
                 cnromdr = str(_valor_o_none(row, "CNROMDR") or "").strip()
-
                 if conexion is None:
                     conexion = Conexion(
                         ccodcnx=ccodcnx,
@@ -137,32 +144,23 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     if utm_y and not conexion.utm_y:
                         conexion.utm_y = utm_y
                     if cnromdr and not conexion.cnromdr:
-                        conexion.cnromdr = cnromdr
-                        
-                conexiones_cache[ccodcnx] = conexion
-                
-                # 5. Actividad + detalle de lectura
+                        conexion.cnromdr = cnromdr                        
+                conexiones_cache[ccodcnx] = conexion                
+                # 5. Actividad + Detalle
                 dlectur = limpiar_fecha(_valor_o_none(row, "DLECTUR"))
                 if dlectur is None:
-                    raise ValueError("DLECTUR vacío o con formato inválido")
-                    
-                act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M')}"
-                
-                if db.query(Actividad).filter_by(actividad_id=act_id).first():
+                    raise ValueError("DLECTUR vacío o con formato inválido")                    
+                act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M')}"                
+                # Validación optimizada con el set en memoria
+                if act_id in actividades_existentes:
                     errores_filas.append(f"Fila {fila_excel}: actividad {act_id} ya existe, se omitió")
-                    continue
-                    
+                    continue                
                 lat = limpiar_coordenada(_valor_o_none(row, "CGPSLAT"), "lat")
-                lon = limpiar_coordenada(_valor_o_none(row, "CGPSLON"), "lon")
-                
+                lon = limpiar_coordenada(_valor_o_none(row, "CGPSLON"), "lon")                
                 dist = distancia_metros(
                     lat or 0, lon or 0,
                     conexion.latitud_real or 0, conexion.longitud_real or 0
                 )
-                
-                # CORRECCIÓN: Si tu tabla Actividad maneja duración, captúrala aquí (ej: DURACION_MIN)
-                # duracion_val = _to_int(_valor_o_none(row, "DURACION"), default=0)
-
                 actividad = Actividad(
                     actividad_id=act_id,
                     ccodcnx=ccodcnx,
@@ -172,19 +170,12 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     estado="Completado",
                     resultado="Fuera de Radio" if dist > RADIO_TOLERANCIA_METROS else "OK",
                     cmetfac=cmetfac,
-                    # duracion_min=duracion_val  <- Descomenta si tu modelo Actividad tiene esta columna
-                )
-                
+                )                
                 cperfac = str(_valor_o_none(row, "CPERFAC") or "").strip()
-                
-                # CORRECCIÓN DE CIMPLEC Y COBSMDR:
-                # Usamos _to_int o permitimos que guarde valores numéricos/cadenas correctamente sin volverlos None si son "0"
                 raw_cimplec = _valor_o_none(row, "CIMPLEC")
                 raw_cobsmdr = _valor_o_none(row, "COBSMDR")
-
                 cimplec_val = str(int(float(raw_cimplec))) if raw_cimplec is not None and not pd.isna(raw_cimplec) else None
                 cobsmdr_val = str(int(float(raw_cobsmdr))) if raw_cobsmdr is not None and not pd.isna(raw_cobsmdr) else None
-
                 detalle = ActividadLectura(
                     actividad_id=act_id,
                     dlectur=dlectur,
@@ -199,7 +190,12 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                 )
                 
                 db.add_all([actividad, detalle])
+                actividades_existentes.add(act_id)
                 registros_procesados += 1
+
+                # Liberar memoria intermedia cada 1,000 registros
+                if registros_procesados % 1000 == 0:
+                    db.flush()
                 
             except Exception as e_fila:
                 errores_filas.append(f"Fila {fila_excel}: {e_fila}")
@@ -233,5 +229,5 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
         "status": "success",
         "message": mensaje,
         "registros_insertados": registros_procesados,
-        "total_filas_excel": len(df),
+        "total_filas_excel": len(filas),
     }

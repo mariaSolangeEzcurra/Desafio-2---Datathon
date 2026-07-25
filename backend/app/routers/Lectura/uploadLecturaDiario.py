@@ -1,23 +1,17 @@
 from datetime import date
-
-from fastapi import (
-    APIRouter,
-    UploadFile,
-    File,
-    Depends,
-    HTTPException,
-    Form
-)
-
+from typing import List
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-
-from app.services.Lectura.uploadLecturaDiario import (
-    procesar_reporte_eficiencia
+from app.schemas.Lectura.uploadLecturaDiaria import (
+    ReporteDiarioResponse,
+    HistorialReporteItem
 )
-
-
+from app.services.Lectura.uploadLecturaDiario import (
+    procesar_reporte_eficiencia,
+    obtener_historial_reportes_service
+)
 
 router = APIRouter(
     prefix="/api/desempeno",
@@ -25,58 +19,21 @@ router = APIRouter(
 )
 
 
-
-# ==========================================
-# IMPORTAR REPORTE DE EFICIENCIA EXCEL
-# ==========================================
-
-@router.post("/upload")
+@router.post("/upload", response_model=ReporteDiarioResponse)
 def importar_reporte_eficiencia(
-
     fecha_reporte: date = Form(...),
-
     archivo: UploadFile = File(...),
-
     db: Session = Depends(get_db)
-
 ):
-
-
-    # ======================================
-    # VALIDAR EXTENSIÓN
-    # ======================================
-
-
-    if not archivo.filename.endswith(
-        (".xlsx", ".xls")
-    ):
-
-
+    if not archivo.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(
-
             status_code=400,
-
             detail="El archivo debe ser Excel (.xlsx o .xls)"
-
         )
 
+    return procesar_reporte_eficiencia(db, archivo, fecha_reporte)
 
 
-    # ======================================
-    # PROCESAR EXCEL
-    # ======================================
-
-
-    resultado = procesar_reporte_eficiencia(
-
-        db,
-
-        archivo.file,
-
-        fecha_reporte
-
-    )
-
-
-
-    return resultado
+@router.get("/historial", response_model=List[HistorialReporteItem])
+def obtener_historial_reportes(db: Session = Depends(get_db)):
+    return obtener_historial_reportes_service(db)
