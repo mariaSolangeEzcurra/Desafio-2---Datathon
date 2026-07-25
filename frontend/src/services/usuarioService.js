@@ -36,27 +36,20 @@ export async function actualizarUsuario(id, datos) {
         `http://localhost:8000/api/usuarios/${id}`,
         {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: {"Content-Type": "application/json",},
             body: JSON.stringify(datos),
         }
     );
-
     const data = await response.json();
-
     if (!response.ok) {
-        throw new Error(data.detail || "Error al actualizar usuario");
-    }
-
+        throw new Error(data.detail || "Error al actualizar usuario");}
     return data;
 }
 
 export async function eliminarUsuario(id) {
     const response = await fetch(
         `http://localhost:8000/api/usuarios/${id}`,{
-            method: "DELETE",
-        }
+            method: "DELETE",}
     );
     const data = await response.json();
     if (!response.ok) {
