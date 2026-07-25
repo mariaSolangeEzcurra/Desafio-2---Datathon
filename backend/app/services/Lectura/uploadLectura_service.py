@@ -5,7 +5,8 @@ from fastapi import HTTPException
 from app.model import Zona, Ruta, Trabajador, Conexion, Actividad, ActividadLectura, RegistroCarga
 from app.services.geo_utils import limpiar_coordenada, limpiar_fecha, distancia_metros, RADIO_TOLERANCIA_METROS
 
-COLUMNAS_REQUERIDAS = {"CCODCNX", "CCODPRS", "CMETFAC", "DISTRITO"}
+# Añadimos CIMPLEC y COBSMDR a las columnas requeridas para evitar procesar archivos incompletos
+COLUMNAS_REQUERIDAS = {"CCODCNX", "CCODPRS", "CMETFAC", "DISTRITO", "CIMPLEC", "COBSMDR"}
 
 def _valor_o_none(row, columna):
     """Devuelve None si la celda no existe o es NaN, en vez de NaN 'crudo'."""
@@ -55,7 +56,7 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
     
     try:
         for idx, row in df.iterrows():
-            fila_excel = idx + 2  # +2 porque idx empieza en 0 y la fila 1 es el header
+            fila_excel = idx + 2  
             try:
                 ccodcnx = str(row["CCODCNX"]).split(".")[0].strip()
                 ccodprs = str(row["CCODPRS"]).split(".")[0].strip()
@@ -85,7 +86,7 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     db.add(ruta)
                 rutas_cache[cderule] = ruta
                 
-                # 3. Trabajador (Actualizado con CNOMPRS)
+                # 3. Trabajador
                 trabajador = trabajadores_cache.get(ccodprs)
                 if trabajador is None:
                     trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
@@ -95,12 +96,11 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
                     db.add(trabajador)
                 else:
-                    # Actualizar nombre por si viene más completo en este lote
                     if cnomprs and cnomprs != f"Operario {ccodprs}":
                         trabajador.nombre = cnomprs
                 trabajadores_cache[ccodprs] = trabajador
                 
-                # 4. Conexion (Actualizado con Dirección, Categoría, Condición y UTM catastrales)
+                # 4. Conexion
                 conexion = conexiones_cache.get(ccodcnx)
                 if conexion is None:
                     conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()
@@ -126,7 +126,6 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     )
                     db.add(conexion)
                 else:
-                    # Actualizar datos catastrales si estuvieran vacíos previamente
                     if direccion and not conexion.direccion:
                         conexion.direccion = direccion
                     if categoria and not conexion.categoria:
@@ -149,7 +148,6 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     
                 act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M')}"
                 
-                # Evitar reprocesar la misma actividad si el archivo se sube de nuevo
                 if db.query(Actividad).filter_by(actividad_id=act_id).first():
                     errores_filas.append(f"Fila {fila_excel}: actividad {act_id} ya existe, se omitió")
                     continue
@@ -162,6 +160,9 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     conexion.latitud_real or 0, conexion.longitud_real or 0
                 )
                 
+                # CORRECCIÓN: Si tu tabla Actividad maneja duración, captúrala aquí (ej: DURACION_MIN)
+                # duracion_val = _to_int(_valor_o_none(row, "DURACION"), default=0)
+
                 actividad = Actividad(
                     actividad_id=act_id,
                     ccodcnx=ccodcnx,
@@ -170,18 +171,26 @@ def procesar_archivo_excel(contents: bytes, filename: str, proceso: str, db: Ses
                     fecha=dlectur.date(),
                     estado="Completado",
                     resultado="Fuera de Radio" if dist > RADIO_TOLERANCIA_METROS else "OK",
-                    cmetfac=cmetfac
+                    cmetfac=cmetfac,
+                    # duracion_min=duracion_val  <- Descomenta si tu modelo Actividad tiene esta columna
                 )
                 
-                # Captura del periodo de facturación CPERFAC
                 cperfac = str(_valor_o_none(row, "CPERFAC") or "").strip()
                 
+                # CORRECCIÓN DE CIMPLEC Y COBSMDR:
+                # Usamos _to_int o permitimos que guarde valores numéricos/cadenas correctamente sin volverlos None si son "0"
+                raw_cimplec = _valor_o_none(row, "CIMPLEC")
+                raw_cobsmdr = _valor_o_none(row, "COBSMDR")
+
+                cimplec_val = str(int(float(raw_cimplec))) if raw_cimplec is not None and not pd.isna(raw_cimplec) else None
+                cobsmdr_val = str(int(float(raw_cobsmdr))) if raw_cobsmdr is not None and not pd.isna(raw_cobsmdr) else None
+
                 detalle = ActividadLectura(
                     actividad_id=act_id,
                     dlectur=dlectur,
                     nlecact=_to_int(_valor_o_none(row, "NLECACT"), default=0),
-                    cimplec=str(_valor_o_none(row, "CIMPLEC") or "").strip() or None,
-                    cobsmdr=str(_valor_o_none(row, "COBSMDR") or "").strip() or None,
+                    cimplec=cimplec_val,
+                    cobsmdr=cobsmdr_val,
                     cperfac=cperfac if cperfac else None,
                     cgpslat=lat,
                     cgpslon=lon,

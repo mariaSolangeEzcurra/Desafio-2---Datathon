@@ -13,7 +13,7 @@ router = APIRouter(
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# Login con google
+# login con google
 @router.post("/login", response_model=LoginResponse)
 def login(
     datos: LoginRequest,

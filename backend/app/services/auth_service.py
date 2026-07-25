@@ -10,7 +10,7 @@ from app.schemas.auth import LoginRequest
 SECRET_KEY = "clave"
 ALGORITHM = "HS256"
 
-# 1. Lógica para crear y decodificar el token (lo que antes era auth_utils)
+# crear y decodificar el token 
 def crear_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=60)
@@ -20,7 +20,7 @@ def crear_access_token(data: dict):
 def decodificar_token(token: str):
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-# 2. Lógica de roles
+# acorde a los roles
 def obtener_tipo_rol(rol: str) -> str:
     rol = rol.lower()
     if "supervisor" in rol: return "Supervisor"
@@ -29,7 +29,7 @@ def obtener_tipo_rol(rol: str) -> str:
     if "ti" in rol: return "TI"
     return "Usuario"
 
-# 3. Lógica de autenticación con Google
+#  autenticación con Google
 def autenticar_con_google(datos: LoginRequest, db: Session):
     try:
         id_info = id_token.verify_oauth2_token(datos.token_google, google_requests.Request())
