@@ -11,12 +11,13 @@ from app.routers.Lectura.lectura import router as router_lectura
 from app.routers.Lectura.desempeno import router as desempeno
 from app.routers.Lectura.uploadLecturaDiario import router as upload_diario
 from app.routers import trabajadores
+from app.routers.trabajadores import router as trabajadores_router
 from app.routers.catalogo import router as catalogo_router
 from app.routers import alertas
 from app.routers import actividades
 
 # 1. Crear las tablas
-model.Base.metadata.create_all(bind=engine)
+#model.Base.metadata.create_all(bind=engine)
 
 # 2. ÚNICA instancia de la app
 app = FastAPI()
@@ -35,7 +36,7 @@ app.include_router(auth_router)
 app.include_router(usuarios_router)
 app.include_router(router_lectura)
 app.include_router(upload_router)
-app.include_router(trabajadores.router)
+app.include_router(trabajadores_router)
 app.include_router(catalogo_router)
 app.include_router(desempeno)
 app.include_router(upload_diario)
