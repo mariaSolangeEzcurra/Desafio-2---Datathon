@@ -6,14 +6,19 @@ class UploadResultResponse(BaseModel):
     status: str
     message: str
     registros_insertados: int
+    registros_error: int
     total_filas_excel: int
 
 class HistorialCargaResponse(BaseModel):
     id_carga: int
     nombre_archivo: str
+    tipo_archivo: str
     fecha_carga: datetime
     proceso: str
+    estado: str
     registros_insertados: int
+    registros_error: int
+    detalle_errores: Optional[str] = None
     usuario_id: Optional[str] = None  
 
     class Config:

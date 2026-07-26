@@ -7,31 +7,22 @@ from app.services.Lectura.uploadLectura_service import procesar_archivo_excel
 from app.model import RegistroCarga
 from app.schemas.Lectura.uploadLectura import UploadResultResponse, HistorialCargaResponse
 
-router = APIRouter(prefix="/api", tags=["Carga de Archivos"])
+router = APIRouter(prefix="/api/lecturas", tags=["Carga de Lecturas (TI)"])
 
-# Subir archivos
 @router.post("/upload-excel", response_model=UploadResultResponse)
-def upload_excel( 
+def upload_excel(
     file: UploadFile = File(...),
-    proceso: str = Form(...),
+    proceso: str = Form("Lectura"),
+    usuario_id: str = Form(None),
     db: Session = Depends(get_db)
 ):
     if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="El archivo debe ser un Excel (.xlsx o .xls)")
+        raise HTTPException(status_code=400, detail="El archivo debe ser una hoja de cálculo Excel (.xlsx o .xls)")
 
     contents = file.file.read()
-    return procesar_archivo_excel(contents, file.filename, proceso, db)
+    return procesar_archivo_excel(contents, file.filename, proceso, db, usuario_id)
 
-# Obtener historial
 @router.get("/historial", response_model=List[HistorialCargaResponse])
-async def get_historial(db: Session = Depends(get_db)):
-    """
-    Obtiene el listado de todas las cargas realizadas, 
-    ordenado de la más reciente a la más antigua.
-    """
-    historial = (
-        db.query(RegistroCarga)
-        .order_by(RegistroCarga.fecha_carga.desc())
-        .all()
-    )
-    return historial
+def get_historial(db: Session = Depends(get_db)):
+    """Obtiene el historial de archivos cargados en el sistema."""
+    return db.query(RegistroCarga).order_by(RegistroCarga.fecha_carga.desc()).all()
