@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.database import get_db
 from app.services.Lectura.personal_service import PersonalService
 from app.schemas.Lectura.personal import TrabajadorListResponse, FichaPersonalResponse
@@ -16,15 +16,20 @@ def listar_personal(
     """Obtiene el listado general del personal de campo registrado en SEDAPAR."""
     return PersonalService.listar_trabajadores(db, skip=skip, limit=limit)
 
+@router.post("/calcular-desempeno")
+def calcular_desempeno(
+    ccodprs: Optional[str] = Query(None, description="Código opcional de un trabajador específico"),
+    db: Session = Depends(get_db)
+):
+    """Calcula y actualiza el puntaje y clasificación de desempeño de los lectores en base a su eficiencia."""
+    return PersonalService.calcular_y_actualizar_desempeno(db, ccodprs=ccodprs)
+
 @router.get("/{ccodprs}/ficha", response_model=FichaPersonalResponse)
 def obtener_ficha_empleado(
     ccodprs: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene la ficha individual de un trabajador: 
-    datos generales, última evaluación, alertas pendientes y el historial reciente de asistencia y rutas.
-    """
+    """Obtiene la ficha individual de un trabajador, incluyendo su evaluación y asistencia."""
     ficha = PersonalService.obtener_ficha_trabajador(db, ccodprs=ccodprs)
     if not ficha:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado en el sistema.")

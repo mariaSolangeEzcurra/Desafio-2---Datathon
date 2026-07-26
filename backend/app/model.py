@@ -117,8 +117,8 @@ class Actividad(Base):
     actividad_id = Column(String, primary_key=True)  # ID único (ej. cCodCnx + dLectur)
     ccodcnx = Column(String(20), ForeignKey("conexiones.ccodcnx"))
     ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"))
-    tipo_actividad = Column(String, nullable=False)  # 'Lectura', 'Corte', 'Reconexión', 'Mantenimiento'
-    fecha = Column(Date, nullable=True)
+    tipo_actividad = Column(String, nullable=False, index=True)  # 'Lectura', 'Corte', 'Reconexión', 'Mantenimiento'
+    fecha = Column(Date, nullable=True, index=True)
     hora_inicio = Column(DateTime, nullable=True)
     hora_fin = Column(DateTime, nullable=True)
     duracion_min = Column(Float, nullable=True)
@@ -157,7 +157,7 @@ class ActividadLectura(Base):
     nlecact = Column(Integer, nullable=True)
     cimplec = Column(String(10), nullable=True)
     cobsmdr = Column(String(255), nullable=True)
-    cperfac = Column(String(10), nullable=True)  # Periodo/Ciclo de facturación (ej. 202604)
+    cperfac = Column(String(10), nullable=True, index=True)  # Periodo/Ciclo de facturación (ej. 202604)
 
     # Coordenadas REALES capturadas por el celular al momento de la lectura.
     # cgpslat/cgpslon: para pintar el mapa (breadcrumbs, marcadores).
@@ -298,11 +298,15 @@ class Alerta(Base):
     __tablename__ = "alertas"
 
     alerta_id = Column(String, primary_key=True)
-    nivel = Column(String, nullable=False)  # 'Crítico', 'Alto', 'Medio'
-    kpi = Column(String, nullable=False)     # Nombre de la métrica rota (ej. 'Rendimiento bajo')
+    nivel = Column(String, nullable=False)  
+    kpi = Column(String, nullable=False)     
     motivo = Column(Text, nullable=False)
     fecha_generacion = Column(DateTime, default=func.now())
-    estado_alerta = Column(String, default="Pendiente")  # 'Pendiente', 'En Proceso', 'Revisada'
+    
+    # NUEVO: Añadir una columna de fecha pura para asegurar la unicidad diaria
+    fecha = Column(Date, nullable=False, default=func.current_date()) 
+
+    estado_alerta = Column(String, default="Pendiente")  
     comentario_resolucion = Column(Text, nullable=True)
     fecha_actualizacion = Column(DateTime, onupdate=func.now())
     zona_id = Column(String, ForeignKey("zonas.zona_id"))
@@ -310,10 +314,7 @@ class Alerta(Base):
     supervisor_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)
     valor_actual = Column(Float, nullable=True)
     valor_umbral = Column(Float, nullable=True)
-
-    # Editable por el supervisor para reordenar la bandeja (ej. por antigüedad
-    # sin atender). Si no se toca, inicializar igual a `nivel` al crearla.
-    prioridad = Column(String, default="Media", nullable=True)  # 'Alta', 'Media', 'Baja'
+    prioridad = Column(String, default="Media", nullable=True)  
 
     zona = relationship("Zona", back_populates="alertas")
     trabajador = relationship("Trabajador", back_populates="alertas")
@@ -321,8 +322,8 @@ class Alerta(Base):
     intervenciones = relationship("Intervencion", back_populates="alerta")
 
     __table_args__ = (
-        # Evita duplicar la misma alerta el mismo día para el mismo trabajador/kpi
-        UniqueConstraint("ccodprs", "kpi", "fecha_generacion", name="uq_alerta_ccodprs_kpi_fecha"),
+        # CAMBIO: Ahora evalúa por trabajador, kpi y el DÍA calendario (evita spam de alertas)
+        UniqueConstraint("ccodprs", "kpi", "fecha", name="uq_alerta_ccodprs_kpi_fecha"),
     )
 
 
