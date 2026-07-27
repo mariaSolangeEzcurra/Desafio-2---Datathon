@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import List, Optional
@@ -6,6 +6,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.services.Lectura.alertas_service import AlertasService
 from app.schemas.Lectura.alertas import AlertaResponse, CambiarEstadoAlertaRequest
+from app.model import Alerta # Asegúrate de importar tu modelo si buscas directo en el router o ponlo en el servicio
 
 router = APIRouter(prefix="/alertas", tags=["Alertas y Supervisión"])
 
@@ -33,6 +34,19 @@ def evaluar_alertas_diarias(
     total = AlertasService.evaluar_y_generar_alertas(db=db, fecha_evaluacion=fecha)
     return {"mensaje": "Evaluación de KPIs completada con éxito", "alertas_generadas": total}
 
+@router.get("/{alerta_id}", response_model=AlertaResponse)
+def obtener_detalle_alerta(
+    alerta_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint dedicado exclusivamente a CONSULTAR el detalle de una alerta por su ID.
+    """
+    alerta = db.query(Alerta).filter(Alerta.alerta_id == alerta_id).first()
+    if not alerta:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+    return alerta
+
 @router.patch("/{alerta_id}/estado", response_model=AlertaResponse)
 def cambiar_estado_alerta(
     alerta_id: str,
@@ -40,8 +54,8 @@ def cambiar_estado_alerta(
     db: Session = Depends(get_db)
 ):
     """
-    Permite al supervisor cambiar el estado operativo de una alerta 
-    ('Pendiente', 'En Revisión', 'Escalada', 'Resuelto') adjuntando un comentario obligatorio.
+    Endpoint dedicado a MODIFICAR: Permite al supervisor cambiar el estado operativo 
+    ('Pendiente', 'En Revisión', 'Escalada', 'Resuelto') y adjuntar su comentario/observación.
     """
     return AlertasService.cambiar_estado_operativo(
         db=db,
