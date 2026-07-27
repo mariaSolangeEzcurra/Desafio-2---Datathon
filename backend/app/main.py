@@ -16,7 +16,7 @@ from app.routers.catalogo import router as catalogo_router
 #from app.routers import alertas
 #from app.routers import actividades
 
-from app.routers.Lectura import uploadLectura, uploadReporteDiario, dashboard_kpis , personal, mapas, alertas
+from app.routers.Lectura import uploadLectura, uploadReporteDiario, dashboard_kpis , personal, mapas, alertas, reportes
 # 1. Crear las tablas
 #model.Base.metadata.create_all(bind=engine)
 
@@ -51,6 +51,8 @@ app.include_router(dashboard_kpis.router)
 app.include_router(personal.router)
 app.include_router(mapas.router)
 app.include_router(alertas.router)
+app.include_router(reportes.router)
+
 @app.get("/")
 def root():
     return {"status": "online"}
