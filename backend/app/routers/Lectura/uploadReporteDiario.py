@@ -6,7 +6,7 @@ from datetime import date
 from app.database import get_db
 from app.schemas.Lectura.uploadReporteDiario import CargaReporteDiarioResponse, ResumenDiarioLectorResponse
 from app.services.Lectura.uploadReporteDiario_service import procesar_archivo_reporte_diario
-from app.model import ResumenDiarioLector
+from app.model import ResumenDiarioLector, RegistroCarga
 
 router = APIRouter(prefix="/api/reporte-diario", tags=["Upload - Reporte Diario"])
 
@@ -15,13 +15,11 @@ async def upload_reporte_diario(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """Sube y procesa el Excel de Reportes Diarios por Lector."""
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(
             status_code=400, 
             detail="El archivo debe ser un formato Excel (.xlsx o .xls)"
         )
-    
     contents = await file.read()
     return procesar_archivo_reporte_diario(
         contents=contents,
@@ -36,12 +34,32 @@ def listar_resumenes_diarios(
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    """Consulta los resúmenes diarios guardados en la BD."""
     query = db.query(ResumenDiarioLector)
-    
     if fecha:
         query = query.filter(ResumenDiarioLector.fecha == fecha)
     if ccodprs:
-        query = query.filter(ResumenDiarioLector.ccodprs == ccodprs)
-        
+        query = query.filter(ResumenDiarioLector.ccodprs == ccodprs)        
     return query.limit(limit).all()
+
+@router.delete("/historial/{id_carga}", response_model=dict)
+def revertir_carga_reporte_diario(id_carga: int, db: Session = Depends(get_db)):
+    carga = db.query(RegistroCarga).filter_by(id_carga=id_carga).first()
+    
+    if not carga:
+        raise HTTPException(status_code=404, detail="El registro de carga especificado no existe.")    
+    if carga.tipo_archivo != "Reporte Diario":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Este endpoint es para 'Reporte Diario'. Esta carga es de tipo '{carga.tipo_archivo}'."
+        )
+    try:
+        db.query(ResumenDiarioLector).filter(ResumenDiarioLector.id_carga == id_carga).delete(synchronize_session=False)
+        db.delete(carga)        
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"La carga de reporte diario #{id_carga} ('{carga.nombre_archivo}') ha sido revertida exitosamente."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al intentar revertir la carga: {str(e)}")

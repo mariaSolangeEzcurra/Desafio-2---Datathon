@@ -81,6 +81,19 @@ def procesar_archivo_excel(
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel no contiene registros.")
 
+    # 1. Creamos el registro de carga inicial para obtener su id_carga
+    log_carga = RegistroCarga(
+        nombre_archivo=filename,
+        tipo_archivo="TI",
+        proceso=proceso,
+        estado="En proceso",
+        registros_insertados=0,
+        registros_error=0,
+        usuario_id=usuario_id
+    )
+    db.add(log_carga)
+    db.flush()  # Esto genera log_carga.id_carga de forma segura
+
     zonas_cache = {}
     rutas_cache = {}
     trabajadores_cache = {}
@@ -116,7 +129,7 @@ def procesar_archivo_excel(
             fila_excel = idx + 2
             try:
                 ccodcnx = str(_valor_o_none(row, "CCODCNX") or "").split(".")[0].strip()
-                ccodprs = str(_valor_o_none(row, "CCODPRS") or "").split(".")[0].strip()
+                ccodprs = str(_valor_o_none(row, "CCODPRS") or "").split(".")[0].strip().zfill(8)
                 cmetfac = str(_valor_o_none(row, "CMETFAC") or "").split(".")[0].strip()
                 distrito = str(_valor_o_none(row, "DISTRITO") or "VARIOS").strip().upper()
                 cderule = str(_valor_o_none(row, "CDERULE") or "SIN_RUTA").strip()
@@ -205,7 +218,6 @@ def procesar_archivo_excel(
                 if not dlectur:
                     raise ValueError("Fecha u Hora inválida o vacía")
                     
-                # ID único incluyendo segundos
                 act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M%S')}"
                 if act_id in actividades_existentes:
                     errores_filas.append(f"Fila {fila_excel}: La actividad {act_id} ya existe.")
@@ -216,15 +228,16 @@ def procesar_archivo_excel(
                 cgpslat = _to_float(_valor_o_none(row, "CGPSLAT"))
                 cgpslon = _to_float(_valor_o_none(row, "CGPSLON"))
                 
-                # Discrepancia UTM
                 distancia_m = None
                 if cutmx_real and cutmy_real and conexion.utm_x and conexion.utm_y:
                     distancia_m = calcular_distancia_utm(
                         cutmx_real, cutmy_real, conexion.utm_x, conexion.utm_y
                     )
 
+                # AQUÍ USAMOS EL id_carga QUE YA FUE GENERADO ARRIBA
                 actividad = Actividad(
                     actividad_id=act_id,
+                    id_carga=log_carga.id_carga, 
                     ccodcnx=ccodcnx,
                     ccodprs=ccodprs,
                     tipo_actividad=proceso,
@@ -266,17 +279,11 @@ def procesar_archivo_excel(
         registros_error = len(errores_filas)
         estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if registros_insertados > 0 else "Fallido")
 
-        log_carga = RegistroCarga(
-            nombre_archivo=filename,
-            tipo_archivo="TI",
-            proceso=proceso,
-            estado=estado_carga,
-            registros_insertados=registros_insertados,
-            registros_error=registros_error,
-            detalle_errores="\n".join(errores_filas[:50]) if errores_filas else None,
-            usuario_id=usuario_id
-        )
-        db.add(log_carga)
+        # 2. Actualizamos el log_carga existente con los resultados finales
+        log_carga.estado = estado_carga
+        log_carga.registros_insertados = registros_insertados
+        log_carga.registros_error = registros_error
+        log_carga.detalle_errores = "\n".join(errores_filas[:50]) if errores_filas else None
 
         if registros_insertados == 0 and registros_error > 0:
             db.rollback()

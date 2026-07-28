@@ -61,15 +61,10 @@ class Conexion(Base):
     cnromdr = Column(String(30), nullable=True)
     zona_id = Column(String, ForeignKey("zonas.zona_id"))
     ruta_id = Column(String, ForeignKey("rutas.ruta_id"))
-
     # Datos de catastro (Excel de TI)
     direccion = Column(String, nullable=True)       # DIRECCION
     categoria = Column(String(50), nullable=True)    # CATEGORIA (Comercial, Residencial, etc.)
     condicion = Column(String(50), nullable=True)    # CONDICION (Servicio Activo, etc.)
-
-    # Punto TEÓRICO fijo del suministro (catastro). Fuente de verdad = UTM.
-    # lat/lon quedan opcionales, solo si en el futuro el catastro los provee;
-    # NO se usan para el cálculo de discrepancia (ver ActividadLectura).
     latitud_real = Column(Float, nullable=True)
     longitud_real = Column(Float, nullable=True)
     utm_x = Column(Float, nullable=True)
@@ -85,22 +80,15 @@ class Conexion(Base):
 # PERSONAL DE CAMPO (Entidades Operativas de Excel)
 # ==========================================
 class Trabajador(Base):
-    """
-    Representa al personal operativo en campo. Su rol o proceso no es estático,
-    sino que se deduce del historial de actividades e inspecciones que suben en los Excel.
-    """
     __tablename__ = "trabajadores"
 
     ccodprs = Column(String(20), primary_key=True)  # Código de Personal de SEDAPAR
     nombre = Column(String, nullable=False, default="Trabajador Temporal")
     telefono = Column(String, nullable=True)
-
-    # Última evaluación calculada (cache rápido para fichas / listados)
     ultimo_puntaje = Column(Float, nullable=True)
     ultima_clasificacion = Column(String(30), nullable=True)  # Excelente, Bueno, Regular, Crítico
     fecha_ultima_evaluacion = Column(Date, nullable=True)
 
-    # Relaciones
     actividades = relationship("Actividad", back_populates="trabajador")
     alertas = relationship("Alerta", back_populates="trabajador")
     resumenes_diarios = relationship("ResumenDiarioLector", back_populates="trabajador")
@@ -109,7 +97,6 @@ class Trabajador(Base):
 
 # ==========================================
 # ACTIVIDADES (TABLA MAESTRA / MULTIPROCESO)
-# Una fila = una lectura/actividad individual (dato crudo del Excel de TI)
 # ==========================================
 class Actividad(Base):
     __tablename__ = "actividades"
@@ -127,24 +114,14 @@ class Actividad(Base):
     resultado = Column(String, nullable=True)       # 'OK', 'Fuera de Punto'
     cmetfac = Column(String(10), nullable=True)
     promedio_lectura = Column(Float, nullable=True)
-
-    # Distancia calculada al procesar la carga (Euclidiana en UTM entre
-    # ActividadLectura.cutmx/cutmy y Conexion.utm_x/utm_y). Se guarda para
-    # no recalcular en cada consulta del heatmap / ranking de desviaciones.
     distancia_metros = Column(Float, nullable=True)
+    id_carga = Column(Integer, ForeignKey("registros_carga.id_carga"), nullable=True)
 
-    # NOTA: lecturas_programadas / lecturas_realizadas / lecturas_pendientes / eficiencia
-    # se movieron a ResumenDiarioLector, porque son totales DIARIOS por trabajador
-    # y no propiedades de una lectura individual (evita duplicar el mismo valor
-    # en cientos de filas de Actividad).
-
-    # Relaciones
     conexion = relationship("Conexion", back_populates="actividades")
     trabajador = relationship("Trabajador", back_populates="actividades")
     impedimentos = relationship("Impedimento", back_populates="actividad")
     observaciones = relationship("Observacion", back_populates="actividad")
     detalle_lectura = relationship("ActividadLectura", uselist=False, back_populates="actividad_general")
-
 
 # ==========================================
 # SUB-TABLA: DETALLE ESPECÍFICO DE LECTURA
@@ -157,11 +134,7 @@ class ActividadLectura(Base):
     nlecact = Column(Integer, nullable=True)
     cimplec = Column(String(10), nullable=True)
     cobsmdr = Column(String(255), nullable=True)
-    cperfac = Column(String(10), nullable=True, index=True)  # Periodo/Ciclo de facturación (ej. 202604)
-
-    # Coordenadas REALES capturadas por el celular al momento de la lectura.
-    # cgpslat/cgpslon: para pintar el mapa (breadcrumbs, marcadores).
-    # cutmx/cutmy: fuente de verdad para el cálculo de distancia vs. Conexion.utm_x/utm_y
+    cperfac = Column(String(10), nullable=True, index=True)  
     cgpsalt = Column(Float, nullable=True)
     cgpslat = Column(Float, nullable=True)
     cgpslon = Column(Float, nullable=True)
@@ -206,9 +179,7 @@ class Impedimento(Base):
     actividad_id = Column(String, ForeignKey("actividades.actividad_id"))
     cimplec = Column(String(10), nullable=True)
     categoria = Column(String, nullable=True)
-    descripcion = Column(Text, nullable=True)  # Resuelto contra el catálogo para auditoría rápida
-
-    # Geolocalización específica del incidente en campo
+    descripcion = Column(Text, nullable=True) 
     cgpslat = Column(Float, nullable=True)
     cgpslon = Column(Float, nullable=True)
 
@@ -228,7 +199,6 @@ class Observacion(Base):
 
 # ==========================================
 # RESUMEN DIARIO POR LECTOR (Excel de Reportes Diarios)
-# Una fila = un trabajador, un día. Fuente = archivo "reportes diarios".
 # ==========================================
 class ResumenDiarioLector(Base):
     __tablename__ = "resumen_diario_lector"
@@ -237,30 +207,24 @@ class ResumenDiarioLector(Base):
     ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"), nullable=False)
     fecha = Column(Date, nullable=False)
 
-    cantidad_lecturas = Column(Integer, nullable=True)      # Lecturas programadas del día
+    cantidad_lecturas = Column(Integer, nullable=True)    
     lecturas_realizadas = Column(Integer, nullable=True)
     lecturas_pendientes = Column(Integer, nullable=True)
     cantidad_impedimentos = Column(Integer, nullable=True)
     cantidad_observaciones = Column(Integer, nullable=True)
     cantidad_fotos = Column(Integer, nullable=True)
-
-    # Snapshot histórico del día (NO es FK estricta): la ruta/grupo que tenía
-    # el trabajador ESE día. Evita joins constantes y no se reescribe si
-    # luego reasignan al trabajador a otra ruta.
     ruta_id = Column(String(50), nullable=True)
     cmetfac = Column(String(10), nullable=True)
-
+    id_carga = Column(Integer, ForeignKey("registros_carga.id_carga"), nullable=True)
     fecha_inicio = Column(Date, nullable=True)
     hora_inicio = Column(DateTime, nullable=True)
     fecha_fin = Column(Date, nullable=True)
     hora_fin = Column(DateTime, nullable=True)
     duracion_total_min = Column(Float, nullable=True)       # DURACION, convertida a minutos
     promedio_min = Column(Float, nullable=True)              # PROMEDIO por lectura, en minutos
-
-    eficiencia = Column(Float, nullable=True)  # tal cual del Excel (ej. 0.88)
-
+    eficiencia = Column(Float, nullable=True)  
     trabajador = relationship("Trabajador", back_populates="resumenes_diarios")
-
+    
     __table_args__ = (
         UniqueConstraint("ccodprs", "fecha", name="uq_resumen_diario_lector_ccodprs_fecha"),
     )
@@ -274,15 +238,12 @@ class KpiDiario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     fecha = Column(Date, nullable=False)
-    zona_id = Column(String, ForeignKey("zonas.zona_id"), nullable=True)  # null = agregado global
-    kpi_nombre = Column(String, nullable=False)   # 'cumplimiento_lectura', 'productividad', etc.
-
-    # numerador/denominador son la fuente de verdad para agregar por semana/mes:
-    # SUM(numerador) / SUM(denominador) del rango, NUNCA promediar "valor".
+    zona_id = Column(String, ForeignKey("zonas.zona_id"), nullable=True) 
+    kpi_nombre = Column(String, nullable=False)  
     numerador = Column(Float, nullable=True)
     denominador = Column(Float, nullable=True)
-    valor = Column(Float, nullable=False)          # numerador/denominador ya resuelto, para pintar rápido
-    nivel_alerta = Column(String, nullable=True)   # 'Normal', 'Advertencia', 'Critico'
+    valor = Column(Float, nullable=False)        
+    nivel_alerta = Column(String, nullable=True)  
 
     zona = relationship("Zona", back_populates="kpis_diarios")
 
@@ -302,10 +263,7 @@ class Alerta(Base):
     kpi = Column(String, nullable=False)     
     motivo = Column(Text, nullable=False)
     fecha_generacion = Column(DateTime, default=func.now())
-    
-    # NUEVO: Añadir una columna de fecha pura para asegurar la unicidad diaria
     fecha = Column(Date, nullable=False, default=func.current_date()) 
-
     estado_alerta = Column(String, default="Pendiente")  
     comentario_resolucion = Column(Text, nullable=True)
     fecha_actualizacion = Column(DateTime, onupdate=func.now())
@@ -322,7 +280,6 @@ class Alerta(Base):
     intervenciones = relationship("Intervencion", back_populates="alerta")
 
     __table_args__ = (
-        # CAMBIO: Ahora evalúa por trabajador, kpi y el DÍA calendario (evita spam de alertas)
         UniqueConstraint("ccodprs", "kpi", "fecha", name="uq_alerta_ccodprs_kpi_fecha"),
     )
 
@@ -354,36 +311,20 @@ class RegistroCarga(Base):
     estado = Column(String, nullable=False, default="Exitoso")  # 'Exitoso', 'Con errores', 'Fallido'
     registros_insertados = Column(Integer, nullable=False)
     registros_error = Column(Integer, nullable=False, default=0)
-    detalle_errores = Column(Text, nullable=True)  # opcional: log resumido de las filas con error
+    detalle_errores = Column(Text, nullable=True)  
     usuario_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)
 
     usuario = relationship("Usuario")
 
 
 class EvaluacionDesempeno(Base):
-    """
-    NOTA sobre 'ranking': deliberadamente NO se guarda como columna.
-    El ranking depende del ámbito de comparación (global, por zona, por ruta)
-    y cambia apenas se actualiza el puntaje de cualquier otro trabajador.
-    Calcularlo al vuelo con una window function evita que quede desactualizado:
-
-        SELECT *, RANK() OVER (PARTITION BY zona_id ORDER BY puntaje DESC) AS ranking_zona
-        FROM evaluaciones_desempeno ...
-
-    Si el volumen de trabajadores crece mucho y esto se vuelve lento, se puede
-    agregar como columna cacheada (ranking_global, ranking_zona) recalculada
-    en el mismo proceso que actualiza KpiDiario.
-    """
     __tablename__ = "evaluaciones_desempeno"
-
     id = Column(Integer, primary_key=True, index=True)
     ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"))
     fecha = Column(Date, nullable=False)
-
     puntaje = Column(Float, nullable=False)
     clasificacion = Column(String(30), nullable=False)  # Excelente, Bueno, Regular, Crítico
     tendencia = Column(String(20), nullable=True)        # Mejora, Estable, Disminuye
-
     eficiencia = Column(Float)
     cumplimiento = Column(Float)
     productividad = Column(Float)

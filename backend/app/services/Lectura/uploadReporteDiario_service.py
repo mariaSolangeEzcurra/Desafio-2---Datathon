@@ -35,10 +35,6 @@ def _to_float(valor, default=0.0) -> float:
         return default
 
 def parsear_hhmmss_a_minutos(val) -> float:
-    """
-    Convierte 'HH:MM:SS', timedelta o floats a minutos totales.
-    Ejemplo: '10:26:49' -> 626.82 min
-    """
     if val is None or pd.isna(val):
         return 0.0
     
@@ -60,7 +56,6 @@ def parsear_hhmmss_a_minutos(val) -> float:
         return 0.0
 
 def parsear_a_datetime(raw_fecha, raw_hora) -> datetime:
-    """Combina fecha y hora asegurando compatibilidad con Column(DateTime)."""
     fecha_dt = limpiar_fecha(raw_fecha)
     if not fecha_dt:
         return None
@@ -96,19 +91,27 @@ def procesar_archivo_reporte_diario(
     try:
         df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error leyendo Excel: {e}")
-        
-    df.columns = [str(col).upper().strip() for col in df.columns]
-    
+        raise HTTPException(status_code=400, detail=f"Error leyendo Excel: {e}")        
+    df.columns = [str(col).upper().strip() for col in df.columns]    
     faltantes = COLUMNAS_OBLIGATORIAS_REPORTE - set(df.columns)
     if faltantes:
         raise HTTPException(
             status_code=400,
             detail=f"Faltan columnas en el reporte diario: {sorted(list(faltantes))}"
-        )
-        
+        )        
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel está vacío.")
+    log_carga = RegistroCarga(
+        nombre_archivo=filename,
+        tipo_archivo="Reporte Diario",
+        proceso="Lectura",
+        estado="En proceso",
+        registros_insertados=0,
+        registros_error=0,
+        usuario_id=usuario_id
+    )
+    db.add(log_carga)
+    db.flush()  # Genera log_carga.id_carga de forma segura antes del bucle
 
     registros_insertados = 0
     registros_actualizados = 0
@@ -120,15 +123,16 @@ def procesar_archivo_reporte_diario(
         for idx, row in enumerate(filas):
             fila_excel = idx + 2
             try:
-                # Normalización del código trabajador (ej: 42 -> '0042')
                 raw_cod = str(_valor_o_none(row, "CODIGO SEDAPAR") or "").split(".")[0].strip()
                 if not raw_cod or raw_cod.lower() == "nan":
                     raise ValueError("CODIGO SEDAPAR vacío")
-                
-                ccodprs = raw_cod.zfill(4)
-                cnomprs = str(_valor_o_none(row, "NOMBRES") or f"Trabajador {ccodprs}").strip()
 
-                # 1. Gestionar Trabajador
+                cod_corto = raw_cod.zfill(4)
+                if len(raw_cod) <= 4:
+                    ccodprs = f"0501{cod_corto}"
+                else:
+                    ccodprs = raw_cod.zfill(8)
+                cnomprs = str(_valor_o_none(row, "NOMBRES") or f"Trabajador {ccodprs}").strip(" ,")                
                 trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
                 if not trabajador:
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
@@ -136,20 +140,14 @@ def procesar_archivo_reporte_diario(
                     db.flush() # Guardar temporalmente para asegurar disponibilidad
                 elif cnomprs and cnomprs != f"Trabajador {ccodprs}":
                     trabajador.nombre = cnomprs
-
-                # 2. Fechas y Horas
                 dt_inicio = parsear_a_datetime(_valor_o_none(row, "FECHA INICIO"), _valor_o_none(row, "HORA INICIO"))
                 if not dt_inicio:
                     raise ValueError("Fecha de inicio inválida")
                 
                 fecha_reg = dt_inicio.date()
                 dt_fin = parsear_a_datetime(_valor_o_none(row, "FECHA FIN"), _valor_o_none(row, "HORA FIN"))
-
-                # 3. Minutos
                 duracion_min = parsear_hhmmss_a_minutos(_valor_o_none(row, "DURACION"))
                 promedio_min = parsear_hhmmss_a_minutos(_valor_o_none(row, "PROMEDIO"))
-
-                # 4. Lecturas y Eficiencia
                 cant_lecturas = _to_int(_valor_o_none(row, "CANTIDAD LECTURAS"))
                 lect_realizadas = _to_int(_valor_o_none(row, "LECTURAS REALIZADAS"))
                 lect_pendientes = _to_int(_valor_o_none(row, "LECTURAS PENDIENTES"))
@@ -157,8 +155,6 @@ def procesar_archivo_reporte_diario(
                 cant_obs = _to_int(_valor_o_none(row, "CANTIDAD OBSERVACIONES"))
                 cant_fotos = _to_int(_valor_o_none(row, "CANTIDAD FOTOS"))
                 eficiencia = _to_float(_valor_o_none(row, "EFICIENCIA"))
-
-                # 5. Insertar o Actualizar ResumenDiarioLector
                 resumen = db.query(ResumenDiarioLector).filter_by(
                     ccodprs=ccodprs, 
                     fecha=fecha_reg
@@ -166,6 +162,7 @@ def procesar_archivo_reporte_diario(
 
                 if not resumen:
                     resumen = ResumenDiarioLector(
+                        id_carga=log_carga.id_carga, 
                         ccodprs=ccodprs,
                         fecha=fecha_reg,
                         cantidad_lecturas=cant_lecturas,
@@ -185,6 +182,7 @@ def procesar_archivo_reporte_diario(
                     db.add(resumen)
                     registros_insertados += 1
                 else:
+                    resumen.id_carga = log_carga.id_carga  
                     resumen.cantidad_lecturas = cant_lecturas
                     resumen.lecturas_realizadas = lect_realizadas
                     resumen.lecturas_pendientes = lect_pendientes
@@ -210,18 +208,10 @@ def procesar_archivo_reporte_diario(
         total_procesados = registros_insertados + registros_actualizados
         registros_error = len(errores_filas)
         estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if total_procesados > 0 else "Fallido")
-
-        log_carga = RegistroCarga(
-            nombre_archivo=filename,
-            tipo_archivo="Reporte Diario",
-            proceso="Lectura",
-            estado=estado_carga,
-            registros_insertados=total_procesados,
-            registros_error=registros_error,
-            detalle_errores="\n".join(errores_filas[:50]) if errores_filas else None,
-            usuario_id=usuario_id
-        )
-        db.add(log_carga)
+        log_carga.estado = estado_carga
+        log_carga.registros_insertados = total_procesados
+        log_carga.registros_error = registros_error
+        log_carga.detalle_errores = "\n".join(errores_filas[:50]) if errores_filas else None
 
         if total_procesados == 0 and registros_error > 0:
             db.rollback()
@@ -229,9 +219,7 @@ def procesar_archivo_reporte_diario(
                 status_code=400,
                 detail=f"Error fatal en la plantilla. Ejemplos de falla: {errores_filas[:5]}"
             )
-
         db.commit()
-
     except HTTPException:
         raise
     except Exception as e:
