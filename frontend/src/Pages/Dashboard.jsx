@@ -1,164 +1,187 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Printer, ArrowLeft, Database, Loader2, Search } from "lucide-react";
+import MapaRutas from "../pages/MapaRutas";
 
-export default function CatalogosDashboard() {
-  const [catalogoSeleccionado, setCatalogoSeleccionado] = useState(null);
-  const [datos, setDatos] = useState([]);
-  const [cargando, setCargando] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
+export default function Dashboard({ idSeleccionado }) {
+  const [dashboard, setDashboard] = useState({
+    resumen_general: {},
+    ranking_lectores: [],
+  });
 
-  // Definición de los catálogos principales cargados en la BD
-  const catalogosDisponibles = [
-    { id: "impedimentos", label: "Catálogo de Impedimentos" },
-    { id: "observaciones", label: "Catálogo de Observaciones" },
-    { id: "grupos", label: "Grupos de Facturación" },
-  ];
+  const [listaActividades, setListaActividades] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Efecto para consumir la API al seleccionar un catálogo
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [zona, setZona] = useState("");
+
+  const [prefijo, vistaActiva] = idSeleccionado
+    ? idSeleccionado.split("_")
+    : ["lecturas", "resumen"];
+
+  const procesoActivo =
+    prefijo === "cortes"
+      ? "Corte y Reapertura"
+      : "Lectura Comercial";
+
+  const cargarDashboard = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+
+      if (fechaInicio) params.append("fecha_inicio", fechaInicio);
+      if (fechaFin) params.append("fecha_fin", fechaFin);
+      if (zona) params.append("zona_id", zona);
+
+      const response = await fetch(
+        `http://localhost:8000/lectura/kpis/dashboard?${params}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Error obteniendo dashboard");
+      }
+
+      const data = await response.json();
+
+      setDashboard(data);
+
+      // Si tu mapa utiliza actividades individuales,
+      // cuando exista ese endpoint reemplázalo.
+      setListaActividades([]);
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo cargar el dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!catalogoSeleccionado) return;
+    cargarDashboard();
+  }, [fechaInicio, fechaFin, zona]);
 
-    const fetchData = async () => {
-      setCargando(true);
-      const resultado = await catalogoService.obtenerCatalogo(catalogoSeleccionado);
-      setDatos(resultado);
-      setCargando(false);
-    };
+  const resumen = dashboard.resumen_general || {};
 
-    fetchData();
-  }, [catalogoSeleccionado]);
-
-  // Vista de Cuadrícula (Menú Principal de Tarjetas)
-  if (!catalogoSeleccionado) {
-    return (
-      <div className="space-y-6 text-left">
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <div className="mb-6">
-            <h3 className="text-base font-bold text-slate-800 uppercase tracking-wide">
-              Gestión de Catálogos del Sistema
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Selecciona un catálogo corporativo para consultar sus registros fijos, buscar códigos o exportarlos en PDF.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {catalogosDisponibles.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setCatalogoSeleccionado(cat.id)}
-                className="flex items-center gap-3 p-5 bg-white border border-slate-200 hover:border-[#006cb7] hover:shadow-md rounded-2xl transition-all text-left group"
-              >
-                <div className="p-3 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-blue-50 group-hover:text-[#006cb7] transition-colors">
-                  <FileText size={22} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-[#006cb7] transition-colors">
-                    {cat.label}
-                  </h4>
-                  <span className="text-[10px] text-slate-400">Ver registros en BD</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Vista Detallada con Tabla, Buscador y Exportación PDF
-  const infoActual = catalogosDisponibles.find((c) => c.id === catalogoSeleccionado);
-  
-  const datosFiltrados = datos.filter((item) =>
-    Object.values(item).some((val) =>
-      String(val ?? "").toLowerCase().includes(busqueda.toLowerCase())
-    )
-  );
+  const metrics = {
+    cumplimiento: `${resumen.cumplimiento_lectura ?? 0}%`,
+    productividad: `${resumen.productividad_lectura ?? 0}/h`,
+    impedimentos: `${resumen.impedimentos_lectura ?? 0}%`,
+    observaciones: `${resumen.observaciones_lectura ?? 0}%`,
+    coberturaGps: `${resumen.cobertura_georreferenciada ?? 0}%`,
+    fueraDeRadio: resumen.actividades_fuera_de_punto ?? 0,
+  };
 
   return (
     <div className="space-y-6 text-left">
-      {/* Cabecera */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setCatalogoSeleccionado(null);
-              setBusqueda("");
-              setDatos([]);
-            }}
-            className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
-            title="Volver al panel"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h3 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
-              <Database size={16} className="text-[#006cb7]" /> {infoActual?.label}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Valores estáticos sincronizados desde la base de datos de SEDAPAR.
-            </p>
-          </div>
-        </div>
 
-        <button
-          onClick={() => window.print()}
-          className="bg-[#006cb7] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#005a9c] transition-colors shadow-sm"
-        >
-          <Printer size={16} /> Imprimir / Guardar PDF
-        </button>
+      <div className="border-b border-slate-200 pb-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-slate-800">
+          Proceso:
+          <span className="text-[#006cb7] ml-2">
+            {procesoActivo}
+          </span>
+        </h1>
+
+        {loading && (
+          <span className="text-xs text-slate-400 animate-pulse">
+            Actualizando...
+          </span>
+        )}
       </div>
 
-      {/* Buscador */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-        <Search size={18} className="text-slate-400 ml-2" />
+      <div className="flex gap-3">
         <input
-          type="text"
-          placeholder={`Buscar código o descripción en ${infoActual?.label}...`}
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full text-xs bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
+          type="date"
+          value={fechaInicio}
+          onChange={(e) => setFechaInicio(e.target.value)}
+          className="border rounded-xl px-3 py-2 text-sm"
+        />
+
+        <input
+          type="date"
+          value={fechaFin}
+          onChange={(e) => setFechaFin(e.target.value)}
+          className="border rounded-xl px-3 py-2 text-sm"
+        />
+
+        <input
+          placeholder="Zona"
+          value={zona}
+          onChange={(e) => setZona(e.target.value)}
+          className="border rounded-xl px-3 py-2 text-sm"
         />
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        {cargando ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
-            <Loader2 className="animate-spin text-[#006cb7]" size={24} />
-            <p className="text-xs">Cargando registros desde la base de datos...</p>
+      {error && (
+        <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border">
+          {error}
+        </div>
+      )}
+
+      {vistaActiva === "resumen" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            {Object.entries(metrics).map(([key, value]) => (
+              <div
+                key={key}
+                className="bg-white p-5 border rounded-2xl shadow-sm"
+              >
+                <span className="text-[10px] uppercase font-bold text-slate-400">
+                  {key}
+                </span>
+
+                <span className="block text-xl font-bold text-slate-800">
+                  {value}
+                </span>
+              </div>
+            ))}
+
           </div>
-        ) : datosFiltrados.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-xs">
-            No se encontraron registros en este catálogo.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="text-slate-500 uppercase bg-slate-50/50 border-b">
-                <tr>
-                  {Object.keys(datos[0] || {}).map((key) => (
-                    <th key={key} className="p-3 font-semibold">
-                      {key.replace(/_/g, " ")}
-                    </th>
-                  ))}
+
+          <div className="bg-white rounded-2xl border shadow-sm p-6 mt-6">
+            <h2 className="font-bold mb-4">
+              Ranking de Lectores
+            </h2>
+
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3">Código</th>
+                  <th className="text-left p-3">Nombre</th>
+                  <th className="text-center p-3">Lecturas</th>
+                  <th className="text-center p-3">Eficiencia</th>
+                  <th className="text-center p-3">Min/Lectura</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {datosFiltrados.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    {Object.values(item).map((val, i) => (
-                      <td key={i} className="p-3 text-slate-700 font-medium">
-                        {String(val ?? "-")}
-                      </td>
-                    ))}
+
+              <tbody>
+                {dashboard.ranking_lectores?.map((r) => (
+                  <tr key={r.ccodprs} className="border-b">
+                    <td className="p-3">{r.ccodprs}</td>
+                    <td className="p-3">{r.nombre}</td>
+                    <td className="text-center p-3">
+                      {r.total_lecturas}
+                    </td>
+                    <td className="text-center p-3">
+                      {r.eficiencia_promedio}%
+                    </td>
+                    <td className="text-center p-3">
+                      {r.promedio_min_por_lectura}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {vistaActiva === "mapa" && (
+        <MapaRutas actividadesTotales={listaActividades} />
+      )}
     </div>
   );
 }

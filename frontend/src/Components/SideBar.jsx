@@ -44,6 +44,7 @@ console.log("MENU FILTRADO:", menu);
             vista={vista}
             setVista={setVista}
             collapsed={collapsed}
+            usuario={usuario}
           />
         ))}
       </div>

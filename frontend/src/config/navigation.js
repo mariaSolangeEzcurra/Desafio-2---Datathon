@@ -31,18 +31,6 @@ const navigation = [
     ]
   },
   {
-    id: "proceso_cortes",
-    label: "Proceso: Cortes y Reap.",
-    icon: ZapOff,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
-    children: [
-      { id: "cortes_resumen", label: "Resumen Ejecutivo", icon: FileText },
-      { id: "cortes_personal", label: "Personal Asignado", icon: Users },
-      { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
-      { id: "cortes_alertas", label: "Alertas e Impedimentos", icon: Bell },
-    ]
-  },
-  {
     id: "gestion_datos",
     label: "Gestión de Datos",
     icon: UploadCloud,
@@ -78,7 +66,7 @@ const navigation = [
     id: "gestion_usuarios",
     label: "Usuarios del Sistema",
     icon: Users,
-    roles: ["Gerencia", "Supervisor", "TI"]
+    roles: ["TI"]
   }
 ];
 

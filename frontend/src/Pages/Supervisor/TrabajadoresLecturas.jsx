@@ -7,41 +7,34 @@ import {
   X,
   Info,
   Trophy,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Calendar,
+  Activity
 } from "lucide-react";
+import {
+  obtenerPersonal,
+  obtenerFichaPersonal,
+  calcularDesempeno
+} from "../../services/trabajadorService";
 
 export default function TrabajadoresDesempeno() {
   const [trabajadores, setTrabajadores] = useState([]);
-  const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [calculando, setCalculando] = useState(false);
   const [detalle, setDetalle] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [resumen, setResumen] = useState(null);
 
   useEffect(() => {
-    cargarAlertas();
-    cargarRanking();
+    cargarDatos();
   }, []);
 
-  const cargarAlertas = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/api/alertas/");
-      if (response.ok) {
-        const data = await response.json();
-        setAlertas(data);
-      }
-    } catch (error) {
-      console.error("Error alertas", error);
-    }
-  };
-
-  const cargarRanking = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        "http://localhost:8000/api/desempeno/ranking-detallado"
-      );
-      const data = await response.json();
+      const data = await obtenerPersonal(0, 100);
 
       if (!Array.isArray(data) || data.length === 0) {
         setTrabajadores([]);
@@ -49,7 +42,7 @@ export default function TrabajadoresDesempeno() {
         return;
       }
 
-      // Orden de urgencia
+      // Orden de prioridad por clasificación / puntaje
       const prioridad = {
         "Crítico": 1,
         "Regular": 2,
@@ -57,60 +50,65 @@ export default function TrabajadoresDesempeno() {
         "Excelente": 4
       };
 
-      const ordenados = [...data].sort(
-        (a, b) =>
-          (prioridad[a.clasificacion] || 99) - (prioridad[b.clasificacion] || 99) ||
-          a.puntaje - b.puntaje
-      );
+      const ordenados = [...data].sort((a, b) => {
+        const pA = prioridad[a.ultima_clasificacion] || 99;
+        const pB = prioridad[b.ultima_clasificacion] || 99;
+        if (pA !== pB) return pA - pB;
+        return (a.ultimo_puntaje || 0) - (b.ultimo_puntaje || 0);
+      });
 
       setTrabajadores(ordenados);
 
-      // Obtención segura de extremos
-      const mejorPuntaje = [...data].sort((a, b) => b.puntaje - a.puntaje)[0];
-      const menorPuntaje = [...data].sort((a, b) => a.puntaje - b.puntaje)[0];
-      const mayorProductividad = [...data].sort(
-        (a, b) => (b.kpis?.productividad || 0) - (a.kpis?.productividad || 0)
+      // Obtención segura de métricas destacadas
+      const conPuntaje = data.filter((t) => t.ultimo_puntaje !== null);
+      const mejorPuntaje = [...conPuntaje].sort(
+        (a, b) => (b.ultimo_puntaje || 0) - (a.ultimo_puntaje || 0)
       )[0];
-      const menorProductividad = [...data].sort(
-        (a, b) => (a.kpis?.productividad || 0) - (b.kpis?.productividad || 0)
+      const menorPuntaje = [...conPuntaje].sort(
+        (a, b) => (a.ultimo_puntaje || 0) - (b.ultimo_puntaje || 0)
       )[0];
 
       setResumen({
         total: data.length,
-        criticos: data.filter((t) => t.clasificacion === "Crítico").length,
-        regulares: data.filter((t) => t.clasificacion === "Regular").length,
-        buenos: data.filter((t) => t.clasificacion === "Bueno").length,
-        excelentes: data.filter((t) => t.clasificacion === "Excelente").length,
+        criticos: data.filter((t) => t.ultima_clasificacion === "Crítico").length,
+        regulares: data.filter((t) => t.ultima_clasificacion === "Regular").length,
+        buenos: data.filter((t) => t.ultima_clasificacion === "Bueno").length,
+        excelentes: data.filter((t) => t.ultima_clasificacion === "Excelente").length,
         mejorPuntaje,
-        menorPuntaje,
-        mayorProductividad,
-        menorProductividad
+        menorPuntaje
       });
     } catch (error) {
-      console.error("Error cargando desempeño", error);
+      console.error("Error cargando trabajadores:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const verDetalle = async (trabajador) => {
-    if (!trabajador?.codigo) return;
+  const handleEjecutarCalculo = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/desempeno/${trabajador.codigo}/detalle`
-      );
-      const data = await response.json();
-
-      setDetalle({
-        ...data,
-        alertasTrabajador: alertas.filter(
-          (a) => a.cCodPrs === trabajador.codigo
-        )
-      });
-
-      setMostrarDetalle(true);
+      setCalculando(true);
+      await calcularDesempeno();
+      await cargarDatos();
     } catch (error) {
-      console.error("Error detalle", error);
+      console.error("Error calculando desempeño:", error);
+    } finally {
+      setCalculando(false);
+    }
+  };
+
+  const verDetalle = async (trabajador) => {
+    const ccodprs = trabajador?.ccodprs || trabajador?.codigo;
+    if (!ccodprs) return;
+
+    try {
+      setLoadingDetalle(true);
+      setMostrarDetalle(true);
+      const fichaData = await obtenerFichaPersonal(ccodprs);
+      setDetalle(fichaData);
+    } catch (error) {
+      console.error("Error obteniendo ficha del trabajador:", error);
+    } finally {
+      setLoadingDetalle(false);
     }
   };
 
@@ -122,35 +120,33 @@ export default function TrabajadoresDesempeno() {
         return "bg-yellow-100 text-yellow-700";
       case "Bueno":
         return "bg-blue-100 text-blue-700";
-      default:
+      case "Excelente":
         return "bg-green-100 text-green-700";
+      default:
+        return "bg-slate-100 text-slate-600";
     }
-  };
-
-  const descripcionKPI = {
-    cumplimiento:
-      "Porcentaje de lecturas realizadas respecto a las lecturas programadas.",
-    productividad:
-      "Cantidad de lecturas realizadas por cada hora efectiva de trabajo.",
-    eficiencia:
-      "Promedio de eficiencia obtenido en los reportes cargados.",
-    impedimentos:
-      "Porcentaje de actividades afectadas por impedimentos registrados.",
-    observaciones:
-      "Porcentaje de lecturas con observaciones registradas.",
-    cobertura:
-      "Porcentaje de lecturas con ubicación GPS válida."
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Supervisión de desempeño - Lecturas
-        </h1>
-        <p className="text-sm text-slate-500">
-          Evaluación basada en cumplimiento, productividad, eficiencia, calidad operativa y cobertura GPS.
-        </p>
+      {/* CABECERA CON ACCIÓN DE RECÁLCULO */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Gestión de Personal y Asistencia
+          </h1>
+          <p className="text-sm text-slate-500">
+            Supervisión de desempeño general, evaluación operativa y registro de asistencia.
+          </p>
+        </div>
+        <button
+          onClick={handleEjecutarCalculo}
+          disabled={calculando}
+          className="bg-[#006cb7] hover:bg-[#005799] disabled:opacity-50 transition text-white px-4 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm shadow-sm"
+        >
+          <RefreshCw size={16} className={calculando ? "animate-spin" : ""} />
+          {calculando ? "Calculando..." : "Recalcular Desempeño"}
+        </button>
       </div>
 
       {/* ============================
@@ -159,42 +155,46 @@ export default function TrabajadoresDesempeno() {
       {resumen && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white  rounded-xl p-4">
-              <p className="text-sm text-gray-500">Total trabajadores</p>
+            <div className="bg-white border rounded-xl p-4">
+              <p className="text-sm text-gray-500">Total personal registrado</p>
               <p className="text-3xl font-bold">{resumen.total}</p>
             </div>
 
-            <div className="bg-red-50  -red-200 rounded-xl p-4">
-              <p className="text-red-600 text-sm">Críticos</p>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-red-600 text-sm font-medium">Críticos</p>
               <p className="text-3xl font-bold text-red-700">{resumen.criticos}</p>
             </div>
 
-            <div className="bg-yellow-50  -yellow-200 rounded-xl p-4">
-              <p className="text-yellow-700 text-sm">Regulares</p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <p className="text-yellow-700 text-sm font-medium">Regulares</p>
               <p className="text-3xl font-bold">{resumen.regulares}</p>
             </div>
 
-            <div className="bg-green-50  -green-200 rounded-xl p-4">
-              <p className="text-green-700 text-sm">Buenos / Excelentes</p>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-green-700 text-sm font-medium">Buenos / Excelentes</p>
               <p className="text-3xl font-bold">
                 {resumen.buenos + resumen.excelentes}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {resumen.mejorPuntaje && (
               <button
                 onClick={() => verDetalle(resumen.mejorPuntaje)}
-                className="bg-white  rounded-xl p-4 text-left hover:shadow-lg transition"
+                className="bg-white border rounded-xl p-4 text-left hover:shadow-lg transition"
               >
-                <div className="flex items-center gap-2 font-bold">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
                   <Trophy size={18} className="text-yellow-500" />
                   Mejor desempeño
                 </div>
-                <p className="mt-2 truncate">{resumen.mejorPuntaje.nombre}</p>
+                <p className="mt-2 truncate font-semibold text-slate-700">
+                  {resumen.mejorPuntaje.nombre}
+                </p>
                 <p className="font-bold text-green-600">
-                  {resumen.mejorPuntaje.puntaje} pts
+                  {resumen.mejorPuntaje.ultimo_puntaje !== null
+                    ? `${resumen.mejorPuntaje.ultimo_puntaje} pts`
+                    : "Sin puntaje"}
                 </p>
               </button>
             )}
@@ -202,41 +202,19 @@ export default function TrabajadoresDesempeno() {
             {resumen.menorPuntaje && (
               <button
                 onClick={() => verDetalle(resumen.menorPuntaje)}
-                className="bg-white  rounded-xl p-4 text-left hover:shadow-lg transition"
+                className="bg-white border rounded-xl p-4 text-left hover:shadow-lg transition"
               >
-                <div className="flex items-center gap-2 font-bold">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
                   <AlertCircle size={18} className="text-red-500" />
-                  Mayor atención
+                  Mayor atención requerida
                 </div>
-                <p className="mt-2 truncate">{resumen.menorPuntaje.nombre}</p>
-                <p className="font-bold text-red-600">
-                  {resumen.menorPuntaje.puntaje} pts
+                <p className="mt-2 truncate font-semibold text-slate-700">
+                  {resumen.menorPuntaje.nombre}
                 </p>
-              </button>
-            )}
-
-            {resumen.mayorProductividad && (
-              <button
-                onClick={() => verDetalle(resumen.mayorProductividad)}
-                className="bg-white  rounded-xl p-4 text-left hover:shadow-lg transition"
-              >
-                <div className="font-bold">Mayor productividad</div>
-                <p className="truncate">{resumen.mayorProductividad.nombre}</p>
-                <p className="font-bold text-blue-600">
-                  {resumen.mayorProductividad.kpis?.productividad} lect/h
-                </p>
-              </button>
-            )}
-
-            {resumen.menorProductividad && (
-              <button
-                onClick={() => verDetalle(resumen.menorProductividad)}
-                className="bg-white  rounded-xl p-4 text-left hover:shadow-lg transition"
-              >
-                <div className="font-bold">Menor productividad</div>
-                <p className="truncate">{resumen.menorProductividad.nombre}</p>
                 <p className="font-bold text-red-600">
-                  {resumen.menorProductividad.kpis?.productividad} lect/h
+                  {resumen.menorPuntaje.ultimo_puntaje !== null
+                    ? `${resumen.menorPuntaje.ultimo_puntaje} pts`
+                    : "Sin puntaje"}
                 </p>
               </button>
             )}
@@ -245,139 +223,98 @@ export default function TrabajadoresDesempeno() {
       )}
 
       {/* ============================
-          TABLA
+          TABLA DE TRABAJADORES
       ============================= */}
-      <div className="bg-white rounded-2xl  shadow-sm overflow-hidden">
-        <div className="p-5 -b flex items-center justify-between">
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div className="p-5 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="text-[#006cb7]" />
             <div>
-              <h2 className="font-bold">Trabajadores evaluados</h2>
+              <h2 className="font-bold text-slate-800">Personal Registrado</h2>
               <p className="text-xs text-gray-500">
-                Ordenados automáticamente desde el trabajador con mayor prioridad de atención hasta el de mejor desempeño.
+                Listado general y estado actual de evaluación operativa SEDAPAR.
               </p>
             </div>
           </div>
-          <div className="text-xs text-gray-500">
-            Mostrando {trabajadores.length} trabajadores
+          <div className="text-xs text-gray-500 font-medium">
+            Mostrando {trabajadores.length} registros
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="p-3">#</th>
-                <th className="p-3">Trabajador</th>
+                <th className="p-3">Código</th>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Teléfono</th>
                 <th className="p-3">Puntaje</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3">Productividad</th>
+                <th className="p-3">Clasificación</th>
                 <th className="p-3">Acción</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center">
-                    Cargando trabajadores...
+                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                    Cargando lista de personal...
                   </td>
                 </tr>
               ) : trabajadores.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-gray-500">
-                    No existen trabajadores registrados.
+                  <td colSpan="7" className="p-6 text-center text-gray-500">
+                    No se encontraron registros de personal.
                   </td>
                 </tr>
               ) : (
                 trabajadores.map((t, index) => (
                   <tr
-                    key={t.codigo}
-                    className={`-t hover:bg-slate-50 transition ${
-                      t.clasificacion === "Crítico" ? "bg-red-50/40" : ""
+                    key={t.ccodprs}
+                    className={`border-t hover:bg-slate-50 transition ${
+                      t.ultima_clasificacion === "Crítico" ? "bg-red-50/40" : ""
                     }`}
                   >
                     <td className="p-3">
                       <div
                         className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                          t.clasificacion === "Crítico"
+                          t.ultima_clasificacion === "Crítico"
                             ? "bg-red-600 text-white"
-                            : t.clasificacion === "Regular"
+                            : t.ultima_clasificacion === "Regular"
                             ? "bg-yellow-500 text-white"
-                            : "bg-slate-200"
+                            : "bg-slate-200 text-slate-700"
                         }`}
                       >
                         {index + 1}
                       </div>
                     </td>
 
+                    <td className="p-3 font-mono text-xs font-bold text-slate-600">
+                      {t.ccodprs}
+                    </td>
+
+                    <td className="p-3 font-semibold text-slate-800">
+                      {t.nombre}
+                    </td>
+
+                    <td className="p-3 text-gray-500">
+                      {t.telefono || "Sin registro"}
+                    </td>
+
                     <td className="p-3">
-                      <div className="font-semibold">{t.nombre}</div>
-                      <div className="text-xs text-gray-500">
-                        Código: {t.codigo}
+                      <div className="font-bold text-slate-800">
+                        {t.ultimo_puntaje !== null ? `${t.ultimo_puntaje} pts` : "--"}
                       </div>
                     </td>
 
                     <td className="p-3">
-                      <div className="relative group w-fit cursor-help">
-                        <div className="font-bold">{t.puntaje} pts</div>
-                        <div className="text-xs text-gray-500">Puntaje global</div>
-
-                        <div className="absolute hidden group-hover:block z-50 bg-slate-800 text-white rounded-xl shadow-xl w-80 p-4 left-0 top-12 text-xs">
-                          <p className="font-bold">¿Por qué obtuvo este puntaje?</p>
-                          <p className="mt-2">
-                            El puntaje es el resultado de combinar los indicadores de desempeño calculados automáticamente.
-                          </p>
-                          <ul className="mt-3 space-y-1">
-                            <li>• Cumplimiento de lecturas (30%)</li>
-                            <li>• Productividad (25%)</li>
-                            <li>• Eficiencia del trabajo (15%)</li>
-                            <li>• Calidad operativa (15%)</li>
-                            <li>• Cobertura GPS (15%)</li>
-                          </ul>
-                          <p className="mt-3">
-                            Mientras mayor sea el puntaje, mejor ha sido el desempeño general del trabajador.
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="p-3">
-                      <div className="relative group w-fit cursor-help">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${colorEstado(
-                            t.clasificacion
-                          )}`}
-                        >
-                          {t.clasificacion}
-                        </span>
-
-                        <div className="absolute hidden group-hover:block z-50 bg-slate-800 text-white rounded-xl shadow-xl w-72 p-4 left-0 top-10 text-xs">
-                          <p className="font-bold">Clasificación del trabajador</p>
-                          <p className="mt-2">
-                            {t.clasificacion === "Excelente"
-                              ? "El trabajador mantiene un rendimiento sobresaliente en prácticamente todos los indicadores evaluados."
-                              : t.clasificacion === "Bueno"
-                              ? "Presenta un desempeño adecuado, aunque todavía existen indicadores que pueden optimizarse."
-                              : t.clasificacion === "Regular"
-                              ? "Se detectaron indicadores por debajo del nivel esperado. Se recomienda realizar seguimiento para evitar que el desempeño continúe disminuyendo."
-                              : "El trabajador presenta indicadores críticos que requieren atención inmediata del supervisor."}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="p-3">
-                      <div className="relative group cursor-help w-fit">
-                        <div className="font-bold">{t.kpis?.productividad}</div>
-                        <div className="text-xs text-gray-500">lecturas/h</div>
-
-                        <div className="absolute hidden group-hover:block z-50 bg-slate-800 text-white rounded-xl shadow-xl w-72 p-4 left-0 top-12 text-xs">
-                          <p className="font-bold">Productividad</p>
-                          <p className="mt-2">
-                            Representa el promedio de lecturas realizadas por hora efectiva de trabajo. Una productividad mayor indica un mejor aprovechamiento del tiempo durante la jornada laboral.
-                          </p>
-                        </div>
-                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${colorEstado(
+                          t.ultima_clasificacion
+                        )}`}
+                      >
+                        {t.ultima_clasificacion || "Sin evaluar"}
+                      </span>
                     </td>
 
                     <td className="p-3">
@@ -386,7 +323,7 @@ export default function TrabajadoresDesempeno() {
                         className="bg-[#006cb7] hover:bg-[#005799] transition text-white px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-semibold"
                       >
                         <Eye size={16} />
-                        Detalle
+                        Ficha
                       </button>
                     </td>
                   </tr>
@@ -398,42 +335,47 @@ export default function TrabajadoresDesempeno() {
       </div>
 
       {/* ============================
-          MODAL DETALLE
+          MODAL FICHA EMPLEADO
       ============================= */}
-      {mostrarDetalle && detalle && (
+      {mostrarDetalle && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-[900px] max-h-[90vh] overflow-auto shadow-2xl">
-            {/* CABECERA */}
-            <div className="flex justify-between items-start p-6 -b">
+            {/* CABECERA MODAL */}
+            <div className="flex justify-between items-start p-6 border-b sticky top-0 bg-white z-10">
               <div>
-                <h2 className="text-2xl font-bold">
-                  {detalle.trabajador?.nombre}
+                <h2 className="text-2xl font-bold text-slate-800">
+                  {detalle?.nombre || "Cargando ficha..."}
                 </h2>
-                <p className="text-gray-500 mt-1 text-sm">
-                  Código: {detalle.trabajador?.codigo}
+                <p className="text-gray-500 mt-1 text-sm font-mono">
+                  Código: {detalle?.ccodprs || "--"}
                 </p>
                 <p className="text-gray-500 text-sm">
-                  Supervisor: {detalle.trabajador?.supervisor || "No asignado"}
+                  Teléfono: {detalle?.telefono || "No registrado"}
                 </p>
               </div>
 
               <div className="text-right flex items-center gap-4">
-                <div>
-                  <span
-                    className={`px-4 py-2 rounded-full font-semibold text-sm ${colorEstado(
-                      detalle.evaluacion?.clasificacion
-                    )}`}
-                  >
-                    {detalle.evaluacion?.clasificacion}
-                  </span>
-                  <p className="text-3xl font-bold mt-2 text-slate-800">
-                    {detalle.evaluacion?.puntaje}
-                  </p>
-                  <p className="text-xs text-gray-500">Puntaje final</p>
-                </div>
+                {detalle && (
+                  <div>
+                    <span
+                      className={`px-4 py-1.5 rounded-full font-semibold text-sm ${colorEstado(
+                        detalle.ultima_clasificacion
+                      )}`}
+                    >
+                      {detalle.ultima_clasificacion || "Sin evaluar"}
+                    </span>
+                    <p className="text-3xl font-bold mt-2 text-slate-800">
+                      {detalle.ultimo_puntaje !== null ? detalle.ultimo_puntaje : "--"}
+                    </p>
+                    <p className="text-xs text-gray-500">Último puntaje</p>
+                  </div>
+                )}
 
                 <button
-                  onClick={() => setMostrarDetalle(false)}
+                  onClick={() => {
+                    setMostrarDetalle(false);
+                    setDetalle(null);
+                  }}
                   className="p-1 hover:bg-slate-100 rounded-lg text-gray-500 transition"
                 >
                   <X size={20} />
@@ -443,92 +385,88 @@ export default function TrabajadoresDesempeno() {
 
             {/* CUERPO DEL MODAL */}
             <div className="p-6">
-              <div className="bg-slate-50  rounded-xl p-5 mb-6">
-                <h3 className="font-bold mb-2">Resumen del desempeño</h3>
-                <p className="text-sm text-gray-600 leading-6">
-                  La evaluación corresponde al desempeño registrado en las actividades de lectura. El puntaje final considera el cumplimiento de las lecturas programadas, la productividad alcanzada durante la jornada, la eficiencia operativa, la calidad del trabajo (impedimentos y observaciones) y la cobertura GPS obtenida. Mientras más cercano sea el puntaje a <b>100 puntos</b>, mejor es el desempeño general del trabajador.
-                </p>
-              </div>
-
-              {/* KPIs */}
-              <h3 className="font-bold text-lg mb-4">Indicadores evaluados</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(detalle.evaluacion || {})
-                  .filter(([key]) => Object.keys(descripcionKPI).includes(key))
-                  .map(([key, value]) => (
-                    <div
-                      key={key}
-                      className=" rounded-xl p-4 hover:shadow-md transition group relative"
-                    >
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">
-                          {key}
+              {loadingDetalle ? (
+                <div className="py-12 text-center text-gray-500">
+                  Cargando información detallada del trabajador...
+                </div>
+              ) : detalle ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="bg-slate-50 border rounded-xl p-4 flex items-center gap-3">
+                      <Calendar className="text-[#006cb7]" size={20} />
+                      <div>
+                        <p className="text-xs text-gray-500">Última evaluación</p>
+                        <p className="font-semibold text-slate-700">
+                          {detalle.fecha_ultima_evaluacion || "Sin registro"}
                         </p>
-                        <Info size={15} className="text-gray-400" />
-                      </div>
-                      <p className="text-2xl font-bold mt-3 text-slate-800">
-                        {value}
-                      </p>
-
-                      <div className="absolute hidden group-hover:block z-50 bg-slate-800 text-white rounded-xl shadow-xl w-64 p-4 top-full mt-2 left-0 text-xs leading-5">
-                        <b className="capitalize">{key}</b>
-                        <p className="mt-2">{descripcionKPI[key]}</p>
                       </div>
                     </div>
-                  ))}
-              </div>
 
-              {/* MOTIVOS */}
-              <div className="mt-8">
-                <h3 className="font-bold flex items-center gap-2 mb-3">
-                  <AlertTriangle className="text-red-500" size={18} />
-                  Aspectos identificados durante la evaluación
-                </h3>
-                {detalle.evaluacion?.problemas?.length > 0 ? (
-                  detalle.evaluacion.problemas.map((p, index) => (
-                    <div
-                      key={index}
-                      className="-l-4 -red-500 bg-red-50 rounded-lg p-4 mb-3 text-sm text-red-900"
-                    >
-                      {p}
+                    <div className="bg-slate-50 border rounded-xl p-4 flex items-center gap-3">
+                      <AlertTriangle className="text-amber-500" size={20} />
+                      <div>
+                        <p className="text-xs text-gray-500">Alertas pendientes</p>
+                        <p className="font-semibold text-slate-700">
+                          {detalle.total_alertas_pendientes ?? 0} alertas
+                        </p>
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="bg-green-50  -green-200 rounded-lg p-4 text-sm text-green-800">
-                    No se detectaron observaciones relevantes.
                   </div>
-                )}
-              </div>
 
-              {/* ALERTAS */}
-              <div className="mt-8">
-                <h3 className="font-bold mb-4">Alertas registradas</h3>
-                {!detalle.alertasTrabajador || detalle.alertasTrabajador.length === 0 ? (
-                  <div className="bg-slate-50 rounded-xl  p-4 text-sm text-gray-500">
-                    Este trabajador no presenta alertas registradas.
-                  </div>
-                ) : (
-                  detalle.alertasTrabajador.map((a) => (
-                    <div
-                      key={a.alerta_id}
-                      className=" rounded-xl p-4 mb-3 text-sm space-y-1"
-                    >
-                      <div className="font-semibold text-slate-800">{a.kpi}</div>
-                      <p><b>Nivel:</b> {a.nivel}</p>
-                      <p><b>Motivo:</b> {a.motivo}</p>
-                      <p><b>Estado:</b> {a.estado_alerta}</p>
+                  {/* HISTORIAL DE ASISTENCIA Y LECTURAS */}
+                  <h3 className="font-bold text-lg mb-3 text-slate-800 flex items-center gap-2">
+                    <Activity size={18} className="text-[#006cb7]" />
+                    Historial de Asistencia y Rendimiento
+                  </h3>
+
+                  {!detalle.historial_asistencia ||
+                  detalle.historial_asistencia.length === 0 ? (
+                    <div className="bg-slate-50 rounded-xl p-4 text-sm text-gray-500 border text-center">
+                      No hay registros de asistencia en el historial.
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    <div className="overflow-x-auto border rounded-xl">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 border-b">
+                          <tr>
+                            <th className="p-3">Fecha</th>
+                            <th className="p-3">Ruta ID</th>
+                            <th className="p-3">Lecturas Prog.</th>
+                            <th className="p-3">Realizadas</th>
+                            <th className="p-3">Eficiencia</th>
+                            <th className="p-3">Duración (min)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalle.historial_asistencia.map((h, i) => (
+                            <tr key={i} className="border-t hover:bg-slate-50">
+                              <td className="p-3 font-medium">{h.fecha}</td>
+                              <td className="p-3 font-mono text-xs">{h.ruta_id || "--"}</td>
+                              <td className="p-3">{h.cantidad_lecturas}</td>
+                              <td className="p-3">{h.lecturas_realizadas}</td>
+                              <td className="p-3 font-bold text-blue-600">
+                                {h.eficiencia ? `${(h.eficiencia * 100).toFixed(0)}%` : "--"}
+                              </td>
+                              <td className="p-3">{h.duracion_total_min || "--"} min</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
-              <button
-                onClick={() => setMostrarDetalle(false)}
-                className="mt-8 w-full bg-green-600 hover:bg-green-700 transition text-white rounded-xl py-3 font-semibold flex justify-center items-center gap-2"
-              >
-                <CheckCircle size={18} />
-                Cerrar revisión
-              </button>
+                  <button
+                    onClick={() => {
+                      setMostrarDetalle(false);
+                      setDetalle(null);
+                    }}
+                    className="mt-8 w-full bg-green-600 hover:bg-green-700 transition text-white rounded-xl py-3 font-semibold flex justify-center items-center gap-2 shadow-sm"
+                  >
+                    <CheckCircle size={18} />
+                    Cerrar Ficha
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

@@ -1,14 +1,27 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-export default function SidebarItem({ item, vista, setVista, collapsed }) {
+export default function SidebarItem({ item, vista, setVista, collapsed, usuario }) {
   const [isOpen, setIsOpen] = useState(true); 
   
   const Icono = item.icon;
-  const tieneHijos = !!item.children;
+  const rolActual = usuario?.rol || usuario?.role;
+
+  // 1. Filtrar los hijos según el rol del usuario antes de evaluar nada más
+  const hijosPermitidos = item.children
+    ? item.children.filter((hijo) => {
+        // Si el hijo no especifica roles, se asume que hereda el acceso del padre
+        if (!hijo.roles) return true;
+        return hijo.roles.includes(rolActual);
+      })
+    : [];
+
+  const tieneHijos = hijosPermitidos.length > 0;
   
-  // Verifica si el item actual o alguno de sus hijos está seleccionado
-  const estaActivo = vista === item.id || (tieneHijos && item.children.some(h => h.id === vista));
+  // 2. Evaluar 'estaActivo' únicamente contra los hijos permitidos
+  const estaActivo =
+    vista === item.id || (tieneHijos && hijosPermitidos.some((h) => h.id === vista));
+
   return (
     <div className="space-y-1">
       {/* Botón Principal o Padre */}
@@ -36,17 +49,17 @@ export default function SidebarItem({ item, vista, setVista, collapsed }) {
         )}
       </button>
 
-      {/* Renderizado de los hijos (Carga Excel, Resumen, etc.) */}
+      {/* Renderizado de los hijos FILTRADOS */}
       {tieneHijos && isOpen && !collapsed && (
         <div className="ml-6 border-l border-slate-100 pl-3 space-y-1">
-          {item.children.map((hijo) => {
+          {hijosPermitidos.map((hijo) => {
             const IconoHijo = hijo.icon;
             const subActivo = vista === hijo.id;
 
             return (
               <button
                 key={hijo.id}
-                onClick={() => setVista(hijo.id)} // 
+                onClick={() => setVista(hijo.id)}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[11px] font-medium transition-all ${
                   subActivo
                     ? "bg-slate-100 text-[#006cb7] font-bold"

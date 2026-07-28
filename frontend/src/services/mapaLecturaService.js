@@ -1,19 +1,91 @@
-const API = "http://localhost:8000/api/mapas";
+const API = "http://localhost:8000";
 
-export async function obtenerDatosMapa(tipo_vista, filtros = {}) {
+
+export async function obtenerPersonal() {
+    const response = await fetch(
+        `${API}/lectura/personal/?skip=0&limit=200`
+    );
+
+    if (!response.ok)
+        throw new Error("Error obteniendo personal");
+
+    return await response.json();
+}
+
+
+
+export async function obtenerRecorridoTrabajador(
+    ccodprs,
+    fecha
+) {
+
+    const response = await fetch(
+        `${API}/api/maps/recorrido/${ccodprs}?fecha=${fecha}`
+    );
+
+
+    if (!response.ok)
+        throw new Error(
+            `Error recorrido trabajador ${ccodprs}`
+        );
+
+
+    return await response.json();
+}
+
+
+
+export async function obtenerHeatmapImpedimentos(filtros={}){
+
     const params = new URLSearchParams();
-    
-    Object.entries(filtros).forEach(([key, value]) => {
-        // Solo añadimos si el valor existe y no es una cadena vacía
-        if (value !== null && value !== undefined && value !== "") {
-            params.append(key, value);
-        }
+
+
+    Object.entries(filtros).forEach(([key,value])=>{
+        if(value)
+            params.append(key,value);
     });
 
-    const url = `${API}/${tipo_vista}?${params.toString()}`;
-    console.log("Consultando URL:", url); // <--- MIRA ESTO EN LA CONSOLA DEL NAVEGADOR
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Error en el servidor");
+
+    const response = await fetch(
+        `${API}/api/maps/heatmap-impedimentos?${params}`
+    );
+
+
+    if(!response.ok)
+        throw new Error(
+            "Error heatmap"
+        );
+
+
     return await response.json();
+
+}
+
+
+
+export async function obtenerDiscrepancias(filtros={}){
+
+    const params = new URLSearchParams();
+
+
+    Object.entries(filtros).forEach(([key,value])=>{
+        if(value)
+            params.append(key,value);
+    });
+
+
+
+    const response = await fetch(
+        `${API}/api/maps/discrepancias?${params}`
+    );
+
+
+    if(!response.ok)
+        throw new Error(
+            "Error discrepancias"
+        );
+
+
+    return await response.json();
+
 }
