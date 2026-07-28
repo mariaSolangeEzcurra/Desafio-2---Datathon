@@ -1,17 +1,21 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class CatalogoItemOut(BaseModel):
+class CatalogoBase(BaseModel):
     codigo: str
     descripcion: str
 
-    class Config:
-        from_attributes = True
+class CatalogoCreate(CatalogoBase):
+    pass
 
-class GrupoFacturacionOut(BaseModel):
+class CatalogoUpdate(BaseModel):
+    descripcion: Optional[str] = None
+
+class GrupoFacturacionCreate(BaseModel):
     cmetfac: str
     ccodmet: Optional[str] = None
     cnommet: str
 
-    class Config:
-        from_attributes = True
+class GrupoFacturacionUpdate(BaseModel):
+    ccodmet: Optional[str] = None
+    cnommet: Optional[str] = None

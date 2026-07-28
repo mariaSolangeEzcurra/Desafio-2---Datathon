@@ -57,6 +57,13 @@ def calcular_distancia_utm(x1: float, y1: float, x2: float, y2: float) -> float:
         return None
     return round(math.sqrt((x1 - x2)**2 + (y1 - y2)**2), 2)
 
+def normalizar_nombre(nombre_raw: str) -> str:
+    if not nombre_raw:
+        return ""    
+    texto_sin_comas = str(nombre_raw).replace(",", " ")
+    return " ".join(texto_sin_comas.strip().split())
+
+
 def procesar_archivo_excel(
     contents: bytes, 
     filename: str, 
@@ -162,8 +169,8 @@ def procesar_archivo_excel(
                 trabajador = trabajadores_cache.get(ccodprs)
                 if not trabajador:
                     trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
-                cnomprs = str(_valor_o_none(row, "CNOMPRS") or f"Trabajador {ccodprs}").strip()
-                
+                raw_nombre = _valor_o_none(row, "CNOMPRS")
+                cnomprs = normalizar_nombre(str(raw_nombre)) if raw_nombre else f"Trabajador {ccodprs}"
                 if not trabajador:
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
                     db.add(trabajador)
@@ -302,6 +309,7 @@ def procesar_archivo_excel(
 
     return {
         "status": "success",
+        "id_carga": log_carga.id_carga,
         "message": "Archivo procesado correctamente." if registros_error == 0 else f"Procesado con {registros_error} errores de fila.",
         "registros_insertados": registros_insertados,
         "registros_error": registros_error,

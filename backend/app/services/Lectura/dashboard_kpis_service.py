@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, or_
+from sqlalchemy import func, case
 from datetime import date
-from app.model import ResumenDiarioLector, Actividad, Trabajador, Conexion, Zona
+from app.model import ResumenDiarioLector, Actividad, Trabajador, Conexion
 
 class KpiLecturaService:
 
@@ -20,8 +20,13 @@ class KpiLecturaService:
         if fecha_inicio and fecha_fin:
             query_resumen = query_resumen.filter(ResumenDiarioLector.fecha.between(fecha_inicio, fecha_fin))
         
+        # SI FILTRAN POR ZONA (cmetfac):
+        # Como ResumenDiarioLector tiene cmetfac nulo, filtramos cruzando con los lectores que tuvieron actividades en ese cmetfac
         if zona_id:
-            query_resumen = query_resumen.filter(ResumenDiarioLector.cmetfac == zona_id)
+            lectores_en_zona = db.query(Actividad.ccodprs)\
+                .filter(Actividad.cmetfac == zona_id)\
+                .distinct().subquery()
+            query_resumen = query_resumen.filter(ResumenDiarioLector.ccodprs.in_(lectores_en_zona))
 
         res_resumen = query_resumen.first()
 
@@ -31,48 +36,41 @@ class KpiLecturaService:
         observaciones = res_resumen.observaciones or 0
         duracion_total_min = res_resumen.duracion_total_minutos or 0.0
 
-        # --- LOS 7 KPIS OPERATIVOS EXACTOS ---
-        
-        # KPI 1: Cumplimiento de lectura: (Ejecutadas / Programadas) * 100
+        # --- KPIS OPERATIVOS DE LECTURA ---
         cumplimiento_lectura = round((real / prog * 100), 2) if prog > 0 else 0.0
 
-        # KPI 2: Productividad de lectura: Lecturas / horas campo
         horas_campo = duracion_total_min / 60.0
         productividad_lectura = round(real / horas_campo, 2) if horas_campo > 0 else 0.0
 
-        # KPI 3: Tiempo promedio de lectura: Tiempo total / lecturas (en minutos)
         tiempo_promedio_lectura = round(duracion_total_min / real, 2) if real > 0 else 0.0
 
-        # KPI 4: Impedimentos de lectura: Con impedimento / programadas × 100
         impedimentos_lectura = round((impedimentos / prog * 100), 2) if prog > 0 else 0.0
 
-        # KPI 5: Observaciones de lectura: Con observación / ejecutadas × 100
         observaciones_lectura = round((observaciones / real * 100), 2) if real > 0 else 0.0
 
-        # 2. Métricas espaciales desde Actividades (TI / GPS) para los KPIs 6 y 7
+        # 2. Métricas espaciales desde Actividades (TI / GPS) para Cobertura y Fuera de Punto
         query_act = db.query(
             func.count(Actividad.actividad_id).label("total_act"),
-            # Validamos variantes comunes por si el texto difiere en mayúsculas/minúsculas
             func.sum(case((func.lower(Actividad.resultado).contains("fuera"), 1), else_=0)).label("fuera_punto"),
             func.sum(case((func.lower(Actividad.resultado).in_(["en punto", "conforme", "valido", "ok"]), 1), else_=0)).label("en_punto_valido")
-        ).join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
+        )
 
         if fecha_inicio and fecha_fin:
             query_act = query_act.filter(Actividad.fecha.between(fecha_inicio, fecha_fin))
         
+        # Filtrado directo por cmetfac en la tabla Actividad (sin joins innecesarios a Zona/Conexion)
         if zona_id:
-            query_act = query_act.join(Zona, Conexion.zona_id == Zona.zona_id).filter(Zona.zona_id == zona_id)
+            query_act = query_act.filter(Actividad.cmetfac == zona_id)
 
         res_act = query_act.first()
         total_act = res_act.total_act or 0
         fuera_punto = res_act.fuera_punto or 0
         en_punto_valido = res_act.en_punto_valido or 0
 
-        # KPI 6: Cober. georreferenciada de lectura (Lecturas con GPS válido / programadas × 100)
-        # Usamos el total de actividades válidas o realizadas en punto frente a lo programado
+        # KPI 6: Cobertura georreferenciada de lectura
         cobertura_georreferenciada = round((en_punto_valido / prog * 100), 2) if prog > 0 else 0.0
 
-        # KPI 7: Actividades fuera de punto (Lecturas fuera zona / total × 100)
+        # KPI 7: Actividades fuera de punto
         actividades_fuera_de_punto = round((fuera_punto / total_act * 100), 2) if total_act > 0 else 0.0
 
         return {

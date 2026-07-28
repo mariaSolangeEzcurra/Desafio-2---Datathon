@@ -82,6 +82,12 @@ def parsear_a_datetime(raw_fecha, raw_hora) -> datetime:
 
     return datetime.combine(fecha_dt.date(), time(0, 0, 0))
 
+def normalizar_nombre(nombre_raw: str) -> str:
+    if not nombre_raw:
+        return ""    
+    texto_sin_comas = str(nombre_raw).replace(",", " ")
+    return " ".join(texto_sin_comas.strip().split())
+
 def procesar_archivo_reporte_diario(
     contents: bytes, 
     filename: str, 
@@ -132,7 +138,11 @@ def procesar_archivo_reporte_diario(
                     ccodprs = f"0501{cod_corto}"
                 else:
                     ccodprs = raw_cod.zfill(8)
-                cnomprs = str(_valor_o_none(row, "NOMBRES") or f"Trabajador {ccodprs}").strip(" ,")                
+                raw_nombre = _valor_o_none(row, "NOMBRES")
+                if raw_nombre:
+                    cnomprs = normalizar_nombre(str(raw_nombre))
+                else:
+                    cnomprs = f"Trabajador {ccodprs}"            
                 trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
                 if not trabajador:
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
@@ -228,6 +238,7 @@ def procesar_archivo_reporte_diario(
 
     return {
         "status": "success",
+        "id_carga": log_carga.id_carga,
         "message": "Reporte diario procesado exitosamente.",
         "registros_insertados": registros_insertados,
         "registros_actualizados": registros_actualizados,

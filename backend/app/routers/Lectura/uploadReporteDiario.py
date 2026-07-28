@@ -46,15 +46,16 @@ def revertir_carga_reporte_diario(id_carga: int, db: Session = Depends(get_db)):
     carga = db.query(RegistroCarga).filter_by(id_carga=id_carga).first()
     
     if not carga:
-        raise HTTPException(status_code=404, detail="El registro de carga especificado no existe.")    
-    if carga.tipo_archivo != "Reporte Diario":
+        raise HTTPException(status_code=404, detail="El registro de carga especificado no existe.")        
+    tipo_normalizado = carga.tipo_archivo.replace("_", " ").strip().lower()
+    if tipo_normalizado != "reporte diario":
         raise HTTPException(
             status_code=400, 
             detail=f"Este endpoint es para 'Reporte Diario'. Esta carga es de tipo '{carga.tipo_archivo}'."
         )
     try:
         db.query(ResumenDiarioLector).filter(ResumenDiarioLector.id_carga == id_carga).delete(synchronize_session=False)
-        db.delete(carga)        
+        db.delete(carga)         
         db.commit()
         return {
             "status": "success",
