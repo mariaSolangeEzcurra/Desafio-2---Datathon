@@ -1,215 +1,590 @@
-import { useEffect, useState } from "react";
 import {
-  obtenerMapaConexiones,
-  obtenerMapaActividades,
-  obtenerMapaImpedimentos,
-  obtenerMapaAlertas,
-  obtenerMapaOverview,
-  obtenerMapaImpedimentosHeatmap,
-} from "../services/mapaService";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+    MapContainer,
+    TileLayer,
+    Marker,
+    Popup,
+    Polyline,
+    CircleMarker,
+    useMap
+} from "react-leaflet";
+
+
+import {
+    useEffect,
+    useState
+} from "react";
+
+
 import L from "leaflet";
-import "leaflet.heat"; // Plugin nativo de calor
-import "leaflet/dist/leaflet.css";
 
-// Fix íconos por defecto
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
-// Íconos personalizados
-const iconoRojo = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-
-const iconoVerde = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-
-const iconoAmarillo = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-
-// --- NUEVO COMPONENTE HEATMAP COMPATIBLE CON REACT 19 ---
-function HeatmapLayer({
-  points,
-  longitudeExtractor,
-  latitudeExtractor,
-  intensityExtractor,
-  radius = 25,
-  blur = 15,
-  max = 10,
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    // 1. Mensaje de diagnóstico para saber si el componente se activa
-    console.log("Cargando HeatmapLayer. ¿Hay puntos?:", points ? points.length : 0);
-    console.log("Datos crudos de impedimentosHeatmap:", points);
-
-    if (!map || !points || points.length === 0) return;
-
-    try {
-      const heatPoints = points.map((p) => {
-        const lat = latitudeExtractor ? latitudeExtractor(p) : p[0];
-        const lon = longitudeExtractor ? longitudeExtractor(p) : p[1];
-        const intensity = intensityExtractor ? intensityExtractor(p) : (p[2] ?? 1);
-        return [lat, lon, intensity];
-      });
-
-      console.log("Coordenadas procesadas para el mapa de calor:", heatPoints);
-
-      const heatLayer = L.heatLayer(heatPoints, {
-        radius: radius,
-        blur: blur,
-        maxZoom: 17,
-        max: max,
-      });
-
-      heatLayer.addTo(map);
-
-      return () => {
-        console.log("Removiendo capa de calor...");
-        if (map.hasLayer(heatLayer)) {
-          map.removeLayer(heatLayer);
-        }
-      };
-    } catch (e) {
-      console.error("Error procesando puntos en Heatmap:", e);
-    }
-  }, [map, points, longitudeExtractor, latitudeExtractor, intensityExtractor, radius, blur, max]);
-
-  return null;
+import {
+    obtenerRecorrido,
+    obtenerDiscrepancias,
+    obtenerHeatmapImpedimentos
 }
-// --------------------------------------------------------
+from "../services/mapaService";
 
-export default function Mapa() {
-  const [conexiones, setConexiones] = useState([]);
-  const [actividades, setActividades] = useState([]);
-  const [impedimentos, setImpedimentos] = useState([]);
-  const [impedimentosHeatmap, setImpedimentosHeatmap] = useState([]);
-  const [alertas, setAlertas] = useState([]);
-  const [overview, setOverview] = useState({});
-  const [modo, setModo] = useState("marcadores"); // "marcadores" o "heatmap"
 
-  useEffect(() => {
-    obtenerMapaConexiones().then(setConexiones);
-    obtenerMapaActividades().then(setActividades);
-    obtenerMapaImpedimentos().then(setImpedimentos);
-    obtenerMapaAlertas().then(setAlertas);
-    obtenerMapaOverview().then(setOverview);
-    obtenerMapaImpedimentosHeatmap().then(setImpedimentosHeatmap);
-  }, []);
+import {
+    obtenerPersonal
+}
+from "../services/trabajadorService";
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Mapa GIS</h1>
-      <p className="mb-4">Overview: {JSON.stringify(overview)}</p>
 
-      {/* Selector de modo */}
-      <div className="mb-4">
-        <label className="mr-2 font-semibold">Visualización:</label>
-        <select
-          value={modo}
-          onChange={(e) => setModo(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          <option value="marcadores">Marcadores</option>
-          <option value="heatmap">Mapa de calor (impedimentos)</option>
-        </select>
-      </div>
+import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
 
-      <MapContainer center={[-16.4, -71.5]} zoom={12} style={{ height: "500px", width: "100%" }}>
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        {modo === "marcadores" && (
-          <>
-            {/* Conexiones */}
-            {conexiones.map(c => (
-              <Marker
-                key={c.codigo_suministro}
-                position={[c.latitud, c.longitud]}
-                icon={c.estado_servicio === "Activo" ? iconoVerde : iconoRojo}
-              >
-                <Popup>
-                  Conexión {c.codigo_suministro} <br />
-                  Estado: {c.estado_servicio}
-                </Popup>
-              </Marker>
-            ))}
 
-            {/* Actividades */}
-            {actividades.map(a => (
-              <Marker
-                key={a.actividad_id}
-                position={[a.gps_trabajador_lat, a.gps_trabajador_lon]}
-                icon={a.estado === "Pendiente" ? iconoAmarillo : iconoVerde}
-              >
-                <Popup>
-                  Actividad {a.actividad_id} <br />
-                  Estado: {a.estado}
-                </Popup>
-              </Marker>
-            ))}
+// ICONO DEFAULT
 
-            {/* Impedimentos */}
-            {impedimentos.map(i => (
-              <Marker
-                key={i.impedimento_id}
-                position={[i.latitud, i.longitud]}
-                icon={iconoRojo}
-              >
-                <Popup>
-                  Impedimento {i.impedimento_id} <br />
-                  Categoría: {i.categoria} <br />
-                  {i.descripcion}
-                </Popup>
-              </Marker>
-            ))}
+delete L.Icon.Default.prototype._getIconUrl;
 
-            {/* Alertas */}
-            {alertas.map(al => (
-              <Marker
-                key={al.alerta_id}
-                position={[-16.4, -71.5]} // usar lat/lon real si lo tienes
-                icon={iconoAmarillo}
-              >
-                <Popup>
-                  Alerta {al.alerta_id} <br />
-                  Nivel: {al.nivel}
-                </Popup>
-              </Marker>
-            ))}
-          </>
-        )}
+L.Icon.Default.mergeOptions({
 
-        {modo === "heatmap" && (
-          <HeatmapLayer
-            points={impedimentosHeatmap}
-            longitudeExtractor={p => p.lon}
-            latitudeExtractor={p => p.lat}
-            intensityExtractor={p => p.count}
-            max={10}
-            radius={25}
-            blur={15}
-          />
-        )}
-      </MapContainer>
-    </div>
-  );
+    iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+
+    iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+
+    shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+
+});
+
+
+
+
+
+// =============================
+// HEATMAP
+// =============================
+
+
+function Heatmap({puntos}){
+
+
+const map = useMap();
+
+
+useEffect(()=>{
+
+
+if(!puntos.length)
+return;
+
+
+const data = puntos.map(p=>[
+    p.lat,
+    p.lng,
+    p.peso
+]);
+
+
+const layer=L.heatLayer(
+    data,
+    {
+        radius:35,
+        blur:20
+    }
+);
+
+
+layer.addTo(map);
+
+
+return ()=>{
+
+map.removeLayer(layer);
+
+}
+
+
+},[puntos,map]);
+
+
+
+return null;
+
+
+}
+
+
+
+
+
+
+export default function Mapa(){
+
+
+const [personal,setPersonal]=useState([]);
+
+
+const [trabajador,setTrabajador]=useState("");
+
+const [fecha,setFecha]=useState(
+    "2026-06-30"
+);
+
+
+const [recorrido,setRecorrido]=useState([]);
+
+const [discrepancias,setDiscrepancias]=useState([]);
+
+const [heatmap,setHeatmap]=useState([]);
+
+
+const [modo,setModo]=useState("recorrido");
+
+
+
+
+
+// cargar trabajadores
+
+useEffect(()=>{
+
+
+obtenerPersonal()
+.then(data=>setPersonal(data));
+
+
+},[]);
+
+
+
+
+
+// cargar recorrido
+
+const buscarRecorrido=async()=>{
+
+
+if(!trabajador)
+return;
+
+
+const data =
+await obtenerRecorrido(
+    trabajador,
+    fecha
+);
+
+
+setRecorrido(
+    data.coordenadas || []
+);
+
+
+};
+
+
+
+
+
+
+// filtros mapa
+
+const cargarCapas=async()=>{
+
+
+const filtros={
+
+fecha_inicio:fecha,
+fecha_fin:fecha
+
+};
+
+
+const d=
+await obtenerDiscrepancias(
+    filtros
+);
+
+
+setDiscrepancias(
+    d.elementos || []
+);
+
+
+
+const h=
+await obtenerHeatmapImpedimentos(
+    filtros
+);
+
+
+setHeatmap(
+    h.puntos || []
+);
+
+
+};
+
+
+
+
+
+
+
+return (
+
+<div className="space-y-5">
+
+
+<h1 className="text-2xl font-bold">
+Mapa Geoespacial de Lecturas
+</h1>
+
+
+
+
+
+{/* FILTROS */}
+
+
+<div className="
+bg-white 
+rounded-xl 
+p-5
+shadow
+grid
+grid-cols-1
+md:grid-cols-4
+gap-4
+">
+
+
+<select
+className="border rounded-lg p-2"
+
+value={trabajador}
+
+onChange={
+e=>setTrabajador(e.target.value)
+}
+
+>
+
+<option value="">
+Seleccione trabajador
+</option>
+
+
+{
+personal.map(p=>(
+
+<option
+key={p.ccodprs}
+value={p.ccodprs}
+>
+
+{p.nombre}
+
+</option>
+
+))
+
+}
+
+
+</select>
+
+
+
+<input
+
+type="date"
+
+className="border rounded-lg p-2"
+
+value={fecha}
+
+onChange={
+e=>setFecha(e.target.value)
+}
+
+/>
+
+
+
+<button
+
+onClick={buscarRecorrido}
+
+className="
+bg-blue-600
+text-white
+rounded-lg
+px-4
+"
+
+>
+
+Ver recorrido
+
+</button>
+
+
+
+
+<button
+
+onClick={cargarCapas}
+
+className="
+bg-red-600
+text-white
+rounded-lg
+px-4
+"
+
+>
+
+Cargar anomalías
+
+</button>
+
+
+
+</div>
+
+
+
+
+
+<div>
+
+
+<select
+
+className="
+border
+rounded
+p-2
+"
+
+value={modo}
+
+onChange={
+e=>setModo(e.target.value)
+}
+
+>
+
+
+<option value="recorrido">
+Recorrido GPS
+</option>
+
+
+<option value="heatmap">
+Mapa calor impedimentos
+</option>
+
+
+<option value="discrepancias">
+Discrepancias
+</option>
+
+
+</select>
+
+
+</div>
+
+
+
+
+
+<MapContainer
+
+center={
+[-16.4,-71.53]
+}
+
+zoom={14}
+
+style={{
+height:"650px",
+width:"100%"
+}}
+
+>
+
+
+
+<TileLayer
+
+url="
+https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+"
+
+/>
+
+
+
+
+
+
+{
+modo==="recorrido" && recorrido.length>0 &&
+
+<>
+
+
+<Polyline
+
+positions={
+recorrido.map(
+p=>[
+p.lat,
+p.lng
+]
+)
+}
+
+color="blue"
+
+/>
+
+
+
+{
+recorrido.map((p,index)=>(
+
+
+<Marker
+
+key={index}
+
+position={[
+p.lat,
+p.lng
+]}
+
+>
+
+
+<Popup>
+
+<b>Punto GPS</b>
+<br/>
+
+Conexión:
+{p.ccodcnx}
+
+<br/>
+
+Hora:
+{p.timestamp}
+
+<br/>
+
+Resultado:
+{p.resultado}
+
+</Popup>
+
+
+</Marker>
+
+
+))
+
+}
+
+
+</>
+
+}
+
+
+
+
+
+
+
+{
+modo==="heatmap" &&
+
+<Heatmap
+
+puntos={heatmap}
+
+/>
+
+}
+
+
+
+
+
+
+
+
+{
+modo==="discrepancias" &&
+
+discrepancias.map((d,index)=>(
+
+<CircleMarker
+
+key={index}
+
+center={[
+d.real.lat,
+d.real.lng
+]}
+
+radius={8}
+
+color="red"
+
+>
+
+<Popup>
+
+<b>
+Discrepancia espacial
+</b>
+
+<br/>
+
+Trabajador:
+{d.trabajador_id}
+
+<br/>
+
+Distancia:
+{d.distancia_metros} metros
+
+
+</Popup>
+
+
+</CircleMarker>
+
+
+))
+
+
+}
+
+
+
+
+
+</MapContainer>
+
+
+
+
+</div>
+
+
+)
+
 }

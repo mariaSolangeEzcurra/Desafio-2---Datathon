@@ -13,6 +13,7 @@ import CatalogosView from "../pages/TI/CatalogosDashboard";
 import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
 //SUPERVISOR
 import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
+import Alertas from "../pages/supervisor/Alertas";
 
 export default function DashboardLayout({
   usuario,
@@ -24,8 +25,8 @@ export default function DashboardLayout({
   const renderVista = () => {
     // 1. Prioridad: Vistas especiales específicas
     if (seccionActiva === "lecturas_kpis") return <LecturaKPI />; // <--- Sin props innecesarias
-    if (seccionActiva === "cortes_kpis") return <LecturaKPI />; // (O el componente específico para cortes si lo creas después)
     if (seccionActiva === "lecturas_personal") return <TrabajadoresLecturas />;
+    if (seccionActiva === "lecturas_alertas") return <Alertas />;
 
     // 2. Vistas de carga separadas con sus respectivos componentes
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 

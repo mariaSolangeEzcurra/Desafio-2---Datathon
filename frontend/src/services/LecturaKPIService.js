@@ -1,31 +1,51 @@
 import axios from "axios";
 
-const API = "http://localhost:8000/lectura";
+const API = "http://localhost:8000/lectura/kpis";
 
-export async function obtenerKPIsLectura(
-    periodo,
-    grupoFacturacion = "",
-    trabajador = ""
-) {
-    const params = new URLSearchParams({ periodo });
+/**
+ * Dashboard completo de KPIs + Ranking
+ * GET /lectura/kpis/dashboard
+ */
+export const obtenerDashboardLectura = async (
+  fechaInicio = "",
+  fechaFin = "",
+  zonaId = ""
+) => {
+  const params = {};
 
-    if (grupoFacturacion)
-        params.append("grupo_facturacion", grupoFacturacion);
+  if (fechaInicio) params.fecha_inicio = fechaInicio;
+  if (fechaFin) params.fecha_fin = fechaFin;
+  if (zonaId) params.zona_id = zonaId;
 
-    if (trabajador)
-        params.append("trabajador", trabajador);
+  try {
+    const { data } = await axios.get(`${API}/dashboard`, { params });
+    return data;
+  } catch (error) {
+    console.error("Error obteniendo dashboard:", error);
+    throw error;
+  }
+};
 
-    const response = await axios.get(`${API}/kpis?${params}`);
-    return response.data;
-}
+/**
+ * Resumen general de KPIs
+ * GET /lectura/kpis/resumen
+ */
+export const obtenerResumenLectura = async (
+  fechaInicio = "",
+  fechaFin = "",
+  zonaId = ""
+) => {
+  const params = {};
 
-export async function obtenerGruposFacturacion() {
-    try {
-        // Consumiendo directamente el endpoint de lectura
-        const response = await axios.get(`${API}/grupos-facturacion`);
-        return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-        console.error("Error al obtener grupos de facturación:", error);
-        return [];
-    }
-}
+  if (fechaInicio) params.fecha_inicio = fechaInicio;
+  if (fechaFin) params.fecha_fin = fechaFin;
+  if (zonaId) params.zona_id = zonaId;
+
+  try {
+    const { data } = await axios.get(`${API}/resumen`, { params });
+    return data;
+  } catch (error) {
+    console.error("Error obteniendo resumen:", error);
+    throw error;
+  }
+};
