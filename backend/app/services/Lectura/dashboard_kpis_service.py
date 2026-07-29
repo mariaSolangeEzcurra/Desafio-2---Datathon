@@ -49,28 +49,41 @@ class KpiLecturaService:
         observaciones_lectura = round((observaciones / real * 100), 2) if real > 0 else 0.0
 
         # 2. Métricas espaciales desde Actividades (TI / GPS) para Cobertura y Fuera de Punto
+        # Nos aseguramos de evaluar de forma segura contra NULLs en la base de datos
+        condicion_fuera = case(
+            (func.lower(func.coalesce(Actividad.resultado, '')).like("%fuera%"), 1),
+            else_=0
+        )
+        condicion_valido = case(
+            (func.lower(func.coalesce(Actividad.resultado, '')).in_(["en punto", "conforme", "valido", "ok"]), 1),
+            else_=0
+        )
+
         query_act = db.query(
             func.count(Actividad.actividad_id).label("total_act"),
-            func.sum(case((func.lower(Actividad.resultado).contains("fuera"), 1), else_=0)).label("fuera_punto"),
-            func.sum(case((func.lower(Actividad.resultado).in_(["en punto", "conforme", "valido", "ok"]), 1), else_=0)).label("en_punto_valido")
+            func.sum(condicion_fuera).label("fuera_punto"),
+            func.sum(condicion_valido).label("en_punto_valido")
         )
 
         if fecha_inicio and fecha_fin:
             query_act = query_act.filter(Actividad.fecha.between(fecha_inicio, fecha_fin))
         
-        # Filtrado directo por cmetfac en la tabla Actividad (sin joins innecesarios a Zona/Conexion)
+        # Filtrado directo por cmetfac en la tabla Actividad
         if zona_id:
             query_act = query_act.filter(Actividad.cmetfac == zona_id)
 
         res_act = query_act.first()
-        total_act = res_act.total_act or 0
-        fuera_punto = res_act.fuera_punto or 0
-        en_punto_valido = res_act.en_punto_valido or 0
+        
+        # Saneo estricto de None/Valores nulos devueltos por la BD
+        total_act = (res_act.total_act if res_act else 0) or 0
+        fuera_punto = (res_act.fuera_punto if res_act else 0) or 0
+        en_punto_valido = (res_act.en_punto_valido if res_act else 0) or 0
 
         # KPI 6: Cobertura georreferenciada de lectura
         cobertura_georreferenciada = round((en_punto_valido / prog * 100), 2) if prog > 0 else 0.0
 
         # KPI 7: Actividades fuera de punto
+        # Si no hay actividades registradas o total_act es 0, dará 0.0
         actividades_fuera_de_punto = round((fuera_punto / total_act * 100), 2) if total_act > 0 else 0.0
 
         return {
