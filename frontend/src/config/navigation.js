@@ -32,6 +32,17 @@ const navigation = [
       { id: "lecturas_reportes", label: "Reportes", icon: FileBarChart },
     ]
   },
+  {
+      id: "proceso_cortes",
+      label: "Proceso: Cortes",
+      icon: Eye,
+      roles: ["Supervisor"],
+      children: [
+        //{ id: "cortes_kpis", label: "KPI's de Cortes", icon: FileText }, 
+        { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
+        { id: "cortes_reporte", label: "Reportes", icon: FileBarChart },
+      ]
+    },
     {
     id: "gerencia",
     label: "Analitica",
@@ -45,7 +56,7 @@ const navigation = [
   },
   {
     id: "gestion_datos",
-    label: "Gestión de Datos",
+    label: "Gestión de Lecturas",
     icon: UploadCloud,
     roles: ["TI"],
     children: [
@@ -67,6 +78,20 @@ const navigation = [
         icon: UploadCloud,
         roles: ["TI"]
       }
+    ]
+  },
+   {
+    id: "gestion_datos_cortes",
+    label: "Gestión de Cortes",
+    icon: UploadCloud,
+    roles: ["TI"],
+    children: [
+      {
+        id: "cortes_carga",
+        label: "Carga de Cortes",
+        icon: UploadCloud,
+        roles: ["TI"]
+      },
     ]
   },
   {
