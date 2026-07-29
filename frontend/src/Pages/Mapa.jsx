@@ -584,7 +584,7 @@ export default function Mapa({
     // RENDER
     // =========================================================
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm text-left">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm text-left">
             {/* =================================================
                 CABECERA
             ================================================= */}
@@ -651,6 +651,41 @@ export default function Mapa({
                                 <p className="text-[11px] text-red-600 mt-1 leading-relaxed">
                                     {error}
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {/* =================================================
+                INFORMACIÓN DE DISCREPANCIAS
+            ================================================= */}
+            {
+                capa === "discrepancias" && (
+                    <div className="mb-5 bg-blue-50 border border-blue-100 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-1.5 rounded-lg bg-white text-[#006cb7] shrink-0 mt-0.5">
+                                <Info size={15} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-700">
+                                    ¿Qué significa "Fuera de Punto"?
+                                </p>
+                                <p className="text-[11px] text-slate-600 leading-relaxed mt-1.5">
+                                    El endpoint de discrepancias identifica lecturas cuyo desfase espacial supera el umbral establecido por el servicio. El resultado de validación, la distancia y las coordenadas mostradas en el mapa provienen directamente del API.
+                                </p>
+                                {
+                                    cantidadSinTeorica > 0 && (
+                                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2.5">
+                                            <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                                El API está devolviendo registros donde{" "}
+                                                <strong className="text-amber-800">teorica.lat</strong> y{" "}
+                                                <strong className="text-amber-800">teorica.lng</strong> son nulos.
+                                                Por eso el Frontend muestra únicamente el punto real y no inventa una ubicación teórica ni una línea de desfase.
+                                            </p>
+                                        </div>
+                                    )
+                                }
                             </div>
                         </div>
                     </div>
@@ -799,7 +834,7 @@ export default function Mapa({
                                                                             Trabajador
                                                                         </p>
                                                                         <p className="font-semibold text-slate-700 mb-1">
-                                                                            {d?.trabajador_id || "No disponible"}
+                                                                            {nombreTrabajador}
                                                                         </p>
                                                                         <p className="text-[10px] text-slate-500">
                                                                             Distancia
