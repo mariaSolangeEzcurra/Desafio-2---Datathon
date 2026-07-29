@@ -66,7 +66,7 @@ def procesar_archivo_excel(
     filename: str, 
     proceso: str, 
     db: Session
-) -> dict:  # 👈 YA NO RECIBE usuario_id
+) -> dict: 
     try:
         df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
@@ -83,8 +83,6 @@ def procesar_archivo_excel(
         
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel no contiene registros.")
-
-    # 1. Creamos el registro de carga inicial (usuario_id en None para no causar errores)
     log_carga = RegistroCarga(
         nombre_archivo=filename,
         tipo_archivo="TI",
@@ -92,7 +90,7 @@ def procesar_archivo_excel(
         estado="En proceso",
         registros_insertados=0,
         registros_error=0,
-        usuario_id=None  # 👈 Sin requerir ID
+        usuario_id=None 
     )
     db.add(log_carga)
     db.flush()
@@ -107,7 +105,6 @@ def procesar_archivo_excel(
     
     filas = df.to_dict("records")
     
-    # Pre-carga de IDs
     actividades_ids_excel = []
     for row in filas:
         ccodcnx_raw = str(_valor_o_none(row, "CCODCNX") or "").split(".")[0].strip()
@@ -140,9 +137,8 @@ def procesar_archivo_excel(
                 if not ccodcnx or ccodcnx.lower() == "nan":
                     raise ValueError("CCODCNX es obligatorio")
                 if not ccodprs or ccodprs.lower() == "nan":
-                    raise ValueError("CCODPRS es obligatorio")
-                    
-                # 1. Zona
+                    raise ValueError("CCODPRS es obligatorio")                    
+                # Zona
                 zona_id = f"Z-{distrito[:3]}-{cmetfac}"
                 zona = zonas_cache.get(zona_id)
                 if not zona:
@@ -150,18 +146,16 @@ def procesar_archivo_excel(
                 if not zona:
                     zona = Zona(zona_id=zona_id, distrito=distrito, cmetfac=cmetfac)
                     db.add(zona)
-                zonas_cache[zona_id] = zona
-                
-                # 2. Ruta
+                zonas_cache[zona_id] = zona                
+                # Ruta
                 ruta = rutas_cache.get(cderule)
                 if not ruta:
                     ruta = db.query(Ruta).filter_by(ruta_id=cderule).first()
                 if not ruta:
                     ruta = Ruta(ruta_id=cderule)
                     db.add(ruta)
-                rutas_cache[cderule] = ruta
-                
-                # 3. Trabajador
+                rutas_cache[cderule] = ruta                
+                # Trabajador
                 trabajador = trabajadores_cache.get(ccodprs)
                 if not trabajador:
                     trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
@@ -174,20 +168,16 @@ def procesar_archivo_excel(
                     if cnomprs and cnomprs != f"Trabajador {ccodprs}":
                         trabajador.nombre = cnomprs
                 trabajadores_cache[ccodprs] = trabajador
-
-                # 4. Conexión
+                # Conexión
                 conexion = conexiones_cache.get(ccodcnx)
                 if not conexion:
-                    conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()
-                    
+                    conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()                    
                 direccion = str(_valor_o_none(row, "DIRECCION") or "").strip() or None
                 categoria = str(_valor_o_none(row, "CATEGORIA") or "").strip() or None
                 condicion = str(_valor_o_none(row, "CONDICION") or "").strip() or None
-                cnromdr = str(_valor_o_none(row, "CNROMDR") or "").strip() or None
-                
+                cnromdr = str(_valor_o_none(row, "CNROMDR") or "").strip() or None                
                 utm_x_ref = _to_float(_valor_o_none(row, "UTM_X")) or _to_float(_valor_o_none(row, "CUTMX_REF"))
-                utm_y_ref = _to_float(_valor_o_none(row, "UTM_Y")) or _to_float(_valor_o_none(row, "CUTMY_REF"))
-                
+                utm_y_ref = _to_float(_valor_o_none(row, "UTM_Y")) or _to_float(_valor_o_none(row, "CUTMY_REF"))                
                 if not conexion:
                     conexion = Conexion(
                         ccodcnx=ccodcnx,
@@ -211,7 +201,7 @@ def procesar_archivo_excel(
                     
                 conexiones_cache[ccodcnx] = conexion
 
-                # 5. Combinar Fecha y Hora
+                # Combinar Fecha y Hora
                 dlectur = construir_datetime_completo(
                     _valor_o_none(row, "DLECTUR"),
                     _valor_o_none(row, "HORA"),
@@ -219,24 +209,20 @@ def procesar_archivo_excel(
                     _valor_o_none(row, "SEGUNDO")
                 )
                 if not dlectur:
-                    raise ValueError("Fecha u Hora inválida o vacía")
-                    
+                    raise ValueError("Fecha u Hora inválida o vacía")                    
                 act_id = f"ACT-{ccodcnx}-{dlectur.strftime('%Y%m%d%H%M%S')}"
                 if act_id in actividades_existentes:
                     errores_filas.append(f"Fila {fila_excel}: La actividad {act_id} ya existe.")
                     continue
-
                 cutmx_real = _to_float(_valor_o_none(row, "CUTMX"))
                 cutmy_real = _to_float(_valor_o_none(row, "CUTMY"))
                 cgpslat = _to_float(_valor_o_none(row, "CGPSLAT"))
-                cgpslon = _to_float(_valor_o_none(row, "CGPSLON"))
-                
+                cgpslon = _to_float(_valor_o_none(row, "CGPSLON"))                
                 distancia_m = None
                 if cutmx_real and cutmy_real and conexion.utm_x and conexion.utm_y:
                     distancia_m = calcular_distancia_utm(
                         cutmx_real, cutmy_real, conexion.utm_x, conexion.utm_y
                     )
-
                 actividad = Actividad(
                     actividad_id=act_id,
                     id_carga=log_carga.id_carga, 
@@ -249,11 +235,9 @@ def procesar_archivo_excel(
                     cmetfac=cmetfac,
                     distancia_metros=distancia_m
                 )
-
                 cimplec = _to_int(_valor_o_none(row, "CIMPLEC"), default=None)
                 cobsmdr = _to_int(_valor_o_none(row, "COBSMDR"), default=None)
                 cperfac = str(_valor_o_none(row, "CPERFAC") or "").strip() or None
-
                 detalle = ActividadLectura(
                     actividad_id=act_id,
                     dlectur=dlectur,
@@ -266,21 +250,16 @@ def procesar_archivo_excel(
                     cutmx=cutmx_real,
                     cutmy=cutmy_real
                 )
-
                 db.add_all([actividad, detalle])
                 actividades_existentes.add(act_id)
                 registros_insertados += 1
-
                 if registros_insertados % 1000 == 0:
                     db.flush()
-
             except Exception as e_fila:
                 errores_filas.append(f"Fila {fila_excel}: {e_fila}")
                 continue
-
         registros_error = len(errores_filas)
         estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if registros_insertados > 0 else "Fallido")
-
         log_carga.estado = estado_carga
         log_carga.registros_insertados = registros_insertados
         log_carga.registros_error = registros_error
@@ -292,15 +271,12 @@ def procesar_archivo_excel(
                 status_code=400,
                 detail=f"No se insertó ningún registro. Muestra de errores: {errores_filas[:5]}"
             )
-
         db.commit()
-
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al procesar el archivo: {e}")
-
     return {
         "status": "success",
         "id_carga": log_carga.id_carga,

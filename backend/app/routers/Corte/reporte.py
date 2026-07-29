@@ -18,10 +18,6 @@ def exportar_reporte_financiero(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Genera el Reporte Financiero/Consolidado por distrito y zona (CMETFAC)
-    con deuda total, dinero recuperado y deuda en riesgo.
-    """
     return generar_reporte_financiero_excel(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
 
@@ -31,8 +27,4 @@ def exportar_reporte_ineficiencia(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Genera el Reporte Detallado de Ineficiencia e Impedimentos
-    (conexiones no ejecutadas, causas de fallo, códigos de acceso y meses de deuda).
-    """
     return generar_reporte_ineficiencia_excel(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)

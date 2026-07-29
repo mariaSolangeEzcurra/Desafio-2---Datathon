@@ -117,14 +117,11 @@ def procesar_archivo_reporte_diario(
         usuario_id=usuario_id
     )
     db.add(log_carga)
-    db.flush()  # Genera log_carga.id_carga de forma segura antes del bucle
-
+    db.flush()  
     registros_insertados = 0
     registros_actualizados = 0
     errores_filas = []
-    
     filas = df.to_dict("records")
-
     try:
         for idx, row in enumerate(filas):
             fila_excel = idx + 2
@@ -132,7 +129,6 @@ def procesar_archivo_reporte_diario(
                 raw_cod = str(_valor_o_none(row, "CODIGO SEDAPAR") or "").split(".")[0].strip()
                 if not raw_cod or raw_cod.lower() == "nan":
                     raise ValueError("CODIGO SEDAPAR vacío")
-
                 cod_corto = raw_cod.zfill(4)
                 if len(raw_cod) <= 4:
                     ccodprs = f"0501{cod_corto}"
@@ -152,8 +148,7 @@ def procesar_archivo_reporte_diario(
                     trabajador.nombre = cnomprs
                 dt_inicio = parsear_a_datetime(_valor_o_none(row, "FECHA INICIO"), _valor_o_none(row, "HORA INICIO"))
                 if not dt_inicio:
-                    raise ValueError("Fecha de inicio inválida")
-                
+                    raise ValueError("Fecha de inicio inválida")                
                 fecha_reg = dt_inicio.date()
                 dt_fin = parsear_a_datetime(_valor_o_none(row, "FECHA FIN"), _valor_o_none(row, "HORA FIN"))
                 duracion_min = parsear_hhmmss_a_minutos(_valor_o_none(row, "DURACION"))
@@ -169,7 +164,6 @@ def procesar_archivo_reporte_diario(
                     ccodprs=ccodprs, 
                     fecha=fecha_reg
                 ).first()
-
                 if not resumen:
                     resumen = ResumenDiarioLector(
                         id_carga=log_carga.id_carga, 
@@ -210,11 +204,9 @@ def procesar_archivo_reporte_diario(
 
                 if (registros_insertados + registros_actualizados) % 200 == 0:
                     db.flush()
-
             except Exception as e_fila:
                 errores_filas.append(f"Fila {fila_excel}: {e_fila}")
                 continue
-
         total_procesados = registros_insertados + registros_actualizados
         registros_error = len(errores_filas)
         estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if total_procesados > 0 else "Fallido")

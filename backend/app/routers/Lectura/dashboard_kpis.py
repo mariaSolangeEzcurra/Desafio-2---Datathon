@@ -15,10 +15,6 @@ def obtener_dashboard_lectura(
     zona_id: Optional[str] = Query(None, description="Filtrar por ID de Zona o CMETFAC"),
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene los indicadores generales (progreso, eficiencia, geolocalización fuera de punto) 
-    y el ranking de los mejores lectores en base a los reportes diarios y datos de TI.
-    """
     resumen = KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id)
     ranking = KpiLecturaService.obtener_ranking_lectores(db, fecha_inicio, fecha_fin, limit=10)
 
@@ -34,5 +30,4 @@ def obtener_resumen_indicadores(
     zona_id: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Devuelve únicamente las métricas agregadas globales."""
     return KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id)

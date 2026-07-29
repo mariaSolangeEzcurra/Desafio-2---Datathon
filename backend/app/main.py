@@ -18,8 +18,8 @@ app = FastAPI()
 
 # 3. Configurar CORS sobre la única instancia
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    CORSMiddleware,    
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,7 +40,6 @@ app.include_router(mapas.router)
 app.include_router(alertas.router)
 app.include_router(reportes.router)
 app.include_router(uploadCorte.router)
-app.include_router(kpisCorte.router)
 app.include_router(kpisCorte.router)
 app.include_router(mapa.router)
 app.include_router(reporte.router)

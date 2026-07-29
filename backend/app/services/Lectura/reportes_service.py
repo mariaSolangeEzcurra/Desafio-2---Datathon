@@ -5,23 +5,9 @@ from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from openpyxl.utils import get_column_letter
-from app.model import (
-    Alerta, 
-    ResumenDiarioLector, 
-    Trabajador, 
-    Actividad, 
-    Intervencion, 
-    EvaluacionDesempeno,
-    Zona
-)
-
+from app.model import (Alerta, ResumenDiarioLector, Trabajador, Actividad, Intervencion, EvaluacionDesempeno,Zona)
 
 class ReportesService:
-
-    # ==========================================
-    # 1. SERVICIOS DE CONSULTA (JSON)
-    # ==========================================
-
     @staticmethod
     def obtener_resumen_kpis(
         db: Session, 
@@ -78,9 +64,7 @@ class ReportesService:
             metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha <= fecha_fin)
         if zona_id:
             metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.cmetfac == zona_id)
-
         resumen_zonas_raw = metricas_por_zona.group_by(ResumenDiarioLector.cmetfac).all()
-
         desglose_zonas = []
         for z in resumen_zonas_raw:
             prog = z.programadas or 0
@@ -94,7 +78,6 @@ class ReportesService:
                 "Observaciones": z.observaciones or 0,
                 "% Cumplimiento": cumpl
             })
-
         return {
             "total_alertas": total_alertas,
             "total_programadas": total_programadas,
@@ -130,8 +113,6 @@ class ReportesService:
             .join(Trabajador, ResumenDiarioLector.ccodprs == Trabajador.ccodprs)\
             .filter(ResumenDiarioLector.fecha == target_fecha)\
             .all()
-
-        # Conteo optimizado de alertas por fecha (evita N+1 queries)
         alertas_count_raw = db.query(Alerta.ccodprs, func.count(Alerta.alerta_id))\
             .filter(Alerta.fecha == target_fecha)\
             .group_by(Alerta.ccodprs).all()
@@ -151,36 +132,23 @@ class ReportesService:
             reporte.append({
                 "ccodprs": trabajador.ccodprs,
                 "nombre_trabajador": nombre_completo,
-                "ruta_asignada": resumen.ruta_id or "Sin Ruta",  # <--- CAMBIADO: Usamos ruta_id
-                "grupo_facturacion": resumen.cmetfac or "N/A",  # opcional
+                "ruta_asignada": resumen.ruta_id or "Sin Ruta", 
+                "grupo_facturacion": resumen.cmetfac or "N/A",  
                 "total_alertas_acumuladas": total_alt,
                 "promedio_cumplimiento": cumplimiento,
                 "estado_general": estado_gen
             })
-
         return reporte
-
-
-    # ==========================================
-    # 2. GENERADOR EXCEL MULTI-HOJA
-    # ==========================================
 
     @staticmethod
     def _generar_excel(hojas: Dict[str, pd.DataFrame]) -> io.BytesIO:
-        """
-        Toma un diccionario {"NombreHoja": DataFrame} y genera un Excel con formato básico.
-        """
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             for nombre_hoja, df in hojas.items():
                 df_clean = df.fillna("-")
-                df_final = df_clean if not df_clean.empty else pd.DataFrame({"Información": ["Sin datos para los filtros seleccionados"]})
-                
-                # Truncar nombre de hoja si supera límite de 31 caracteres de Excel
+                df_final = df_clean if not df_clean.empty else pd.DataFrame({"Información": ["Sin datos para los filtros seleccionados"]})                
                 sheet_title = nombre_hoja[:30]
-                df_final.to_excel(writer, sheet_name=sheet_title, index=False)
-                
-                # Ajustar ancho automático de columnas
+                df_final.to_excel(writer, sheet_name=sheet_title, index=False)                
                 worksheet = writer.sheets[sheet_title]
                 for col_idx, col in enumerate(df_final.columns, 1):
                     max_len = max(
@@ -199,11 +167,6 @@ class ReportesService:
         media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         filename = f"{nombre_base}.xlsx"
         return buffer, media_type, filename
-
-
-    # ==========================================
-    # 3. EXPORTACIONES EXCEL
-    # ==========================================
 
     @staticmethod
     def exportar_resumen_kpis(
@@ -247,13 +210,10 @@ class ReportesService:
         fecha_fin: Optional[date] = None
     ) -> Tuple[io.BytesIO, str, str]:
         
-        # 1. Pestaña 1: Resumen de conteo por Estado
         resumen_data = ReportesService.obtener_estado_alertas(db, fecha_inicio, fecha_fin)
         df_resumen = pd.DataFrame(resumen_data)
         if not df_resumen.empty:
             df_resumen.columns = ["Estado de Alerta", "Total Alertas"]
-
-        # 2. Pestaña 2: Detalle Completo de las Alertas (para ver qué paso en cada una)
         query_detalle = db.query(
             Alerta.alerta_id,
             Alerta.fecha,
@@ -305,9 +265,7 @@ class ReportesService:
         fecha: Optional[date] = None
     ) -> Tuple[io.BytesIO, str, str]:
         
-        target_fecha = fecha or date.today()
-        
-        # Consulta enriquecida con ResumenDiarioLector y EvaluacionDesempeno (si existe para la fecha)
+        target_fecha = fecha or date.today()        
         query = db.query(
             ResumenDiarioLector,
             Trabajador
@@ -318,14 +276,10 @@ class ReportesService:
         )
 
         resumenes = query.all()
-
-        # Cargar alertas en bloque
         alertas_raw = db.query(Alerta.ccodprs, func.count(Alerta.alerta_id))\
             .filter(Alerta.fecha == target_fecha)\
             .group_by(Alerta.ccodprs).all()
         mapa_alertas = {ccodprs: count for ccodprs, count in alertas_raw}
-
-        # Cargar evaluaciones en bloque (si existen)
         evals_raw = db.query(EvaluacionDesempeno)\
             .filter(EvaluacionDesempeno.fecha == target_fecha).all()
         mapa_evals = {e.ccodprs: e for e in evals_raw}
@@ -344,7 +298,7 @@ class ReportesService:
             rows.append({
                 "Código Lector": trabajador.ccodprs,
                 "Nombre": trabajador.nombre or f"Lector {trabajador.ccodprs}",
-                "Ruta Asignada": resumen.ruta_id or "Sin Ruta",  # <--- Usando Ruta en lugar de Zona
+                "Ruta Asignada": resumen.ruta_id or "Sin Ruta",  
                 "Grupo Facturación (cMetFac)": resumen.cmetfac or "N/A",
                 "Lecturas Programadas": prog,
                 "Lecturas Realizadas": real,

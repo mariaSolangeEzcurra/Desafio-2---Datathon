@@ -18,24 +18,18 @@ def calcular_dashboard_kpis(
         func.sum(case((OrdenCorte.dejecuc != None, OrdenCorte.ntotdeu), else_=0)).label("deuda_recuperada"),
         func.sum(case((OrdenCorte.dejecuc == None, OrdenCorte.ntotdeu), else_=0)).label("deuda_riesgo")
     )
-
-    # Filtros de fecha sobre la fecha de generación del programa
     if fecha_inicio:
         query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
-
     stats = query.first()
-
     total = stats.total or 0
     ejecutadas = stats.ejecutadas or 0
     pendientes = stats.pendientes or 0
     deuda_total = float(stats.deuda_total or 0.0)
     deuda_recuperada = float(stats.deuda_recuperada or 0.0)
     deuda_riesgo = float(stats.deuda_riesgo or 0.0)
-
     tasa_efectividad = round((ejecutadas / total * 100), 2) if total > 0 else 0.0
-
     return {
         "total_ordenes": total,
         "ordenes_ejecutadas": ejecutadas,
@@ -51,8 +45,6 @@ def calcular_resumen_cortes(
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None
 ) -> dict:
-    
-    # Desglose por Distrito
     q_distrito = db.query(
         OrdenCorte.distrito,
         func.count(OrdenCorte.id_orden).label("total"),
@@ -60,14 +52,11 @@ def calcular_resumen_cortes(
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes"),
         func.sum(OrdenCorte.ntotdeu).label("deuda")
     )
-
     if fecha_inicio:
         q_distrito = q_distrito.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         q_distrito = q_distrito.filter(OrdenCorte.dgenprg <= fecha_fin)
-
     resumen_distrito_query = q_distrito.group_by(OrdenCorte.distrito).all()
-
     por_distrito = [
         {
             "distrito": row.distrito or "NO ESPECIFICADO",
@@ -78,8 +67,6 @@ def calcular_resumen_cortes(
         }
         for row in resumen_distrito_query
     ]
-
-    # Desglose por Tipo de Programa (ctipprg)
     q_tipo = db.query(
         OrdenCorte.ctipprg,
         func.count(OrdenCorte.id_orden).label("total"),
@@ -87,14 +74,11 @@ def calcular_resumen_cortes(
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes"),
         func.sum(OrdenCorte.ntotdeu).label("deuda")
     )
-
     if fecha_inicio:
         q_tipo = q_tipo.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         q_tipo = q_tipo.filter(OrdenCorte.dgenprg <= fecha_fin)
-
     resumen_tipo_query = q_tipo.group_by(OrdenCorte.ctipprg).all()
-
     por_tipo_programa = [
         {
             "ctipprg": row.ctipprg if row.ctipprg is not None else 1,
@@ -105,7 +89,6 @@ def calcular_resumen_cortes(
         }
         for row in resumen_tipo_query
     ]
-
     return {
         "por_distrito": por_distrito,
         "por_tipo_programa": por_tipo_programa

@@ -19,15 +19,11 @@ def obtener_datos_heatmap(
         OrdenCorte.cutmx.isnot(None),
         OrdenCorte.cutmy.isnot(None)
     )
-
-    # Filtros de fecha de generación del programa
     if fecha_inicio:
         query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
-
     ordenes = query.all()
-
     puntos = [
         {
             "ccodcnx": o.ccodcnx,
@@ -65,15 +61,11 @@ def obtener_datos_impedimentos(
         OrdenCorte.cutmy.isnot(None),
         (OrdenCorte.csitreg == 'S') | (OrdenCorte.ccodacc.isnot(None))
     )
-
-    # Filtros de fecha de generación del programa
     if fecha_inicio:
         query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
-
     ordenes = query.all()
-
     impedimentos = [
         {
             "ccodcnx": o.ccodcnx,
@@ -88,7 +80,6 @@ def obtener_datos_impedimentos(
         }
         for o in ordenes
     ]
-
     return {
         "total_impedimentos": len(impedimentos),
         "impedimentos": impedimentos

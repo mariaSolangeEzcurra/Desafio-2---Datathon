@@ -15,9 +15,6 @@ def get_heatmap(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna los puntos georreferenciados para el mapa de calor con deuda (filtrable por fecha).
-    """
     return obtener_datos_heatmap(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
 @router.get("/impedimentos", response_model=ImpedimentosResponse)
@@ -26,7 +23,4 @@ def get_impedimentos(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna las coordenadas de cortes con impedimento/situación especial para mapeo espacial (filtrable por fecha).
-    """
     return obtener_datos_impedimentos(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)

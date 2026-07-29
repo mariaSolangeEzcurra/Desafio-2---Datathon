@@ -18,9 +18,6 @@ def listar_alertas(
     fecha: Optional[date] = Query(None, description="Filtrar por fecha (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Lista todas las alertas registradas con filtros opcionales.
-    """
     return AlertasService.listar_alertas(db=db, estado=estado, zona_id=zona_id, ccodprs=ccodprs, fecha=fecha)
 
 @router.post("/evaluar")
@@ -28,9 +25,6 @@ def evaluar_alertas_diarias(
     fecha: Optional[date] = Query(None, description="Fecha a evaluar (por defecto hoy)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Evalúa los 7 KPIs del sistema y genera automáticamente las alertas necesarias.
-    """
     total = AlertasService.evaluar_y_generar_alertas(db=db, fecha_evaluacion=fecha)
     return {"mensaje": "Evaluación de KPIs completada con éxito", "alertas_generadas": total}
 
@@ -39,9 +33,6 @@ def obtener_detalle_alerta(
     alerta_id: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Endpoint dedicado exclusivamente a CONSULTAR el detalle de una alerta por su ID.
-    """
     alerta = db.query(Alerta).filter(Alerta.alerta_id == alerta_id).first()
     if not alerta:
         raise HTTPException(status_code=404, detail="Alerta no encontrada.")
@@ -53,10 +44,6 @@ def cambiar_estado_alerta(
     payload: CambiarEstadoAlertaRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Endpoint dedicado a MODIFICAR: Permite al supervisor cambiar el estado operativo 
-    ('Pendiente', 'En Revisión', 'Escalada', 'Resuelto') y adjuntar su comentario/observación.
-    """
     return AlertasService.cambiar_estado_operativo(
         db=db,
         alerta_id=alerta_id,

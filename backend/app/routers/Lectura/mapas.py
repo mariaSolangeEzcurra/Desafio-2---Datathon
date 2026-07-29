@@ -18,7 +18,6 @@ def obtener_discrepancias(
     cmetfac: str = Query(None, description="Filtrar por Sector de Facturación"),
     db: Session = Depends(get_db)
 ):
-    """Capa de Discrepancia Espacial: Retorna lecturas con desfase mayor a 50m (teórica vs real)."""
     return MapasService.obtener_discrepancias_espaciales(
         db=db, 
         fecha_inicio=fecha_inicio, 
@@ -35,7 +34,6 @@ def obtener_heatmap(
     cmetfac: str = Query(None, description="Filtrar por Sector de Facturación"),
     db: Session = Depends(get_db)
 ):
-    """Mapa de Calor de Impedimentos: Agrupación de zonas con alto índice de anomalías."""
     return MapasService.obtener_heatmap_impedimentos(
         db=db, 
         fecha_inicio=fecha_inicio, 

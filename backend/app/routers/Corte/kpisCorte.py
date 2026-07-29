@@ -15,10 +15,6 @@ def get_dashboard_kpis(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin de generación del programa (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna los KPIs globales del módulo de cortes (con filtros opcionales por fecha): 
-    Tasa de efectividad, órdenes ejecutadas/pendientes y comparativa de morosidad.
-    """
     return calcular_dashboard_kpis(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
 @router.get("/resumen", response_model=ResumenCortesResponse)
@@ -27,7 +23,4 @@ def get_resumen_cortes(
     fecha_fin: Optional[date] = Query(None, description="Fecha fin de generación del programa (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna el desglose analítico de las órdenes agrupadas por Distrito y por Tipo de Programa (con filtros opcionales por fecha).
-    """
     return calcular_resumen_cortes(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
