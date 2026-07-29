@@ -133,7 +133,31 @@ export default function MapaLecturas() {
         {
             value: "1004",
             label: "1004"
-        }
+        },
+        {
+            value: "1005",
+            label: "1005"
+        },
+                {
+            value: "1006",
+            label: "1006"
+        },
+                {
+            value: "1007",
+            label: "1007"
+        },
+                {
+            value: "1008",
+            label: "1008"
+        },
+                {
+            value: "1009",
+            label: "1009"
+        },
+                {
+            value: "1010",
+            label: "1010"
+        },
     ];
     // =====================================================
     // ACTUALIZAR FILTRO

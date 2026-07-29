@@ -144,3 +144,29 @@ export async function obtenerCatalogo(tipo) {
 
     return await response.json();
 }
+
+// ============================================================ 
+// // OBTENER GRUPOS DE FACTURACIÓN // 
+// ============================================================ 
+export async function obtenerGruposFacturacion() { 
+    const response = await fetch( 
+        `${API}/api/catalogos/grupos` 
+    );
+    
+    if (!response.ok) {
+        let mensaje = "Error obteniendo grupos de facturación"; 
+        
+        try { 
+            const errorData = await response.json(); 
+            if (errorData?.detail)
+                 { mensaje = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
+
+                  } } 
+                  catch {
+                    // Mantener mensaje por defecto
+                     } 
+                     
+                throw new Error(mensaje); 
+            } const data = await response.json(); 
+            // Aseguramos que siempre devolvamos un arreglo 
+            return Array.isArray(data) ? data : []; }

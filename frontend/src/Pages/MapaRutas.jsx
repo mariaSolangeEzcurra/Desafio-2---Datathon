@@ -26,7 +26,8 @@ import {
 import {
     obtenerPersonal,
     obtenerDiscrepancias,
-    obtenerHeatmapImpedimentos
+    obtenerHeatmapImpedimentos,
+    obtenerGruposFacturacion,
 } from "../services/mapaLecturaService";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
