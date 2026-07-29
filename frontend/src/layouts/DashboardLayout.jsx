@@ -1,13 +1,10 @@
 import React from "react";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
-import Dashboard from "../pages/Dashboard";
 import Usuarios from "../pages/Usuarios";
-import LecturaKPI from "../pages/LecturaKPI"; // <--- Corregido al nombre y ruta real
 //TI
 import UploadLectura from "../pages/TI/UploadLectura";  
 import UploadCortes from "../pages/TI/UploadCortes";    
-import MapaLectura from "../pages/MapaLectura";
 import Trabajadores from "../pages/TI/Trabajadores";
 import CatalogosView from "../pages/TI/CatalogosDashboard";
 import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
@@ -15,6 +12,14 @@ import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
 import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
 import Alertas from "../pages/supervisor/Alertas";
 import ReportesLectura from "../pages/supervisor/Reportes";
+import LecturaKPI from "../pages/LecturaKPI";
+import Dashboard from "../pages/Dashboard";
+import CortesKPI from "../pages/CortesKPI";
+import MapaLectura from "../pages/MapaLectura";
+import MapaCortes from "../pages/MapaCortes";
+import ReporteCortes from "../pages/supervisor/ReportesCortes";
+
+
 //GERENCIA
 import Resumen from "../pages/Gerencia/Resumen";
 import RankingGerencia from "../pages/Gerencia/RankingGerencia";
@@ -35,7 +40,9 @@ export default function DashboardLayout({
     if (seccionActiva === "lecturas_alertas") return <Alertas />;
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
     if (seccionActiva === "lecturas_reportes") return <ReportesLectura />;
-
+    if (seccionActiva === "cortes_kpis") return <CortesKPI />;
+    if (seccionActiva === "cortes_mapa") return <MapaCortes />;
+    if (seccionActiva === "cortes_reporte") return <ReporteCortes />;
 
     // 2. ti
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
