@@ -90,12 +90,39 @@ class AlertasService:
         target_fecha = fecha_evaluacion or date.today()
         alertas_creadas = 0
 
-        # Pre-cargar en memoria los IDs de alertas ya existentes para evitar N+1 queries a la base de datos
+        # 1. Pre-cargar combinaciones existentes de (ccodprs, kpi) para evitar UniqueConstraint
         alertas_existentes = set(
-            res[0] for res in db.query(Alerta.alerta_id).filter(Alerta.fecha == target_fecha).all()
+            (res.ccodprs, res.kpi) 
+            for res in db.query(Alerta.ccodprs, Alerta.kpi).filter(Alerta.fecha == target_fecha).all()
         )
 
         try:
+            def registrar_alerta(ccodprs, zona, kpi_nombre, cod_kpi, valor, umbral, motivo, nivel_prioridad):
+                nonlocal alertas_creadas
+                
+                # Limpiar zona_id: Si viene como "", " ", o None, asignarle None de Python
+                zona_limpia = zona.strip() if isinstance(zona, str) and zona.strip() else None
+                
+                if (ccodprs, kpi_nombre) not in alertas_existentes:
+                    alerta_id = f"ALT-{ccodprs}-{target_fecha.strftime('%Y%m%d')}-{cod_kpi}"
+                    
+                    nueva = Alerta(
+                        alerta_id=alerta_id,
+                        nivel=nivel_prioridad,
+                        kpi=kpi_nombre,
+                        motivo=motivo,
+                        fecha=target_fecha,
+                        estado_alerta="Pendiente",
+                        ccodprs=ccodprs,
+                        zona_id=zona_limpia,  # <--- Asignamos la zona saneada aquí
+                        valor_actual=round(float(valor), 2),
+                        valor_umbral=float(umbral),
+                        prioridad=nivel_prioridad
+                    )
+                    db.add(nueva)
+                    alertas_existentes.add((ccodprs, kpi_nombre))
+                    alertas_creadas += 1
+
             # --- EVALUACIÓN DE KPIS 1 AL 5 (Resumen Diario) ---
             resumenes = db.query(ResumenDiarioLector, Trabajador)\
                 .join(Trabajador, ResumenDiarioLector.ccodprs == Trabajador.ccodprs)\
@@ -118,111 +145,68 @@ class AlertasService:
                 pct_imp = (impedimentos / prog * 100) if prog > 0 else 0.0
                 pct_obs = (observaciones / real * 100) if real > 0 else 0.0
 
-                def registrar_alerta(kpi_nombre, valor, umbral, motivo, nivel_prioridad):
-                    nonlocal alertas_creadas
-                    sufijo_kpi = kpi_nombre[:3].upper().replace(" ", "")
-                    alerta_id = f"ALT-{ccodprs}-{target_fecha.strftime('%Y%m%d')}-{sufijo_kpi}"
-                    
-                    if alerta_id not in alertas_existentes:
-                        nueva = Alerta(
-                            alerta_id=alerta_id,
-                            nivel=nivel_prioridad,
-                            kpi=kpi_nombre,
-                            motivo=motivo,
-                            fecha=target_fecha,
-                            estado_alerta="Pendiente",
-                            ccodprs=ccodprs,
-                            zona_id=zona,
-                            valor_actual=round(float(valor), 2),
-                            valor_umbral=float(umbral),
-                            prioridad=nivel_prioridad
-                        )
-                        db.add(nueva)
-                        alertas_existentes.add(alerta_id)
-                        alertas_creadas += 1
-
                 # KPI 1: Cumplimiento
                 if prog > 0 and cumplimiento < 80:
                     nivel = "Alto" if cumplimiento < 70 else "Medio"
-                    registrar_alerta("Cumplimiento de lectura", cumplimiento, 80.0, 
-                                     f"Cumplimiento bajo: {round(cumplimiento, 2)}% (Mínimo esperado: 80%).", nivel)
+                    registrar_alerta(ccodprs, zona, "Cumplimiento de lectura", "CUMP", cumplimiento, 80.0, 
+                                    f"Cumplimiento bajo: {round(cumplimiento, 2)}% (Mínimo esperado: 80%).", nivel)
 
                 # KPI 2: Productividad
                 if horas_campo > 0 and productividad < 15.0:
-                    registrar_alerta("Productividad de lectura", productividad, 15.0, 
-                                     f"Productividad baja: {round(productividad, 2)} lect./hora.", "Medio")
+                    registrar_alerta(ccodprs, zona, "Productividad de lectura", "PROD", productividad, 15.0, 
+                                    f"Productividad baja: {round(productividad, 2)} lect./hora.", "Medio")
 
                 # KPI 3: Tiempo promedio
                 if real > 0 and tiempo_prom > 2.0:
-                    registrar_alerta("Tiempo promedio de lectura", tiempo_prom, 2.0, 
-                                     f"Tiempo promedio elevado: {round(tiempo_prom, 2)} min/lectura.", "Medio")
+                    registrar_alerta(ccodprs, zona, "Tiempo promedio de lectura", "TPROM", tiempo_prom, 2.0, 
+                                    f"Tiempo promedio elevado: {round(tiempo_prom, 2)} min/lectura.", "Medio")
 
                 # KPI 4: Impedimentos
                 if prog > 0 and pct_imp > 20:
-                    registrar_alerta("Impedimentos de lectura", pct_imp, 20.0, 
-                                     f"Alto índice de impedimentos: {round(pct_imp, 2)}% (Umbral máximo: 20%).", "Alto")
+                    registrar_alerta(ccodprs, zona, "Impedimentos de lectura", "IMP", pct_imp, 20.0, 
+                                    f"Alto índice de impedimentos: {round(pct_imp, 2)}% (Umbral máximo: 20%).", "Alto")
 
                 # KPI 5: Observaciones
                 if real > 0 and pct_obs > 4:
-                    registrar_alerta("Observaciones de lectura", pct_obs, 4.0, 
-                                     f"Exceso de observaciones: {round(pct_obs, 2)}% (Umbral máximo: 4%).", "Alto")
+                    registrar_alerta(ccodprs, zona, "Observaciones de lectura", "OBS", pct_obs, 4.0, 
+                                    f"Exceso de observaciones: {round(pct_obs, 2)}% (Umbral máximo: 4%).", "Alto")
 
             # --- EVALUACIÓN DE KPIS 6 Y 7 (Datos Espaciales / Actividades) ---
+            condicion_fuera = case((func.lower(Actividad.resultado).like("%fuera%"), 1), else_=0)
+            condicion_valido = case((func.lower(Actividad.resultado).in_(["en punto", "conforme", "valido", "ok"]), 1), else_=0)
+
             actividades_por_trabajador = db.query(
                 Actividad.ccodprs,
                 Actividad.cmetfac,
                 func.count(Actividad.actividad_id).label("total"),
-                func.sum(case((func.lower(Actividad.resultado).contains("fuera"), 1), else_=0)).label("fuera"),
-                func.sum(case((func.lower(Actividad.resultado).in_(["en punto", "conforme", "valido", "ok"]), 1), else_=0)).label("valido")
+                func.sum(condicion_fuera).label("fuera"),
+                func.sum(condicion_valido).label("valido")
             ).filter(Actividad.fecha == target_fecha)\
-             .group_by(Actividad.ccodprs, Actividad.cmetfac)\
-             .all()
+            .group_by(Actividad.ccodprs, Actividad.cmetfac)\
+            .all()
 
             for ccodprs, zona_act, total, fuera, valido in actividades_por_trabajador:
                 total_act = total or 0
                 fuera_punto = fuera or 0
                 gps_valido = valido or 0
 
-                def registrar_alerta_espacial(kpi_nombre, valor, umbral, motivo, nivel_prioridad):
-                    nonlocal alertas_creadas
-                    sufijo_kpi = kpi_nombre[:3].upper().replace(" ", "")
-                    alerta_id = f"ALT-{ccodprs}-{target_fecha.strftime('%Y%m%d')}-{sufijo_kpi}"
-                    
-                    if alerta_id not in alertas_existentes:
-                        nueva = Alerta(
-                            alerta_id=alerta_id,
-                            nivel=nivel_prioridad,
-                            kpi=kpi_nombre,
-                            motivo=motivo,
-                            fecha=target_fecha,
-                            estado_alerta="Pendiente",
-                            ccodprs=ccodprs,
-                            zona_id=zona_act,
-                            valor_actual=round(float(valor), 2),
-                            valor_umbral=float(umbral),
-                            prioridad=nivel_prioridad
-                        )
-                        db.add(nueva)
-                        alertas_existentes.add(alerta_id)
-                        alertas_creadas += 1
-
                 if total_act > 0:
                     # KPI 6: Cobertura georreferenciada
                     cobertura_gps = (gps_valido / total_act) * 100
                     if cobertura_gps < 80:
-                        registrar_alerta_espacial("Cobertura georreferenciada", cobertura_gps, 80.0,
-                                                  f"Cobertura GPS baja: {round(cobertura_gps, 2)}% (Mínimo esperado: 80%).", "Medio")
+                        registrar_alerta(ccodprs, zona_act, "Cobertura georreferenciada", "GPS", cobertura_gps, 80.0,
+                                        f"Cobertura GPS baja: {round(cobertura_gps, 2)}% (Mínimo esperado: 80%).", "Medio")
 
                     # KPI 7: Actividades fuera de punto
                     pct_fuera = (fuera_punto / total_act) * 100
                     if pct_fuera > 10:
-                        registrar_alerta_espacial("Actividades fuera de punto", pct_fuera, 10.0,
-                                                  f"Exceso de lecturas fuera del radio permitido: {round(pct_fuera, 2)}% (Umbral máximo: 10%).", "Alto")
+                        registrar_alerta(ccodprs, zona_act, "Actividades fuera de punto", "FUERA", pct_fuera, 10.0,
+                                        f"Exceso de lecturas fuera del radio permitido: {round(pct_fuera, 2)}% (Umbral máximo: 10%).", "Alto")
 
             db.commit()
             return alertas_creadas
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Error al evaluar y generar alertas para la fecha {target_fecha}: {str(e)}")
+            logger.error(f"Error al evaluar y generar alertas para la fecha {target_fecha}: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error interno durante el procesamiento de alertas.")
