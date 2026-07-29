@@ -3,40 +3,82 @@ import axios from "axios";
 const API_URL = "http://localhost:8000/lectura";
 
 /**
- * Obtener listado de personal
+ * Obtener listado general del personal
+ * GET /lectura/personal/?skip=0&limit=50
  */
 export const obtenerPersonal = async (skip = 0, limit = 50) => {
-    const response = await axios.get(
-        `${API_URL}/personal/`,
-        {
-            params: {
-                skip,
-                limit
+    try {
+        const response = await axios.get(
+            `${API_URL}/personal/`,
+            {
+                params: {
+                    skip,
+                    limit,
+                },
             }
-        }
-    );
+        );
 
-    return response.data;
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener personal:", error);
+        throw error;
+    }
 };
 
+
 /**
- * Obtener ficha completa de un trabajador
+ * Obtener ficha individual del trabajador
+ * GET /lectura/personal/{ccodprs}/ficha
  */
 export const obtenerFichaPersonal = async (ccodprs) => {
-    const response = await axios.get(
-        `${API_URL}/personal/${ccodprs}/ficha`
-    );
+    try {
+        const response = await axios.get(
+            `${API_URL}/personal/${ccodprs}/ficha`
+        );
 
-    return response.data;
+        return response.data;
+    } catch (error) {
+        console.error(
+            "Error al obtener ficha del trabajador:",
+            error
+        );
+        throw error;
+    }
 };
 
-/**
- * Recalcular desempeño del personal
- */
-export const calcularDesempeno = async () => {
-    const response = await axios.post(
-        `${API_URL}/personal/calcular-desempeno`
-    );
 
-    return response.data;
+/**
+ * Calcular desempeño
+ * POST /lectura/personal/calcular-desempeno
+ *
+ * Sin ccodprs:
+ * calcula todos los trabajadores.
+ *
+ * Con ccodprs:
+ * calcula solamente ese trabajador.
+ */
+export const calcularDesempeno = async (ccodprs = null) => {
+    try {
+        const params = {};
+
+        if (ccodprs) {
+            params.ccodprs = ccodprs;
+        }
+
+        const response = await axios.post(
+            `${API_URL}/personal/calcular-desempeno`,
+            null,
+            {
+                params,
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error(
+            "Error al calcular desempeño:",
+            error
+        );
+        throw error;
+    }
 };
