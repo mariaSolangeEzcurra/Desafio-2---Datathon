@@ -7,6 +7,7 @@ import {
   Users,
   Map,
   Bell,
+  FileBarChart,
   FileText,
   UploadCloud 
 } from "lucide-react";
@@ -28,6 +29,7 @@ const navigation = [
       { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
       { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
       { id: "lecturas_alertas", label: "Alertas e Impedimentos", icon: Bell },
+      { id: "lecturas_reportes", label: "Reportes", icon: FileBarChart },
     ]
   },
     {

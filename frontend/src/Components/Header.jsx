@@ -48,12 +48,7 @@ export default function Header({
                 </p>
             </div>
             <div className="flex items-center gap-5">
-                <button
-                    className="relative rounded-xl p-3 hover:bg-slate-100"
-                >
-                    <Bell size={20} />
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500"></span>
-                </button>
+                
                 <div className="text-right">
                     <p className="font-semibold">
                         {usuario.nombre}

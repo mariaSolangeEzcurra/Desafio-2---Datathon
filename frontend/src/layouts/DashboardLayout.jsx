@@ -14,6 +14,7 @@ import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
 //SUPERVISOR
 import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
 import Alertas from "../pages/supervisor/Alertas";
+import ReportesLectura from "../pages/supervisor/Reportes";
 //GERENCIA
 import Resumen from "../pages/Gerencia/Resumen";
 import RankingGerencia from "../pages/Gerencia/RankingGerencia";
@@ -33,6 +34,8 @@ export default function DashboardLayout({
     if (seccionActiva === "lecturas_personal") return <TrabajadoresLecturas />;
     if (seccionActiva === "lecturas_alertas") return <Alertas />;
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
+    if (seccionActiva === "lecturas_reportes") return <ReportesLectura />;
+
 
     // 2. ti
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
