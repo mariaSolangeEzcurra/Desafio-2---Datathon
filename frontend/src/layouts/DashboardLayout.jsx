@@ -24,7 +24,7 @@ export default function DashboardLayout({
 
   const renderVista = () => {
     // 1. Prioridad: Vistas especiales específicas
-    if (seccionActiva === "lecturas_kpis") return <LecturaKPI />; // <--- Sin props innecesarias
+    if (seccionActiva === "lecturas_kpis") return <Dashboard />; // <--- Sin props innecesarias
     if (seccionActiva === "lecturas_personal") return <TrabajadoresLecturas />;
     if (seccionActiva === "lecturas_alertas") return <Alertas />;
 
@@ -43,12 +43,33 @@ export default function DashboardLayout({
     // 5. Catálogos del Sistema (¡DEBE IR ANTES DEL DASHBOARD GENERAL!)
     if (seccionActiva === "gestion_catalogos") return <CatalogosView />;  
     
-    // 6. Dashboard General (Fallback final)
-    return <Dashboard idSeleccionado={seccionActiva} usuario={usuario} />;
+      // 6. Dashboard General SOLO para Supervisor
+  if (usuario?.rol === "SUPERVISOR") {
+    return (
+      <Dashboard
+        idSeleccionado={seccionActiva}
+        usuario={usuario}
+      />
+    );
+  }
+
+  // Si TI llega aquí, mostrar una vista por defecto
+  return (
+     <div className="pt-2">
+    <h1 className="text-2xl font-bold text-slate-800">
+        Bienvenido, {usuario?.nombre || "Usuario"} 👋
+      </h1>
+
+      <p className="mt-2 text-sm text-slate-500">
+        Seleccione una opción del menú para comenzar.
+      </p>
+    </div>
+  );
+    
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar 
         usuario={usuario} 
         vista={seccionActiva} 

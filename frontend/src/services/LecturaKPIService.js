@@ -39,7 +39,6 @@ export const obtenerResumenLectura = async (
 
   if (fechaInicio) params.fecha_inicio = fechaInicio;
   if (fechaFin) params.fecha_fin = fechaFin;
-  if (zonaId) params.zona_id = zonaId;
 
   try {
     const { data } = await axios.get(`${API}/resumen`, { params });

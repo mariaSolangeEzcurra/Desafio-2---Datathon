@@ -16,7 +16,7 @@ const navigation = [
     id: "dashboard_general",
     label: "Panel de Control General",
     icon: LayoutDashboard,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
+    roles: ["Supervisor"],
   },
   {
     id: "proceso_lecturas",

@@ -1,19 +1,17 @@
 import axios from "axios";
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: "http://localhost:8000/api/lecturas",
   timeout: 15000,
 });
 
 export const uploadService = {
+  // Subir archivo Excel
   uploadArchivo: async (file, proceso) => {
     const formData = new FormData();
 
     formData.append("file", file);
     formData.append("proceso", proceso);
-
-    console.log("Subiendo archivo:", file.name);
-    console.log("Proceso:", proceso);
 
     const response = await api.post("/upload-excel", formData, {
       timeout: 120000,
@@ -25,8 +23,15 @@ export const uploadService = {
     return response.data;
   },
 
+  // Obtener historial de cargas
   getHistorial: async () => {
     const response = await api.get("/historial");
+    return response.data;
+  },
+
+  // Revertir una carga
+  revertirCarga: async (idCarga) => {
+    const response = await api.delete(`/historial/${idCarga}`);
     return response.data;
   },
 };
