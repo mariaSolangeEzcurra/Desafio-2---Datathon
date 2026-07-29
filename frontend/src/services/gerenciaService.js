@@ -76,3 +76,72 @@ export const obtenerRiesgoOperativo = async ({
 
   return response.data;
 };
+
+// =====================================================
+// CORTES - KPIs EJECUTIVOS
+// GET /api/gerencia/cortes/kpis
+// =====================================================
+
+export const obtenerKpisCortes = async ({
+  fecha_inicio,
+  fecha_fin = null
+}) => {
+
+  const response = await axios.get(
+    `${API_URL}/cortes/kpis`,
+    {
+      params: {
+        fecha_inicio,
+        fecha_fin
+      }
+    }
+  );
+
+  return response.data;
+};
+
+// =====================================================
+// CORTES - DESGLOSE POR DISTRITO Y PROGRAMA
+// GET /api/gerencia/cortes/desglose
+// =====================================================
+
+export const obtenerDesgloseCortes = async ({
+  fecha_inicio,
+  fecha_fin = null
+}) => {
+
+  const response = await axios.get(
+    `${API_URL}/cortes/desglose`,
+    {
+      params: {
+        fecha_inicio,
+        fecha_fin
+      }
+    }
+  );
+
+  return response.data;
+};
+
+// =====================================================
+// CORTES - IMPEDIMENTOS OPERATIVOS
+// GET /api/gerencia/cortes/impedimentos
+// =====================================================
+
+export const obtenerImpedimentosCortes = async ({
+  fecha_inicio,
+  fecha_fin = null
+}) => {
+
+  const response = await axios.get(
+    `${API_URL}/cortes/impedimentos`,
+    {
+      params: {
+        fecha_inicio,
+        fecha_fin
+      }
+    }
+  );
+
+  return response.data;
+};

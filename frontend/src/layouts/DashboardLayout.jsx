@@ -24,6 +24,7 @@ import ReporteCortes from "../pages/supervisor/ReportesCortes";
 import Resumen from "../pages/Gerencia/Resumen";
 import RankingGerencia from "../pages/Gerencia/RankingGerencia";
 import RiesgoGerencia from "../pages/Gerencia/RiesgoGerencia";
+import CortesGerencia from "../Pages/Gerencia/CortesGerencia";
 
 
 export default function DashboardLayout({
@@ -56,6 +57,8 @@ export default function DashboardLayout({
     if (seccionActiva === "resumen_gerencia") return <Resumen />;  
     if (seccionActiva === "ranking_gerencia") return <RankingGerencia />;  
     if (seccionActiva === "riesgo_gerencia") return <RiesgoGerencia />;  
+    if (seccionActiva === "cortes_gerencia") return <CortesGerencia />;  
+
 
 
 
