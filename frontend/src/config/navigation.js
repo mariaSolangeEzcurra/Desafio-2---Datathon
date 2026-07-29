@@ -38,7 +38,7 @@ const navigation = [
       icon: Eye,
       roles: ["Supervisor"],
       children: [
-        //{ id: "cortes_kpis", label: "KPI's de Cortes", icon: FileText }, 
+        { id: "cortes_kpis", label: "KPI's de Cortes", icon: FileText }, 
         { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
         { id: "cortes_reporte", label: "Reportes", icon: FileBarChart },
       ]
@@ -49,9 +49,9 @@ const navigation = [
     icon: Eye,
     roles: ["Gerencia"],
     children: [
-      { id: "resumen_gerencia", label: "Resumen", icon: FileText }, 
-      { id: "ranking_gerencia", label: " Ranking Personal", icon: Users },
-      { id: "riesgo_gerencia", label: "Riesgo Operativo", icon: Map },
+      { id: "resumen_gerencia", label: "Lecturas", icon: FileText }, 
+      //{ id: "ranking_gerencia", label: " Ranking Personal", icon: Users },
+      //{ id: "riesgo_gerencia", label: "Riesgo Operativo", icon: Map },
       { id: "cortes_gerencia", label: "Cortes", icon: FileText },
 
     ]
