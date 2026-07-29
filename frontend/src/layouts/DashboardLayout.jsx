@@ -14,6 +14,11 @@ import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
 //SUPERVISOR
 import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
 import Alertas from "../pages/supervisor/Alertas";
+//GERENCIA
+import Resumen from "../pages/Gerencia/Resumen";
+import RankingGerencia from "../pages/Gerencia/RankingGerencia";
+import RiesgoGerencia from "../pages/Gerencia/RiesgoGerencia";
+
 
 export default function DashboardLayout({
   usuario,
@@ -23,35 +28,36 @@ export default function DashboardLayout({
 }) {
 
   const renderVista = () => {
-    // 1. Prioridad: Vistas especiales específicas
-    if (seccionActiva === "lecturas_kpis") return <Dashboard />; // <--- Sin props innecesarias
+    // 1. supervisor
+    if (seccionActiva === "lecturas_kpis") return <Dashboard />; 
     if (seccionActiva === "lecturas_personal") return <TrabajadoresLecturas />;
     if (seccionActiva === "lecturas_alertas") return <Alertas />;
+    if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
 
-    // 2. Vistas de carga separadas con sus respectivos componentes
+    // 2. ti
     if (seccionActiva === "lecturas_carga") return <UploadLectura />; 
     if (seccionActiva === "cortes_carga") return <UploadCortes />; 
     if (seccionActiva === "upload_Diario") return <UploadLecturaDiario />;
-
-    // 3. VISTA DE MAPA
-    if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
-    
-    // 4. Caso Usuarios y Trabajadores
     if (seccionActiva === "gestion_usuarios") return <Usuarios />;
     if (seccionActiva === "trabajadores") return <Trabajadores />;
-
-    // 5. Catálogos del Sistema (¡DEBE IR ANTES DEL DASHBOARD GENERAL!)
     if (seccionActiva === "gestion_catalogos") return <CatalogosView />;  
-    
-      // 6. Dashboard General SOLO para Supervisor
-  if (usuario?.rol === "SUPERVISOR") {
-    return (
-      <Dashboard
-        idSeleccionado={seccionActiva}
-        usuario={usuario}
-      />
-    );
-  }
+
+    // 3. gerencia
+    if (seccionActiva === "resumen_gerencia") return <Resumen />;  
+    if (seccionActiva === "ranking_gerencia") return <RankingGerencia />;  
+    if (seccionActiva === "riesgo_gerencia") return <RiesgoGerencia />;  
+
+
+
+    // 4. Dashboard General SOLO para Supervisor
+    if (usuario?.rol === "SUPERVISOR") {
+      return (
+        <Dashboard
+          idSeleccionado={seccionActiva}
+          usuario={usuario}
+        />
+      );
+    }
 
   // Si TI llega aquí, mostrar una vista por defecto
   return (

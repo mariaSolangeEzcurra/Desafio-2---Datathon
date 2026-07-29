@@ -22,12 +22,23 @@ const navigation = [
     id: "proceso_lecturas",
     label: "Proceso: Lecturas",
     icon: Eye,
-    roles: ["Supervisor", "Coordinador", "Gerencia"],
+    roles: ["Supervisor"],
     children: [
       { id: "lecturas_kpis", label: "KPI's de Lectura", icon: FileText }, 
       { id: "lecturas_personal", label: "Personal Asignado", icon: Users },
       { id: "lecturas_mapa", label: "Mapa GIS", icon: Map },
       { id: "lecturas_alertas", label: "Alertas e Impedimentos", icon: Bell },
+    ]
+  },
+    {
+    id: "gerencia",
+    label: "Analitica",
+    icon: Eye,
+    roles: ["Gerencia"],
+    children: [
+      { id: "resumen_gerencia", label: "Resumen", icon: FileText }, 
+      { id: "ranking_gerencia", label: " Ranking Personal", icon: Users },
+      { id: "riesgo_gerencia", label: "Riesgo Operativo", icon: Map },
     ]
   },
   {
