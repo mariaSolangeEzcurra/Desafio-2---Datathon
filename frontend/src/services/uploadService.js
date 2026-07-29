@@ -6,16 +6,14 @@ const api = axios.create({
 });
 
 export const uploadService = {
-  uploadArchivo: async (file, proceso, usuarioId) => {
+  uploadArchivo: async (file, proceso) => {
     const formData = new FormData();
 
     formData.append("file", file);
     formData.append("proceso", proceso);
-    formData.append("usuario_id", usuarioId);
 
-    console.log("Archivo:", file.name);
+    console.log("Subiendo archivo:", file.name);
     console.log("Proceso:", proceso);
-    console.log("Usuario:", usuarioId);
 
     const response = await api.post("/upload-excel", formData, {
       timeout: 120000,

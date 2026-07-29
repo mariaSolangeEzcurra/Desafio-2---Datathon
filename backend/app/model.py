@@ -336,3 +336,51 @@ class EvaluacionDesempeno(Base):
     motivos = Column(Text)
 
     trabajador = relationship("Trabajador", back_populates="evaluaciones")
+
+    # ==========================================
+# CORTES Y ACCIONES COACTIVAS (Módulo de Cortes)
+# ==========================================
+class OrdenCorte(Base):
+    __tablename__ = "ordenes_corte"
+
+    id_orden = Column(Integer, primary_key=True, index=True)
+    
+    # Datos de Programa y Gestión
+    ccodprg = Column(String(30), nullable=False, index=True) # Codigo de Programa
+    dgenprg = Column(Date, nullable=True)                    # Fecha de Generacion
+    cmetfac = Column(String(10), nullable=True, index=True)  # Grupo de Facturación
+    ctipprg = Column(Integer, nullable=True)                 # Tipo de Programa (1, 2, 3)
+    
+    # Suministro y Deuda
+    ccodcnx = Column(String(20), ForeignKey("conexiones.ccodcnx"), nullable=False, index=True)
+    cnromdr = Column(String(30), nullable=True)              # Nro Medidor
+    ntotdeu = Column(Float, nullable=True)                   # Monto Total de Deuda
+    nmesdeu = Column(Integer, nullable=True)                 # Meses de Deuda
+    
+    # Ejecución Operativa
+    dejecuc = Column(Date, nullable=True, index=True)        # Fecha de Ejecucion
+    nleccor = Column(Integer, nullable=True)                 # Lectura de Corte
+    cimpcrp = Column(String(10), nullable=True)              # Impedimento de Corte
+    cobscrp = Column(String(255), nullable=True)             # Observacion de Corte
+    csitreg = Column(String(5), nullable=True, index=True)   # Situacion (E, S, N)
+    ccodacc = Column(String(10), nullable=True)              # Codigo de Accion
+    cdesacc = Column(String, nullable=True)                  # Descripcion de la Accion
+    
+    # Tiempo de ejecución
+    hora = Column(Integer, nullable=True)
+    minuto = Column(Integer, nullable=True)
+    segundo = Column(Integer, nullable=True)
+    
+    # Geolocalización y Ubicación
+    cutmx = Column(Float, nullable=True)
+    cutmy = Column(Float, nullable=True)
+    direccion = Column(String, nullable=True)
+    categoria = Column(String(50), nullable=True)
+    distrito = Column(String(100), nullable=True, index=True)
+    
+    # Trazabilidad de Carga
+    id_carga = Column(Integer, ForeignKey("registros_carga.id_carga"), nullable=True)
+
+    # Relaciones
+    conexion = relationship("Conexion")
+    registro_carga = relationship("RegistroCarga")

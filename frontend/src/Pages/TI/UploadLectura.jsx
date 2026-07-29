@@ -104,28 +104,10 @@ export default function UploadLectura({ onSincronizacionExitosa }) {
 
     try {
 
-      // Usuario autenticado guardado por loginConGoogle()
-      const usuario =
-        JSON.parse(localStorage.getItem("usuario") || "{}");
-
-
-      const usuarioId = usuario.id_usuario;
-
-
-      if (!usuarioId) {
-
-        throw new Error(
-          "No se encontró el usuario autenticado."
-        );
-
-      }
-
-
-
+      // 🚀 Llamada limpia a uploadArchivo sin depender de localStorage ni usuarioId
       const result = await uploadService.uploadArchivo(
         archivo,
-        PROCESO_TIPO,
-        usuarioId
+        PROCESO_TIPO
       );
 
 
@@ -174,12 +156,6 @@ export default function UploadLectura({ onSincronizacionExitosa }) {
           "El servidor tardó demasiado en responder. El archivo Excel puede ser muy pesado.";
 
 
-      } else if (error.message) {
-
-
-        mensaje = error.message;
-
-
       } else if (error.response?.data?.detail) {
 
 
@@ -190,6 +166,12 @@ export default function UploadLectura({ onSincronizacionExitosa }) {
           typeof detalle === "string"
             ? detalle
             : JSON.stringify(detalle);
+
+      } else if (error.message) {
+
+
+        mensaje = error.message;
+
 
       }
 
