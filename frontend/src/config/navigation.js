@@ -52,6 +52,8 @@ const navigation = [
       { id: "resumen_gerencia", label: "Resumen", icon: FileText }, 
       { id: "ranking_gerencia", label: " Ranking Personal", icon: Users },
       { id: "riesgo_gerencia", label: "Riesgo Operativo", icon: Map },
+      { id: "cortes_gerencia", label: "Cortes", icon: FileText },
+
     ]
   },
   {
