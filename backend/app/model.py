@@ -89,10 +89,10 @@ class Trabajador(Base):
     ultima_clasificacion = Column(String(30), nullable=True)  # Excelente, Bueno, Regular, Crítico
     fecha_ultima_evaluacion = Column(Date, nullable=True)
 
-    actividades = relationship("Actividad", back_populates="trabajador")
-    alertas = relationship("Alerta", back_populates="trabajador")
-    resumenes_diarios = relationship("ResumenDiarioLector", back_populates="trabajador")
-    evaluaciones = relationship("EvaluacionDesempeno", back_populates="trabajador")
+    actividades = relationship("Actividad", back_populates="trabajador", cascade="all, delete-orphan")
+    alertas = relationship("Alerta", back_populates="trabajador", cascade="all, delete-orphan")
+    resumenes_diarios = relationship("ResumenDiarioLector", back_populates="trabajador", cascade="all, delete-orphan")
+    evaluaciones = relationship("EvaluacionDesempeno", back_populates="trabajador", cascade="all, delete-orphan")
 
 
 # ==========================================
@@ -118,11 +118,11 @@ class Actividad(Base):
     id_carga = Column(Integer, ForeignKey("registros_carga.id_carga"), nullable=True)
 
     conexion = relationship("Conexion", back_populates="actividades")
-    trabajador = relationship("Trabajador", back_populates="actividades")
-    impedimentos = relationship("Impedimento", back_populates="actividad")
-    observaciones = relationship("Observacion", back_populates="actividad")
-    detalle_lectura = relationship("ActividadLectura", uselist=False, back_populates="actividad_general")
-
+    trabajador = relationship("Trabajador", back_populates="actividades")    
+    impedimentos = relationship("Impedimento", back_populates="actividad", cascade="all, delete-orphan")
+    observaciones = relationship("Observacion", back_populates="actividad", cascade="all, delete-orphan")
+    detalle_lectura = relationship("ActividadLectura", uselist=False, back_populates="actividad_general", cascade="all, delete-orphan")
+    registro_carga = relationship("RegistroCarga", back_populates="actividades")
 # ==========================================
 # SUB-TABLA: DETALLE ESPECÍFICO DE LECTURA
 # ==========================================
@@ -224,7 +224,8 @@ class ResumenDiarioLector(Base):
     promedio_min = Column(Float, nullable=True)              # PROMEDIO por lectura, en minutos
     eficiencia = Column(Float, nullable=True)  
     trabajador = relationship("Trabajador", back_populates="resumenes_diarios")
-    
+    registro_carga = relationship("RegistroCarga", back_populates="resumenes_diarios")
+
     __table_args__ = (
         UniqueConstraint("ccodprs", "fecha", name="uq_resumen_diario_lector_ccodprs_fecha"),
     )
@@ -315,7 +316,8 @@ class RegistroCarga(Base):
     usuario_id = Column(String, ForeignKey("usuarios.id_usuario"), nullable=True)
 
     usuario = relationship("Usuario")
-
+    actividades = relationship("Actividad", back_populates="registro_carga", cascade="all, delete-orphan")
+    resumenes_diarios = relationship("ResumenDiarioLector", back_populates="registro_carga", cascade="all, delete-orphan")
 
 class EvaluacionDesempeno(Base):
     __tablename__ = "evaluaciones_desempeno"

@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date
+from enum import Enum
+
+class FormatoExportacion(str, Enum):
+    excel = "excel"
+    pdf = "pdf"
 
 class ResumenKPIsGlobalResponse(BaseModel):
     total_alertas: int
@@ -20,8 +25,8 @@ class ReporteAlertasEstadoResponse(BaseModel):
 
 class ReporteTrabajadorDetalleResponse(BaseModel):
     ccodprs: str
-    nombre_trabajador: Optional[str]
-    zona_asignada: Optional[str]
+    nombre_trabajador: Optional[str] = None
+    zona_asignada: Optional[str] = None
     total_alertas_acumuladas: int
     promedio_cumplimiento: float
     estado_general: str

@@ -1,67 +1,30 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import asc, or_, func
-from datetime import date, datetime
-from fastapi import HTTPException
-from app.model import Actividad, ActividadLectura, Conexion
+from sqlalchemy import or_, and_
+from datetime import date
+from app.model import (
+    Actividad, 
+    ActividadLectura, 
+    Conexion, 
+    CatalogoImpedimento, 
+    CatalogoObservacion,
+    Impedimento,
+    Observacion
+)
 
 class MapasService:
 
     @staticmethod
-    def _parsear_timestamp_desde_id(actividad_id: str, fecha_fallback: date) -> str:
-        """Extrae la hora del ID si tiene el formato estándar (ej. ACT-603-20260630061628)"""
-        try:
-            partes = actividad_id.split("-")
-            if len(partes) >= 3:
-                s_val = partes[-1]
-                if len(s_val) >= 14: # YYYYMMDDHHMMSS
-                    dt = datetime.strptime(s_val[:14], "%Y%m%d%H%M%S")
-                    return dt.isoformat()
-        except Exception:
-            pass
-        return f"{fecha_fallback}T00:00:00"
-
-    @staticmethod
-    def obtener_recorrido_lector(db: Session, ccodprs: str, fecha: date) -> dict:
-        actividades = db.query(Actividad, ActividadLectura, Conexion)\
-            .join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
-            .join(ActividadLectura, Actividad.actividad_id == ActividadLectura.actividad_id, isouter=True)\
-            .filter(Actividad.ccodprs == ccodprs, Actividad.fecha == fecha)\
-            .order_by(asc(Actividad.actividad_id))\
-            .all()
-
-        if not actividades:
-            raise HTTPException(status_code=404, detail="No hay registros de ruta para este lector en la fecha indicada.")
-
-        puntos = []
-        for act, det, cnx in actividades:
-            # Prioriza el GPS real del detalle, si no existe usa la ubicación de la conexión
-            lat = (det.cgpslat if (det and hasattr(det, 'cgpslat')) else None) or cnx.latitud_real
-            lng = (det.cgpslon if (det and hasattr(det, 'cgpslon')) else None) or cnx.longitud_real
-
-            # Timestamp inteligente
-            if act.hora_inicio:
-                ts = act.hora_inicio.isoformat()
-            else:
-                ts = MapasService._parsear_timestamp_desde_id(act.actividad_id, fecha)
-
-            if lat and lng:
-                puntos.append({
-                    "lat": lat,
-                    "lng": lng,
-                    "timestamp": ts,
-                    "ccodcnx": act.ccodcnx,
-                    "resultado": act.resultado
-                })
-
-        return {
-            "ccodprs": ccodprs,
-            "fecha": str(fecha),
-            "total_puntos": len(puntos),
-            "coordenadas": puntos
-        }
-
-    @staticmethod
-    def obtener_discrepancias_espaciales(db: Session, fecha_inicio: date = None, fecha_fin: date = None, zona_id: str = None) -> dict:
+    def obtener_discrepancias_espaciales(
+        db: Session, 
+        fecha_inicio: date = None, 
+        fecha_fin: date = None, 
+        zona_id: str = None,
+        cmetfac: str = None
+    ) -> dict:
+        """
+        Retorna las actividades con desfase espacial (>50m) para dibujar vectores/puntos
+        de comparativa: Ubicación Teórica (Predio) vs Ubicación Real (Lector en campo).
+        """
         query = db.query(Actividad, ActividadLectura, Conexion)\
             .join(ActividadLectura, Actividad.actividad_id == ActividadLectura.actividad_id)\
             .join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
@@ -73,12 +36,14 @@ class MapasService:
         if zona_id:
             query = query.filter(Conexion.zona_id == zona_id)
 
+        if cmetfac:
+            query = query.filter(Actividad.cmetfac == cmetfac)
+
         resultados = query.limit(500).all()
 
         marcadores_desfase = []
         for act, det, cnx in resultados:
             if det and det.cgpslat and det.cgpslon:
-                # Verificamos si la conexión tiene latitud/longitud o si debemos buscar alternativas
                 lat_teorica = getattr(cnx, 'latitud_real', None)
                 lng_teorica = getattr(cnx, 'longitud_real', None)
 
@@ -94,7 +59,9 @@ class MapasService:
                         "lng": det.cgpslon
                     },
                     "trabajador_id": act.ccodprs,
-                    "resultado": act.resultado
+                    "resultado": act.resultado,
+                    "cmetfac": act.cmetfac,
+                    "cseccli": None
                 })
 
         return {
@@ -103,39 +70,78 @@ class MapasService:
         }
 
     @staticmethod
-    def obtener_heatmap_impedimentos(db: Session, fecha_inicio: date = None, fecha_fin: date = None, zona_id: str = None) -> dict:
-        query = db.query(Actividad, ActividadLectura, Conexion)\
-            .join(ActividadLectura, Actividad.actividad_id == ActividadLectura.actividad_id, isouter=True)\
-            .join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
-            .filter(
-                or_(
-                    func.lower(Actividad.resultado).contains("impedimento"),
-                    func.lower(Actividad.resultado).contains("cerrado"),
-                    func.lower(Actividad.resultado).contains("inaccesible"),
-                    func.lower(Actividad.resultado).contains("fuera de punto")
-                )
-            )
+    def obtener_heatmap_impedimentos(
+        db: Session, 
+        fecha_inicio: date = None, 
+        fecha_fin: date = None, 
+        zona_id: str = None,
+        cmetfac: str = None
+    ) -> dict:
+        codigos_invalidos = ["0", "00", "000", ""]
+
+        # Validaciones individuales robustas para SQL (evita problemas con NULL)
+        condicion_impedimento = and_(
+            ActividadLectura.cimplec.isnot(None),
+            ActividadLectura.cimplec.notin_(codigos_invalidos)
+        )
+        
+        condicion_observacion = and_(
+            ActividadLectura.cobsmdr.isnot(None),
+            ActividadLectura.cobsmdr.notin_(codigos_invalidos)
+        )
+
+        query = db.query(
+            ActividadLectura, 
+            Actividad, 
+            Conexion,
+            CatalogoImpedimento.descripcion.label("desc_impedimento"),
+            CatalogoObservacion.descripcion.label("desc_observacion")
+        )\
+        .join(Actividad, ActividadLectura.actividad_id == Actividad.actividad_id)\
+        .join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
+        .outerjoin(CatalogoImpedimento, ActividadLectura.cimplec == CatalogoImpedimento.codigo)\
+        .outerjoin(CatalogoObservacion, ActividadLectura.cobsmdr == CatalogoObservacion.codigo)\
+        .filter(or_(condicion_impedimento, condicion_observacion))
 
         if fecha_inicio and fecha_fin:
             query = query.filter(Actividad.fecha.between(fecha_inicio, fecha_fin))
-        
         if zona_id:
             query = query.filter(Conexion.zona_id == zona_id)
+        if cmetfac:
+            query = query.filter(Actividad.cmetfac == cmetfac)
 
         resultados = query.limit(1000).all()
 
         puntos_calor = []
-        for act, det, cnx in resultados:
-            lat = (det.cgpslat if (det and hasattr(det, 'cgpslat')) else None) or cnx.latitud_real
-            lng = (det.cgpslon if (det and hasattr(det, 'cgpslon')) else None) or cnx.longitud_real
+        for det, act, cnx, desc_imp, desc_obs in resultados:
+            lat = det.cgpslat or getattr(cnx, 'latitud_real', None)
+            lng = det.cgpslon or getattr(cnx, 'longitud_real', None)
             
             if lat and lng:
-                puntos_calor.append({
-                    "lat": lat,
-                    "lng": lng,
-                    "peso": 1.0,
-                    "motivo": act.resultado
-                })
+                motivos = []
+                
+                # Formatear el texto únicamente para los códigos presentes y válidos
+                if det.cimplec and str(det.cimplec).strip() not in codigos_invalidos:
+                    desc = desc_imp if desc_imp else "Sin descripción en catálogo"
+                    motivos.append(f"Impedimento {det.cimplec}: {desc}")
+
+                if det.cobsmdr and str(det.cobsmdr).strip() not in codigos_invalidos:
+                    desc = desc_obs if desc_obs else "Sin descripción en catálogo"
+                    motivos.append(f"Observación {det.cobsmdr}: {desc}")
+
+                if motivos:
+                    puntos_calor.append({
+                        "lat": lat,
+                        "lng": lng,
+                        "peso": 1.0,
+                        "motivo": " | ".join(motivos),
+                        "codigo_impedimento": det.cimplec if (det.cimplec and str(det.cimplec).strip() not in codigos_invalidos) else None,
+                        "codigo_observacion": det.cobsmdr if (det.cobsmdr and str(det.cobsmdr).strip() not in codigos_invalidos) else None,
+                        "ccodcnx": act.ccodcnx,
+                        "trabajador_id": act.ccodprs,
+                        "cmetfac": act.cmetfac,
+                        "cseccli": None
+                    })
 
         return {
             "total_puntos_calor": len(puntos_calor),
