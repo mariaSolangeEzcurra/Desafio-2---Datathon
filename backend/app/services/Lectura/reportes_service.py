@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List, Dict, Any
 from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-
+from openpyxl.utils import get_column_letter
 from app.model import (
     Alerta, 
     ResumenDiarioLector, 
@@ -32,7 +32,6 @@ class ReportesService:
         query_alertas = db.query(Alerta)
         query_resumen = db.query(ResumenDiarioLector)
 
-        # Filtros de fecha y zona
         if fecha_inicio:
             query_alertas = query_alertas.filter(Alerta.fecha >= fecha_inicio)
             query_resumen = query_resumen.filter(ResumenDiarioLector.fecha >= fecha_inicio)
@@ -45,7 +44,6 @@ class ReportesService:
 
         total_alertas = query_alertas.count()
 
-        # Agrupamientos usando la query filtrada
         por_nivel_raw = query_alertas.with_entities(Alerta.nivel, func.count(Alerta.alerta_id))\
             .group_by(Alerta.nivel).all()
         alertas_por_nivel = {nivel or "Sin Nivel": count for nivel, count in por_nivel_raw}
@@ -53,9 +51,12 @@ class ReportesService:
         por_kpi_raw = query_alertas.with_entities(Alerta.kpi, func.count(Alerta.alerta_id))\
             .group_by(Alerta.kpi).all()
         alertas_por_kpi = {kpi or "Sin KPI": count for kpi, count in por_kpi_raw}
-
-        # Cumplimiento promedio general
         resumenes = query_resumen.all()
+        total_programadas = sum(r.cantidad_lecturas or 0 for r in resumenes)
+        total_realizadas = sum(r.lecturas_realizadas or 0 for r in resumenes)
+        total_impedimentos = sum(r.cantidad_impedimentos or 0 for r in resumenes)
+        total_observaciones = sum(r.cantidad_observaciones or 0 for r in resumenes)
+
         cumplimientos = []
         for r in resumenes:
             prog = r.cantidad_lecturas or 0
@@ -64,12 +65,46 @@ class ReportesService:
                 cumplimientos.append((real / prog) * 100)
         
         promedio_general = round(sum(cumplimientos) / len(cumplimientos), 2) if cumplimientos else 0.0
+        metricas_por_zona = db.query(
+            ResumenDiarioLector.cmetfac.label("zona_grupo"),
+            func.sum(ResumenDiarioLector.cantidad_lecturas).label("programadas"),
+            func.sum(ResumenDiarioLector.lecturas_realizadas).label("realizadas"),
+            func.sum(ResumenDiarioLector.cantidad_impedimentos).label("impedimentos"),
+            func.sum(ResumenDiarioLector.cantidad_observaciones).label("observaciones")
+        )
+        if fecha_inicio:
+            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha >= fecha_inicio)
+        if fecha_fin:
+            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha <= fecha_fin)
+        if zona_id:
+            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.cmetfac == zona_id)
+
+        resumen_zonas_raw = metricas_por_zona.group_by(ResumenDiarioLector.cmetfac).all()
+
+        desglose_zonas = []
+        for z in resumen_zonas_raw:
+            prog = z.programadas or 0
+            real = z.realizadas or 0
+            cumpl = round((real / prog * 100), 2) if prog > 0 else 0.0
+            desglose_zonas.append({
+                "Grupo Facturación / Zona": z.zona_grupo or "Sin Especificar",
+                "Lecturas Programadas": prog,
+                "Lecturas Realizadas": real,
+                "Impedimentos": z.impedimentos or 0,
+                "Observaciones": z.observaciones or 0,
+                "% Cumplimiento": cumpl
+            })
 
         return {
             "total_alertas": total_alertas,
+            "total_programadas": total_programadas,
+            "total_realizadas": total_realizadas,
+            "total_impedimentos": total_impedimentos,
+            "total_observaciones": total_observaciones,
             "alertas_por_nivel": alertas_por_nivel,
             "alertas_por_kpi": alertas_por_kpi,
-            "cumplimiento_promedio_general": promedio_general
+            "cumplimiento_promedio_general": promedio_general,
+            "desglose_zonas": desglose_zonas
         }
 
     @staticmethod
@@ -152,7 +187,7 @@ class ReportesService:
                         df_final[col].astype(str).map(len).max() if not df_final.empty else 10,
                         len(str(col))
                     ) + 3
-                    col_letter = pd.io.formats.excel.get_column_letter(col_idx)
+                    col_letter = get_column_letter(col_idx)
                     worksheet.column_dimensions[col_letter].width = min(max_len, 50)  # máx 50 px
                     
         buffer.seek(0)
@@ -176,27 +211,30 @@ class ReportesService:
         fecha_inicio: Optional[date] = None, 
         fecha_fin: Optional[date] = None,
         zona_id: Optional[str] = None
-    ) -> Tuple[io.BytesIO, str, str]:
-        
+    ) -> Tuple[io.BytesIO, str, str]:        
         data = ReportesService.obtener_resumen_kpis(db, fecha_inicio, fecha_fin, zona_id)
 
         df_resumen = pd.DataFrame([{
             "Total Alertas Registradas": data["total_alertas"],
-            "Cumplimiento Promedio Lecturas (%)": data["cumplimiento_promedio_general"],
+            "Lecturas Programadas": data["total_programadas"],
+            "Lecturas Realizadas": data["total_realizadas"],
+            "% Cumplimiento General": data["cumplimiento_promedio_general"],
+            "Total Impedimentos Registrados": data["total_impedimentos"],
+            "Total Observaciones Registradas": data["total_observaciones"]
         }])
-        
         df_por_nivel = pd.DataFrame(
             list(data["alertas_por_nivel"].items()), 
-            columns=["Nivel de Alerta", "Cantidad"]
+            columns=["Nivel de Alerta", "Cantidad de Alertas"]
         )
-        
         df_por_kpi = pd.DataFrame(
             list(data["alertas_por_kpi"].items()), 
-            columns=["Tipo de KPI / Incidencia", "Cantidad"]
+            columns=["Tipo de KPI / Incidencia Alerta", "Cantidad de Alertas Generadas"]
         )
+        df_desglose_zonas = pd.DataFrame(data["desglose_zonas"])
 
         hojas = {
-            "Resumen General": df_resumen,
+            "Resumen General de KPIs": df_resumen,
+            "KPIs por Zona-Grupo": df_desglose_zonas,
             "Alertas por Nivel": df_por_nivel,
             "Alertas por KPI": df_por_kpi,
         }

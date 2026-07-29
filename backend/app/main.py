@@ -17,6 +17,7 @@ from app.routers.catalogo import router as catalogo_router
 #from app.routers import actividades
 
 from app.routers.Lectura import uploadLectura, uploadReporteDiario, dashboard_kpis , personal, mapas, alertas, reportes
+from app.routers.gerencia import router as gerencia_router
 # 1. Crear las tablas
 #model.Base.metadata.create_all(bind=engine)
 
@@ -39,6 +40,7 @@ app.include_router(usuarios_router)
 #app.include_router(upload_router)
 #app.include_router(trabajadores_router)
 app.include_router(catalogo_router)
+app.include_router(gerencia_router)
 #app.include_router(desempeno)
 #app.include_router(upload_diario)
 #app.include_router(alertas.router)
@@ -52,6 +54,7 @@ app.include_router(personal.router)
 app.include_router(mapas.router)
 app.include_router(alertas.router)
 app.include_router(reportes.router)
+
 
 @app.get("/")
 def root():

@@ -1,30 +1,38 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
-from app.model import Trabajador, ResumenDiarioLector, Alerta, EvaluacionDesempeno, Actividad
-from datetime import date
+from typing import Dict, List, Optional
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import desc,and_, func, cast, Date, nullslast
+from datetime import date
+from app.model import (Actividad,Alerta,Conexion,EvaluacionDesempeno,ResumenDiarioLector,Trabajador,)
+
 
 class PersonalService:
 
     @staticmethod
-    def listar_trabajadores(db: Session, skip: int = 0, limit: int = 50) -> list:
+    def listar_trabajadores(db: Session, skip: int = 0, limit: int = 50) -> List[Trabajador]:
         return db.query(Trabajador).offset(skip).limit(limit).all()
 
     @staticmethod
-    def calcular_y_actualizar_desempeno(db: Session, ccodprs: str = None, fecha_eval: date = None):
+    def calcular_y_actualizar_desempeno(
+        db: Session, 
+        ccodprs: Optional[str] = None, 
+        fecha_eval: Optional[date] = None
+    ) -> Dict:
         """
         Calcula y registra la evaluación de desempeño POR DÍA basada en los resúmenes diarios 
-        del lector, alimentando la tabla historica 'evaluaciones_desempeno'.
+        del lector, alimentando la tabla histórica 'evaluaciones_desempeno'.
         """
         try:
-            # Si no se especifica una fecha, tomamos la fecha más reciente disponible en los resúmenes
+            # 1. Determinar fecha de evaluación si no se proporciona
             if not fecha_eval:
-                ultima_fecha_reg = db.query(func.max(ResumenDiarioLector.fecha)).scalar()
-                if not ultima_fecha_reg:
-                    raise HTTPException(status_code=400, detail="No hay registros diarios de lectura para evaluar.")
-                fecha_eval = ultima_fecha_reg
+                fecha_eval = db.query(func.max(ResumenDiarioLector.fecha)).scalar()
+                if not fecha_eval:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="No hay registros diarios de lectura para evaluar."
+                    )
 
-            # Consultar los resúmenes diarios para esa fecha
+            # 2. Consultar resúmenes diarios del día
             query_resumenes = db.query(ResumenDiarioLector).filter(ResumenDiarioLector.fecha == fecha_eval)
             if ccodprs:
                 query_resumenes = query_resumenes.filter(ResumenDiarioLector.ccodprs == ccodprs)
@@ -36,14 +44,28 @@ class PersonalService:
                     detail=f"No se encontraron resúmenes diarios para la fecha {fecha_eval}."
                 )
 
+            # 3. Precargar trabajadores en memoria para evitar N+1 queries al actualizar snapshots
+            codigos_lectores = [r.ccodprs for r in resumenes]
+            trabajadores_map = {
+                t.ccodprs: t for t in db.query(Trabajador).filter(Trabajador.ccodprs.in_(codigos_lectores)).all()
+            }
+
+            # 4. Precargar evaluaciones existentes para actualización rápida
+            evals_existentes_map = {
+                e.ccodprs: e for e in db.query(EvaluacionDesempeno).filter(
+                    EvaluacionDesempeno.fecha == fecha_eval,
+                    EvaluacionDesempeno.ccodprs.in_(codigos_lectores)
+                ).all()
+            }
+
             actualizados = 0
+            nuevas_evaluaciones = []
 
             for r in resumenes:
-                eficiencia_val = r.eficiencia or 0.0
-                # Puntaje basado en la eficiencia del día (escala de 0 a 100)
-                puntaje = round(float(eficiencia_val) * 100, 2)
+                eficiencia_val = float(r.eficiencia or 0.0)
+                puntaje = round(eficiencia_val * 100, 2)
 
-                # Clasificación según los rangos del esquema
+                # Clasificación por rangos
                 if puntaje >= 95:
                     clasificacion = "Excelente"
                 elif puntaje >= 85:
@@ -53,35 +75,33 @@ class PersonalService:
                 else:
                     clasificacion = "Crítico"
 
-                # 1. Buscar si ya existe una evaluación para este trabajador en esta fecha exacta
-                eval_existente = db.query(EvaluacionDesempeno).filter_by(
-                    ccodprs=r.ccodprs,
-                    fecha=fecha_eval
-                ).first()
-
-                if eval_existente:
+                # Insertar o actualizar evaluación histórica
+                if r.ccodprs in evals_existentes_map:
+                    eval_existente = evals_existentes_map[r.ccodprs]
                     eval_existente.puntaje = puntaje
                     eval_existente.clasificacion = clasificacion
                     eval_existente.eficiencia = eficiencia_val
                 else:
-                    nueva_eval = EvaluacionDesempeno(
+                    nuevas_evaluaciones.append(EvaluacionDesempeno(
                         ccodprs=r.ccodprs,
                         fecha=fecha_eval,
                         puntaje=puntaje,
                         clasificacion=clasificacion,
                         eficiencia=eficiencia_val,
                         tendencia="Estable"
-                    )
-                    db.add(nueva_eval)
+                    ))
 
-                # 2. Actualizar el snapshot del último puntaje en la tabla principal Trabajador
-                trabajador = db.query(Trabajador).filter_by(ccodprs=r.ccodprs).first()
+                # Actualizar snapshot en la tabla principal Trabajador
+                trabajador = trabajadores_map.get(r.ccodprs)
                 if trabajador:
                     trabajador.ultimo_puntaje = puntaje
                     trabajador.ultima_clasificacion = clasificacion
                     trabajador.fecha_ultima_evaluacion = fecha_eval
 
                 actualizados += 1
+
+            if nuevas_evaluaciones:
+                db.bulk_save_objects(nuevas_evaluaciones)
 
             db.commit()
             return {
@@ -97,61 +117,102 @@ class PersonalService:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Error interno al calcular desempeño: {str(e)}")
 
-    @staticmethod
-    def obtener_ficha_trabajador(db: Session, ccodprs: str) -> dict:
-        from app.model import Conexion, Actividad
 
+    @staticmethod
+    def obtener_ficha_trabajador(db: Session, ccodprs: str) -> Optional[Dict]:
+        # 1. Obtener datos base del trabajador
         trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == ccodprs).first()
         if not trabajador:
             return None
 
-        # 1. Historial de asistencia/resúmenes de los últimos 30 días
-        resumenes = db.query(ResumenDiarioLector)\
-            .filter(ResumenDiarioLector.ccodprs == ccodprs)\
-            .order_by(desc(ResumenDiarioLector.fecha))\
-            .limit(30)\
+        # 2. Consultar los últimos 30 resúmenes diarios del lector
+        resumenes = (
+            db.query(ResumenDiarioLector)
+            .filter(ResumenDiarioLector.ccodprs == ccodprs)
+            .order_by(desc(ResumenDiarioLector.fecha))
+            .limit(30)
             .all()
+        )
 
-        # 2. Construir el historial enriquecido cruzando con las Actividades de cada fecha
+        if not resumenes:
+            fechas_resumen = []
+        else:
+            fechas_resumen = [r.fecha for r in resumenes]
+
+        # 3. Buscar cmetfac y ruta_id agrupados por FECHA directamente en Actividad
+        # mapeando por cada fecha presente en los resúmenes
+        mapa_rutas_metfac = {}
+        if fechas_resumen:
+            actividades_agrupadas = (
+                db.query(
+                    cast(Actividad.fecha, Date).label("fecha_corta"),
+                    func.max(Actividad.cmetfac).label("cmetfac"),
+                    func.max(Conexion.ruta_id).label("ruta_id")
+                )
+                .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
+                .filter(
+                    Actividad.ccodprs == ccodprs,
+                    cast(Actividad.fecha, Date).in_(fechas_resumen)
+                )
+                .group_by(cast(Actividad.fecha, Date))
+                .all()
+            )
+
+            for act in actividades_agrupadas:
+                # Convertir a string YYYY-MM-DD para llave consistente
+                llave_fecha = str(act.fecha_corta)
+                mapa_rutas_metfac[llave_fecha] = {
+                    "cmetfac": act.cmetfac,
+                    "ruta_id": act.ruta_id
+                }
+
+        # 4. Construir el historial cruzando datos en memoria
         historial_enriquecido = []
         for r in resumenes:
-            # Buscar la primera actividad de ese trabajador en esa fecha especifica
-            actividad_dia = db.query(Actividad.cmetfac, Conexion.ruta_id)\
-                .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
-                .filter(Actividad.ccodprs == ccodprs, Actividad.fecha == r.fecha)\
-                .first()
+            fecha_str = str(r.fecha)
+            info_extra = mapa_rutas_metfac.get(fecha_str, {})
+            
+            cmet_val = info_extra.get("cmetfac")
+            ruta_val = info_extra.get("ruta_id")
 
             historial_enriquecido.append({
-                "fecha": str(r.fecha),
-                "ruta_id": actividad_dia.ruta_id if (actividad_dia and actividad_dia.ruta_id) else "Sin ruta",
-                "cmetfac": actividad_dia.cmetfac if (actividad_dia and actividad_dia.cmetfac) else "Sin metfac",
-                "cantidad_lecturas": r.cantidad_lecturas,
-                "lecturas_realizadas": r.lecturas_realizadas,
-                "lecturas_pendientes": r.lecturas_pendientes,
-                "cantidad_impedimentos": r.cantidad_impedimentos,
-                "cantidad_observaciones": r.cantidad_observaciones,
-                "cantidad_fotos": r.cantidad_fotos,
-                "duracion_total_min": r.duracion_total_min,
-                "promedio_min": r.promedio_min,
-                "eficiencia": r.eficiencia
+                "fecha": r.fecha,  # Pydantic AsistenciaDiariaResponse maneja objeto date
+                "ruta_id": ruta_val if ruta_val else "Sin ruta",
+                "cmetfac": cmet_val if cmet_val else "Sin metfac",
+                "cantidad_lecturas": r.cantidad_lecturas or 0,
+                "lecturas_realizadas": r.lecturas_realizadas or 0,
+                "lecturas_pendientes": getattr(r, 'lecturas_pendientes', 0),
+                "cantidad_impedimentos": r.cantidad_impedimentos or 0,
+                "cantidad_observaciones": r.cantidad_observaciones or 0,
+                "cantidad_fotos": getattr(r, 'cantidad_fotos', 0),
+                "duracion_total_min": float(r.duracion_total_min or 0.0),
+                "promedio_min": float(r.promedio_min or 0.0),
+                "eficiencia": float(r.eficiencia or 0.0)
             })
 
-        # 3. Obtener la última Ruta y Metfac global conocida del trabajador (para la cabecera de la ficha)
-        ultima_actividad_global = db.query(Conexion.ruta_id, Actividad.cmetfac)\
-            .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
-            .filter(Actividad.ccodprs == ccodprs)\
-            .order_by(desc(Actividad.fecha))\
+        # 5. Obtener los valores globales más recientes (para la cabecera)
+        ultima_actividad = (
+            db.query(Conexion.ruta_id, Actividad.cmetfac)
+            .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
+            .filter(
+                Actividad.ccodprs == ccodprs,
+                Actividad.cmetfac.isnot(None),
+                Actividad.cmetfac != ""
+            )
+            .order_by(desc(Actividad.fecha))
             .first()
+        )
 
-        ruta_actual = ultima_actividad_global.ruta_id if (ultima_actividad_global and ultima_actividad_global.ruta_id) else "No asignada"
-        metfac_actual = ultima_actividad_global.cmetfac if (ultima_actividad_global and ultima_actividad_global.cmetfac) else "No asignada"
+        ruta_actual = ultima_actividad.ruta_id if (ultima_actividad and ultima_actividad.ruta_id) else "No asignada"
+        metfac_actual = ultima_actividad.cmetfac if (ultima_actividad and ultima_actividad.cmetfac) else "No asignada"
 
-        # 4. Alertas pendientes asociadas al trabajador
-        alertas_pendientes_count = db.query(Alerta)\
-            .filter(Alerta.ccodprs == ccodprs, Alerta.estado_alerta == "Pendiente")\
+        # 6. Alertas
+        alertas_pendientes_count = (
+            db.query(Alerta)
+            .filter(Alerta.ccodprs == ccodprs, Alerta.estado_alerta == "Pendiente")
             .count()
+        )
 
-        # 5. Devolver la respuesta mapeada
         return {
             "ccodprs": trabajador.ccodprs,
             "nombre": trabajador.nombre,
@@ -160,7 +221,7 @@ class PersonalService:
             "metfac_actual": metfac_actual,
             "ultimo_puntaje": trabajador.ultimo_puntaje,
             "ultima_clasificacion": trabajador.ultima_clasificacion,
-            "fecha_ultima_evaluacion": str(trabajador.fecha_ultima_evaluacion) if trabajador.fecha_ultima_evaluacion else None,
+            "fecha_ultima_evaluacion": trabajador.fecha_ultima_evaluacion,
             "total_alertas_pendientes": alertas_pendientes_count,
             "historial_asistencia": historial_enriquecido
         }
