@@ -4,17 +4,11 @@ from typing import Optional
 from datetime import date
 
 from app.database import get_db
+from app.schemas.gerencia import (ResumenGrupoFacturacionResponse,RankingPersonalResponse,RiesgoOperativoResponse)
+from app.services.gerencia_service import (obtener_resumen_grupo_facturacion,obtener_ranking_personal_service,obtener_riesgo_operativo_service)
 from app.schemas.gerencia import (
-    ResumenGrupoFacturacionResponse,
-    RankingPersonalResponse,
-    RiesgoOperativoResponse
-)
-from app.services.gerencia_service import (
-    obtener_resumen_grupo_facturacion,
-    obtener_ranking_personal_service,
-    obtener_riesgo_operativo_service
-)
-
+    KpisCortesResponse,DesgloseCortesResponse,ImpedimentosCortesResponse,)
+from app.services.gerencia_service import (obtener_kpis_cortes_gerencia,obtener_desglose_cortes_gerencia,obtener_impedimentos_cortes_gerencia,)
 router = APIRouter(prefix="/api/gerencia", tags=["Gerencia - Analítica Ejecutiva"])
 
 @router.get("/grupos-facturacion/resumen", response_model=ResumenGrupoFacturacionResponse)
@@ -54,6 +48,47 @@ def get_riesgo_operativo(
     db: Session = Depends(get_db)
 ):
     return obtener_riesgo_operativo_service(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+@router.get("/cortes/kpis", response_model=KpisCortesResponse)
+def get_kpis_cortes(
+    fecha_inicio: date = Query(..., description="Fecha inicial del análisis (YYYY-MM-DD)"),
+    fecha_fin: Optional[date] = Query(None, description="Fecha final opcional"),
+    db: Session = Depends(get_db)
+):
+    """Subpanel 1: Resumen Ejecutivo Financiero y Cobrabilidad"""
+    return obtener_kpis_cortes_gerencia(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+
+@router.get("/cortes/desglose", response_model=DesgloseCortesResponse)
+def get_desglose_cortes(
+    fecha_inicio: date = Query(..., description="Fecha inicial del análisis (YYYY-MM-DD)"),
+    fecha_fin: Optional[date] = Query(None, description="Fecha final opcional"),
+    db: Session = Depends(get_db)
+):
+    """Subpanel 2: Desglose por Distrito y Tipo de Programa"""
+    return obtener_desglose_cortes_gerencia(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+
+@router.get("/cortes/impedimentos", response_model=ImpedimentosCortesResponse)
+def get_impedimentos_cortes(
+    fecha_inicio: date = Query(..., description="Fecha inicial de control (YYYY-MM-DD)"),
+    fecha_fin: Optional[date] = Query(None, description="Fecha final opcional"),
+    db: Session = Depends(get_db)
+):
+    """Subpanel 3: Trabas e Impedimentos Operativos en Campo"""
+    return obtener_impedimentos_cortes_gerencia(
         db=db, 
         fecha_inicio=fecha_inicio, 
         fecha_fin=fecha_fin

@@ -2,12 +2,14 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 
-# Imports ajustados exactamente a la estructura real de tu proyecto:
 from app.services.Lectura.personal_service import PersonalService
 from app.services.Lectura.dashboard_kpis_service import KpiLecturaService
 from app.services.Lectura.alertas_service import AlertasService
-
-
+from app.services.Lectura.personal_service import PersonalService
+from app.services.Lectura.dashboard_kpis_service import KpiLecturaService
+from app.services.Lectura.alertas_service import AlertasService
+from app.services.Corte.kpisCorte_service import (calcular_dashboard_kpis as calcular_kpis_cortes,calcular_resumen_cortes)
+from app.services.Corte.mapa_service import (obtener_datos_impedimentos,obtener_datos_heatmap)
 # ==========================================
 # 1. RESUMEN GRUPO FACTURACIÓN (CMETFAC / ZONA)
 # ==========================================
@@ -177,4 +179,71 @@ def obtener_riesgo_operativo_service(
             "bajas": bajas
         },
         "detalle_alertas": detalle
+    }
+
+## ==================================================================
+# MÓDULO CORTES (3 SUBPANELES ESPEJO)
+# ==================================================================
+
+# 2.1 Subpanel 1: Resumen Ejecutivo Financiero (KPIs de Cortes)
+def obtener_kpis_cortes_gerencia(
+    db: Session,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None
+):
+    if not fecha_fin:
+        fecha_fin = fecha_inicio
+
+    kpis_globales = calcular_kpis_cortes(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+    return {
+        "periodo": {"fecha_inicio": fecha_inicio, "fecha_fin": fecha_fin},
+        "kpis_globales": kpis_globales
+    }
+
+
+# 2.2 Subpanel 2: Desglose Territorial y Programas (Distrito y Tipo)
+def obtener_desglose_cortes_gerencia(
+    db: Session,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None
+):
+    if not fecha_fin:
+        fecha_fin = fecha_inicio
+
+    resumen_desglose = calcular_resumen_cortes(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+    return {
+        "periodo": {"fecha_inicio": fecha_inicio, "fecha_fin": fecha_fin},
+        "desglose": resumen_desglose
+    }
+
+
+# 2.3 Subpanel 3: Reporte de Impedimentos Operativos (Trabas en Campo)
+def obtener_impedimentos_cortes_gerencia(
+    db: Session,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None
+):
+    if not fecha_fin:
+        fecha_fin = fecha_inicio
+
+    impedimentos_data = obtener_datos_impedimentos(
+        db=db, 
+        fecha_inicio=fecha_inicio, 
+        fecha_fin=fecha_fin
+    )
+
+    return {
+        "periodo": {"fecha_inicio": fecha_inicio, "fecha_fin": fecha_fin},
+        "total_impedimentos": impedimentos_data.get("total_impedimentos", 0),
+        "detalle_impedimentos": impedimentos_data.get("impedimentos", [])
     }

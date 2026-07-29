@@ -1,17 +1,31 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
+from typing import Optional
+from datetime import date
 from app.model import OrdenCorte
 
-def calcular_dashboard_kpis(db: Session) -> dict:
-    # Agregaciones globales eficientes en SQL
-    stats = db.query(
+def calcular_dashboard_kpis(
+    db: Session,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None
+) -> dict:
+    
+    query = db.query(
         func.count(OrdenCorte.id_orden).label("total"),
         func.sum(case((OrdenCorte.dejecuc != None, 1), else_=0)).label("ejecutadas"),
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes"),
         func.sum(OrdenCorte.ntotdeu).label("deuda_total"),
         func.sum(case((OrdenCorte.dejecuc != None, OrdenCorte.ntotdeu), else_=0)).label("deuda_recuperada"),
         func.sum(case((OrdenCorte.dejecuc == None, OrdenCorte.ntotdeu), else_=0)).label("deuda_riesgo")
-    ).first()
+    )
+
+    # Filtros de fecha sobre la fecha de generación del programa
+    if fecha_inicio:
+        query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
+    if fecha_fin:
+        query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
+
+    stats = query.first()
 
     total = stats.total or 0
     ejecutadas = stats.ejecutadas or 0
@@ -32,15 +46,27 @@ def calcular_dashboard_kpis(db: Session) -> dict:
         "monto_deuda_en_riesgo": round(deuda_riesgo, 2)
     }
 
-def calcular_resumen_cortes(db: Session) -> dict:
+def calcular_resumen_cortes(
+    db: Session,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None
+) -> dict:
+    
     # Desglose por Distrito
-    resumen_distrito_query = db.query(
+    q_distrito = db.query(
         OrdenCorte.distrito,
         func.count(OrdenCorte.id_orden).label("total"),
         func.sum(case((OrdenCorte.dejecuc != None, 1), else_=0)).label("ejecutadas"),
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes"),
         func.sum(OrdenCorte.ntotdeu).label("deuda")
-    ).group_by(OrdenCorte.distrito).all()
+    )
+
+    if fecha_inicio:
+        q_distrito = q_distrito.filter(OrdenCorte.dgenprg >= fecha_inicio)
+    if fecha_fin:
+        q_distrito = q_distrito.filter(OrdenCorte.dgenprg <= fecha_fin)
+
+    resumen_distrito_query = q_distrito.group_by(OrdenCorte.distrito).all()
 
     por_distrito = [
         {
@@ -54,13 +80,20 @@ def calcular_resumen_cortes(db: Session) -> dict:
     ]
 
     # Desglose por Tipo de Programa (ctipprg)
-    resumen_tipo_query = db.query(
+    q_tipo = db.query(
         OrdenCorte.ctipprg,
         func.count(OrdenCorte.id_orden).label("total"),
         func.sum(case((OrdenCorte.dejecuc != None, 1), else_=0)).label("ejecutadas"),
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes"),
         func.sum(OrdenCorte.ntotdeu).label("deuda")
-    ).group_by(OrdenCorte.ctipprg).all()
+    )
+
+    if fecha_inicio:
+        q_tipo = q_tipo.filter(OrdenCorte.dgenprg >= fecha_inicio)
+    if fecha_fin:
+        q_tipo = q_tipo.filter(OrdenCorte.dgenprg <= fecha_fin)
+
+    resumen_tipo_query = q_tipo.group_by(OrdenCorte.ctipprg).all()
 
     por_tipo_programa = [
         {
