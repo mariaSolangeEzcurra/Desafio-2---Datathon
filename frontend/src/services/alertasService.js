@@ -1,96 +1,123 @@
-import axios from "axios";
+const API_URL = "http://localhost:8000";
+
+export async function obtenerAlertas(filtros = {}) {
+
+    const params = new URLSearchParams();
+
+    if (filtros.estado)
+        params.append("estado", filtros.estado);
+
+    if (filtros.zona_id)
+        params.append("zona_id", filtros.zona_id);
+
+    if (filtros.ccodprs)
+        params.append("ccodprs", filtros.ccodprs);
+
+    if (filtros.fecha)
+        params.append("fecha", filtros.fecha);
 
 
-const API_URL = "http://localhost:8000/alertas";
-
-
-// =====================================
-// LISTAR ALERTAS
-// GET /alertas/
-// =====================================
-
-export const obtenerAlertas = async (filtros = {}) => {
-
-    const response = await axios.get(
-        `${API_URL}/`,
-        {
-            params: filtros
-        }
+    const response = await fetch(
+        `${API_URL}/alertas/?${params.toString()}`
     );
 
 
-    return response.data;
+    if (!response.ok) {
 
-};
+        throw new Error(
+            "No se pudieron obtener las alertas."
+        );
 
-
-
-// =====================================
-// EVALUAR ALERTAS POR FECHA
-// POST /alertas/evaluar
-// =====================================
-
-export const evaluarAlertas = async (fecha) => {
+    }
 
 
-    const response = await axios.post(
-        `${API_URL}/evaluar`,
-        null,
+    return await response.json();
+
+}
+
+
+export async function evaluarAlertas(fecha = null) {
+
+    const url =
+        fecha
+            ? `${API_URL}/alertas/evaluar?fecha=${fecha}`
+            : `${API_URL}/alertas/evaluar`;
+
+
+    const response = await fetch(
+        url,
         {
-            params:{
-                fecha
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
             }
         }
     );
 
 
-    return response.data;
+    if (!response.ok) {
 
-};
+        throw new Error(
+            "No se pudo ejecutar la evaluación de alertas."
+        );
 
-
-
-// =====================================
-// OBTENER DETALLE ALERTA
-// GET /alertas/{alerta_id}
-// =====================================
-
-export const obtenerDetalleAlerta = async(alerta_id)=>{
+    }
 
 
-    const response = await axios.get(
+    return await response.json();
 
-        `${API_URL}/${alerta_id}`
+}
 
+
+export async function obtenerDetalleAlerta(
+    alerta_id
+) {
+
+    const response = await fetch(
+        `${API_URL}/alertas/${alerta_id}`
     );
 
 
-    return response.data;
+    if (!response.ok) {
 
-};
+        throw new Error(
+            "No se pudo obtener el detalle de la alerta."
+        );
+
+    }
 
 
+    return await response.json();
 
-// =====================================
-// CAMBIAR ESTADO ALERTA
-// PATCH /alertas/{alerta_id}/estado
-// =====================================
+}
 
-export const cambiarEstadoAlerta = async(
+
+export async function cambiarEstadoAlerta(
     alerta_id,
     datos
-)=>{
+) {
 
-
-    const response = await axios.patch(
-
-        `${API_URL}/${alerta_id}/estado`,
-
-        datos
-
+    const response = await fetch(
+        `${API_URL}/alertas/${alerta_id}/estado`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(datos)
+        }
     );
 
 
-    return response.data;
+    if (!response.ok) {
 
-};
+        throw new Error(
+            "No se pudo actualizar el estado."
+        );
+
+    }
+
+
+    return await response.json();
+
+}
