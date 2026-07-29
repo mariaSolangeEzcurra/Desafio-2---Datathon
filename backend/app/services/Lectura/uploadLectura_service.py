@@ -35,7 +35,6 @@ def _to_float(valor):
         return None
 
 def construir_datetime_completo(raw_fecha, raw_h, raw_m, raw_s) -> datetime:
-    """Une la fecha de DLECTUR con las columnas HORA, MIN y SEGUNDO."""
     fecha_base = limpiar_fecha(raw_fecha)
     if not fecha_base:
         return None
@@ -44,7 +43,6 @@ def construir_datetime_completo(raw_fecha, raw_h, raw_m, raw_s) -> datetime:
     m = _to_int(raw_m, default=0)
     s = _to_int(raw_s, default=0)
 
-    # Aseguramos rangos válidos de hora
     h = min(max(h, 0), 23)
     m = min(max(m, 0), 59)
     s = min(max(s, 0), 59)
@@ -52,7 +50,6 @@ def construir_datetime_completo(raw_fecha, raw_h, raw_m, raw_s) -> datetime:
     return datetime.combine(fecha_base.date(), time(hour=h, minute=m, second=s))
 
 def calcular_distancia_utm(x1: float, y1: float, x2: float, y2: float) -> float:
-    """Calcula distancia plana euclidiana en metros sobre coordenadas UTM."""
     if None in (x1, y1, x2, y2):
         return None
     return round(math.sqrt((x1 - x2)**2 + (y1 - y2)**2), 2)
@@ -68,9 +65,8 @@ def procesar_archivo_excel(
     contents: bytes, 
     filename: str, 
     proceso: str, 
-    db: Session, 
-    usuario_id: str = None
-) -> dict:
+    db: Session
+) -> dict:  # 👈 YA NO RECIBE usuario_id
     try:
         df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
@@ -88,7 +84,7 @@ def procesar_archivo_excel(
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel no contiene registros.")
 
-    # 1. Creamos el registro de carga inicial para obtener su id_carga
+    # 1. Creamos el registro de carga inicial (usuario_id en None para no causar errores)
     log_carga = RegistroCarga(
         nombre_archivo=filename,
         tipo_archivo="TI",
@@ -96,10 +92,10 @@ def procesar_archivo_excel(
         estado="En proceso",
         registros_insertados=0,
         registros_error=0,
-        usuario_id=usuario_id
+        usuario_id=None  # 👈 Sin requerir ID
     )
     db.add(log_carga)
-    db.flush()  # Esto genera log_carga.id_carga de forma segura
+    db.flush()
 
     zonas_cache = {}
     rutas_cache = {}
@@ -111,7 +107,7 @@ def procesar_archivo_excel(
     
     filas = df.to_dict("records")
     
-    # Pre-carga de IDs para evitar consultas por fila
+    # Pre-carga de IDs
     actividades_ids_excel = []
     for row in filas:
         ccodcnx_raw = str(_valor_o_none(row, "CCODCNX") or "").split(".")[0].strip()
@@ -241,7 +237,6 @@ def procesar_archivo_excel(
                         cutmx_real, cutmy_real, conexion.utm_x, conexion.utm_y
                     )
 
-                # AQUÍ USAMOS EL id_carga QUE YA FUE GENERADO ARRIBA
                 actividad = Actividad(
                     actividad_id=act_id,
                     id_carga=log_carga.id_carga, 
@@ -286,7 +281,6 @@ def procesar_archivo_excel(
         registros_error = len(errores_filas)
         estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if registros_insertados > 0 else "Fallido")
 
-        # 2. Actualizamos el log_carga existente con los resultados finales
         log_carga.estado = estado_carga
         log_carga.registros_insertados = registros_insertados
         log_carga.registros_error = registros_error

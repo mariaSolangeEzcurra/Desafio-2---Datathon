@@ -13,14 +13,15 @@ router = APIRouter(prefix="/api/lecturas", tags=["Carga de Lecturas (TI)"])
 def upload_excel(
     file: UploadFile = File(...),
     proceso: str = Form("Lectura"),
-    usuario_id: str = Form(None),
     db: Session = Depends(get_db)
 ):
     if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="El archivo debe ser una hoja de cálculo Excel (.xlsx o .xls)")
-
+        raise HTTPException(
+            status_code=400, 
+            detail="El archivo debe ser una hoja de cálculo Excel (.xlsx o .xls)"
+        )
     contents = file.file.read()
-    return procesar_archivo_excel(contents, file.filename, proceso, db, usuario_id)
+    return procesar_archivo_excel(contents, file.filename, proceso, db)
 
 @router.get("/historial", response_model=List[HistorialCargaResponse])
 def get_historial(db: Session = Depends(get_db)):
