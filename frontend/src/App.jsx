@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import Login from "./pages/Login";
+import Login from "./Pages/Login";
 import DashboardLayout from "./layouts/DashboardLayout";
-import Usuarios from "./pages/Usuarios";
+import Usuarios from "./Pages/Usuarios";
 
 import {
   getUsuario,
