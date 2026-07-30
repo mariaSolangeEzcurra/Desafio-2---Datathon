@@ -9,15 +9,15 @@ import Trabajadores from "../Pages/TI/Trabajadores";
 import CatalogosView from "../Pages/TI/CatalogosDashboard";
 import UploadLecturaDiario from "../Pages/TI/UploadLecturaDiario";
 //SUPERVISOR
-import TrabajadoresLecturas from "../Pages/supervisor/TrabajadoresLecturas";
-import Alertas from "../Pages/supervisor/Alertas";
-import ReportesLectura from "../Pages/supervisor/Reportes";
+import TrabajadoresLecturas from "../Pages/Supervisor/TrabajadoresLecturas";
+import Alertas from "../Pages/Supervisor/Alertas";
+import ReportesLectura from "../Pages/Supervisor/Reportes";
 import LecturaKPI from "../Pages/LecturaKPI";
 import Dashboard from "../Pages/Dashboard";
 import CortesKPI from "../Pages/CortesKPI";
 import MapaLectura from "../Pages/MapaLectura";
 import MapaCortes from "../Pages/MapaCortes";
-import ReporteCortes from "../Pages/supervisor/ReportesCortes";
+import ReporteCortes from "../Pages/Supervisor/ReportesCortes";
 
 
 //GERENCIA
