@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: "http://localhost:8000/api/lecturas",
-  timeout: 15000,
+  timeout: 1140000,
 });
 
 export const uploadService = {
@@ -14,7 +14,7 @@ export const uploadService = {
     formData.append("proceso", proceso);
 
     const response = await api.post("/upload-excel", formData, {
-      timeout: 120000,
+      timeout: 1140000,
       headers: {
         "Content-Type": "multipart/form-data",
       },

@@ -21,9 +21,12 @@ def generar_reporte_financiero_excel(
     fecha_inicio: Optional[date] = None, 
     fecha_fin: Optional[date] = None
 ) -> dict:
+    # Verificación segura de la columna dinámica cmetfac
+    col_zona = getattr(OrdenCorte, 'cmetfac', OrdenCorte.distrito)
+
     q = db.query(
         OrdenCorte.distrito.label("distrito"),
-        getattr(OrdenCorte, 'cmetfac', OrdenCorte.distrito).label("zona"),
+        col_zona.label("zona"),
         func.count(OrdenCorte.id_orden).label("total_ordenes"),
         func.sum(case((OrdenCorte.dejecuc != None, 1), else_=0)).label("ordenes_ejecutadas"),
         func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("ordenes_pendientes"),
@@ -31,11 +34,14 @@ def generar_reporte_financiero_excel(
         func.sum(case((OrdenCorte.dejecuc != None, OrdenCorte.ntotdeu), else_=0)).label("dinero_recuperado"),
         func.sum(case((OrdenCorte.dejecuc == None, OrdenCorte.ntotdeu), else_=0)).label("deuda_riesgo")
     )
+
     if fecha_inicio:
         q = q.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         q = q.filter(OrdenCorte.dgenprg <= fecha_fin)
-    resumen = q.group_by(OrdenCorte.distrito, getattr(OrdenCorte, 'cmetfac', OrdenCorte.distrito)).all()
+
+    resumen = q.group_by(OrdenCorte.distrito, col_zona).all()
+
     data = [
         {
             "Distrito": r.distrito or "NO ESPECIFICADO",
@@ -50,7 +56,7 @@ def generar_reporte_financiero_excel(
         for r in resumen
     ]
 
-    rango_str = f"_{fecha_inicio.strftime('%Y%m%d')}_a_{fecha_fin.strftime('%Y%m%d')}" if (fecha_inicio and fecha_fin) else ""
+    rango_str = f"_{_fmt_fecha(fecha_inicio)}_a_{_fmt_fecha(fecha_fin)}" if (fecha_inicio and fecha_fin) else ""
     nombre_archivo = f"reporte_financiero_cortes{rango_str}_{date.today().strftime('%Y%m%d')}.xlsx"
     ruta_completa = os.path.join(EXPORTS_DIR, nombre_archivo)
 
@@ -65,7 +71,7 @@ def generar_reporte_financiero_excel(
 
     return {
         "status": "success",
-        "message": f"Reporte financiero generado con {len(resumen)} distritos.",
+        "message": f"Reporte financiero generado con {len(resumen)} registros.",
         "tipo_reporte": "financiero",
         "nombre_archivo": nombre_archivo,
         "url_descarga": f"/static/exports/{nombre_archivo}",
@@ -86,6 +92,7 @@ def generar_reporte_ineficiencia_excel(
         query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
     if fecha_fin:
         query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
+
     ordenes = query.all()
     data = [
         {
@@ -103,9 +110,11 @@ def generar_reporte_ineficiencia_excel(
         }
         for o in ordenes
     ]
-    rango_str = f"_{fecha_inicio.strftime('%Y%m%d')}_a_{fecha_fin.strftime('%Y%m%d')}" if (fecha_inicio and fecha_fin) else ""
+
+    rango_str = f"_{_fmt_fecha(fecha_inicio)}_a_{_fmt_fecha(fecha_fin)}" if (fecha_inicio and fecha_fin) else ""
     nombre_archivo = f"reporte_ineficiencia_impedimentos{rango_str}_{date.today().strftime('%Y%m%d')}.xlsx"
     ruta_completa = os.path.join(EXPORTS_DIR, nombre_archivo)
+
     df = pd.DataFrame(data)
     if df.empty:
         df = pd.DataFrame(columns=[
@@ -113,7 +122,9 @@ def generar_reporte_ineficiencia_excel(
             "Categoría", "Deuda en Riesgo (S/)", "Meses Deuda", "Situación Registro (CSITREG)",
             "Código Impedimento / Acceso (CCODACC)", "Descripción Impedimento (CDESACC)", "Fecha Programada (DGENPRG)"
         ])
+
     df.to_excel(ruta_completa, index=False, engine="openpyxl")
+
     return {
         "status": "success",
         "message": f"Reporte de ineficiencia generado con {len(ordenes)} impedimentos.",

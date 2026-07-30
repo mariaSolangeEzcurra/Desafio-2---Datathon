@@ -12,7 +12,8 @@ from app.schemas.Corte.reporte import ReporteGeneradoResponse
 
 router = APIRouter(prefix="/api/cortes/reportes", tags=["Reportes de Cortes"])
 
-@router.post("/financiero", response_model=ReporteGeneradoResponse)
+# CAMBIO: Se usa @router.get en lugar de @router.post
+@router.get("/financiero", response_model=ReporteGeneradoResponse)
 def exportar_reporte_financiero(
     fecha_inicio: Optional[date] = Query(None, description="Fecha de inicio (YYYY-MM-DD)"),
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
@@ -21,7 +22,7 @@ def exportar_reporte_financiero(
     return generar_reporte_financiero_excel(db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
 
-@router.post("/ineficiencia", response_model=ReporteGeneradoResponse)
+@router.get("/ineficiencia", response_model=ReporteGeneradoResponse)
 def exportar_reporte_ineficiencia(
     fecha_inicio: Optional[date] = Query(None, description="Fecha de inicio (YYYY-MM-DD)"),
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
