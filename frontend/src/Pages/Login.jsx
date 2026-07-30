@@ -8,23 +8,48 @@ export default function Login({ onLogin }) {
   const googleInicializado = useRef(false); 
 
   useEffect(() => {
-    if (typeof google !== "undefined" && !googleInicializado.current) {
-      google.accounts.id.initialize({
-        //paola
-        //client_id: "249701213502-v0nmel3t0r6otgu71r0fek42p2olchbc.apps.googleusercontent.com",
-        //maria
-        client_id: "557061520522-ag9hmkpkigsgmiqkprprvfdddsk3hbuo.apps.googleusercontent.com",
-            ux_mode: "popup",
+
+  const inicializarGoogle = () => {
+
+    const boton = document.getElementById("btnGoogleLogin");
+
+    if (
+      window.google &&
+      boton &&
+      !googleInicializado.current
+    ) {
+
+      window.google.accounts.id.initialize({
+        client_id:
+          "557061520522-ag9hmkpkigsgmiqkprprvfdddsk3hbuo.apps.googleusercontent.com",
+        ux_mode: "popup",
         callback: handleGoogleResponse,
-        
       });
-      google.accounts.id.renderButton(
-        document.getElementById("btnGoogleLogin"),
-        { theme: "outline", size: "large", width: "356", text: "signin_with", shape: "pill" }
+
+
+      window.google.accounts.id.renderButton(
+        boton,
+        {
+          theme: "outline",
+          size: "large",
+          width: 356,
+          text: "signin_with",
+          shape: "pill",
+        }
       );
-      googleInicializado.current = true; 
+
+
+      googleInicializado.current = true;
     }
-  }, []);
+  };
+
+
+  const timer = setInterval(inicializarGoogle, 300);
+
+
+  return () => clearInterval(timer);
+
+}, []);
 
   const handleGoogleResponse = async (response) => {
     setLoading(true);
