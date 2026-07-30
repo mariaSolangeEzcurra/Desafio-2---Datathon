@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
   FileText,
   FileSpreadsheet,
@@ -17,8 +18,8 @@ import {
 } from "lucide-react";
 
 import {
-  exportarReporteFinanciero,
-  exportarReporteIneficiencia,
+  descargarReporteFinanciero,
+  descargarReporteIneficiencia,
 } from "../../services/CortesReportesService";
 
 // =====================================================
@@ -70,7 +71,7 @@ export default function ReportesCortes() {
       icono: <DollarSign size={22} />,
       fondo: "bg-blue-50",
       texto: "text-[#006cb7]",
-      archivo: "reporte_financiero",
+      archivo: "reporte_financiero_cortes",
       columnas: [
         "Distrito",
         "Zona",
@@ -105,6 +106,19 @@ export default function ReportesCortes() {
   const reporteActual = reportes[reporteSeleccionado];
 
   // ===================================================
+  // NOMBRE DEL ARCHIVO
+  // ===================================================
+
+  const obtenerNombreArchivo = () => {
+    const fechaArchivo = new Date()
+      .toISOString()
+      .split("T")[0]
+      .replaceAll("-", "");
+
+    return `${reporteActual.archivo}_${fechaInicio}_a_${fechaFin}_${fechaArchivo}.xlsx`;
+  };
+
+  // ===================================================
   // VALIDAR FILTROS
   // ===================================================
 
@@ -131,37 +145,19 @@ export default function ReportesCortes() {
   };
 
   // ===================================================
-  // OBTENER REPORTE DESDE API
+  // OBTENER FUNCIÓN DE DESCARGA
   // ===================================================
 
-  const obtenerReporte = async () => {
+  const obtenerFuncionDescarga = () => {
     if (reporteSeleccionado === "financiero") {
-      return await exportarReporteFinanciero({
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-      });
+      return descargarReporteFinanciero;
     }
 
     if (reporteSeleccionado === "ineficiencia") {
-      return await exportarReporteIneficiencia({
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-      });
+      return descargarReporteIneficiencia;
     }
 
     return null;
-  };
-
-  // ===================================================
-  // OBTENER NOMBRE DE ARCHIVO
-  // ===================================================
-
-  const obtenerNombreArchivo = () => {
-    if (previewData?.nombre_archivo) {
-      return previewData.nombre_archivo;
-    }
-
-    return `${reporteActual.archivo}_${fechaInicio}_a_${fechaFin}.xlsx`;
   };
 
   // ===================================================
@@ -175,37 +171,28 @@ export default function ReportesCortes() {
       setLoadingPreview(true);
       setError("");
 
-      const response = await obtenerReporte();
-
-      if (!response) {
-        throw new Error("La API no devolvió información.");
-      }
-
-      /*
-       * La API devuelve:
-       *
-       * {
-       *   status: "success",
-       *   message: "...",
-       *   tipo_reporte: "...",
-       *   nombre_archivo: "...",
-       *   url_descarga: "...",
-       *   total_registros: 1086
-       * }
-       */
-
-      const data = response.data || response;
+      // =================================================
+      // LA API /excel DEVUELVE DIRECTAMENTE EL ARCHIVO.
+      // NO SE DESCARGA DURANTE LA PREVISUALIZACIÓN.
+      // =================================================
 
       setPreviewData({
-        status: data.status,
-        message: data.message,
-        tipoReporte: data.tipo_reporte,
-        nombreArchivo:
-          data.nombre_archivo ||
-          `${reporteActual.archivo}_${fechaInicio}_a_${fechaFin}.xlsx`,
-        urlDescarga: data.url_descarga,
-        totalRegistros: data.total_registros ?? 0,
-        fechaGeneracion: new Date().toLocaleString("es-PE"),
+        status: "success",
+
+        message:
+          "El reporte está configurado y listo para ser descargado.",
+
+        tipoReporte: reporteSeleccionado,
+
+        nombreArchivo: obtenerNombreArchivo(),
+
+        totalRegistros: null,
+
+        fechaGeneracion:
+          new Date().toLocaleString("es-PE"),
+
+        fechaInicio,
+        fechaFin,
       });
 
       setPreviewVisible(true);
@@ -215,19 +202,9 @@ export default function ReportesCortes() {
         err
       );
 
-      if (err.response?.status === 422) {
-        setError(
-          "Los parámetros enviados no son válidos. Revisa las fechas seleccionadas."
-        );
-      } else if (err.response?.status === 404) {
-        setError(
-          "No se encontró el servicio de generación del reporte."
-        );
-      } else {
-        setError(
-          "No se pudo generar la previsualización del reporte."
-        );
-      }
+      setError(
+        "No se pudo preparar la previsualización del reporte."
+      );
 
       setPreviewVisible(false);
       setPreviewData(null);
@@ -237,7 +214,7 @@ export default function ReportesCortes() {
   };
 
   // ===================================================
-  // EXPORTAR REPORTE
+  // DESCARGAR REPORTE
   // ===================================================
 
   const exportarReporte = async () => {
@@ -247,46 +224,82 @@ export default function ReportesCortes() {
       setLoadingExport(true);
       setError("");
 
-      /*
-       * Si ya tenemos la URL generada por la previsualización,
-       * utilizamos directamente ese archivo.
-       */
+      const descargar = obtenerFuncionDescarga();
 
-      if (previewData?.urlDescarga) {
-        const url = previewData.urlDescarga.startsWith("http")
-          ? previewData.urlDescarga
-          : `http://localhost:8000${previewData.urlDescarga}`;
-
-        window.open(url, "_blank");
-
-        return;
-      }
-
-      /*
-       * Si no existe previsualización, generamos el reporte.
-       */
-
-      const response = await obtenerReporte();
-
-      if (!response) {
-        throw new Error("La API no devolvió información.");
-      }
-
-      const data = response.data || response;
-
-      if (!data.url_descarga) {
+      if (!descargar) {
         throw new Error(
-          "La API no devolvió la URL de descarga."
+          "No se encontró el servicio de descarga."
         );
       }
 
-      const url = data.url_descarga.startsWith("http")
-        ? data.url_descarga
-        : `http://localhost:8000${data.url_descarga}`;
+      // =================================================
+      // LLAMAR DIRECTAMENTE AL ENDPOINT /EXCEL
+      // =================================================
 
-      window.open(url, "_blank");
+      const response = await descargar({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+      });
+
+      // =================================================
+      // VALIDAR RESPUESTA
+      // =================================================
+
+      if (!response || !response.data) {
+        throw new Error(
+          "La API no devolvió el archivo Excel."
+        );
+      }
+
+      // =================================================
+      // CREAR BLOB
+      // =================================================
+
+      const blob = new Blob(
+        [response.data],
+        {
+          type:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+      );
+
+      // =================================================
+      // CREAR URL TEMPORAL
+      // =================================================
+
+      const url = window.URL.createObjectURL(blob);
+
+      // =================================================
+      // CREAR ENLACE DE DESCARGA
+      // =================================================
+
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download =
+        obtenerNombreArchivo();
+
+      document.body.appendChild(link);
+
+      // =================================================
+      // DESCARGAR AUTOMÁTICAMENTE
+      // =================================================
+
+      link.click();
+
+      // =================================================
+      // LIMPIAR
+      // =================================================
+
+      document.body.removeChild(link);
+
+      window.URL.revokeObjectURL(url);
+
     } catch (err) {
-      console.error("Error exportando reporte:", err);
+      console.error(
+        "Error descargando reporte:",
+        err
+      );
 
       if (err.response?.status === 422) {
         setError(
@@ -298,7 +311,8 @@ export default function ReportesCortes() {
         );
       } else {
         setError(
-          "No se pudo exportar el reporte."
+          err.message ||
+            "No se pudo descargar el reporte Excel."
         );
       }
     } finally {
@@ -488,11 +502,13 @@ export default function ReportesCortes() {
           <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
 
             <div className="mt-0.5 rounded-lg bg-white p-2 text-[#006cb7]">
+
               {reporteSeleccionado === "financiero" ? (
                 <BarChart3 size={16} />
               ) : (
                 <AlertTriangle size={16} />
               )}
+
             </div>
 
             <div>
@@ -545,7 +561,7 @@ export default function ReportesCortes() {
               )}
 
               {loadingPreview
-                ? "Generando..."
+                ? "Preparando..."
                 : "Previsualizar"}
 
             </button>
@@ -569,7 +585,7 @@ export default function ReportesCortes() {
               )}
 
               {loadingExport
-                ? "Exportando..."
+                ? "Descargando..."
                 : "Exportar reporte"}
 
             </button>
@@ -629,7 +645,7 @@ export default function ReportesCortes() {
                   </h2>
 
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Información generada por la API para el periodo seleccionado.
+                    Revisa la configuración antes de descargar el archivo Excel.
                   </p>
 
                 </div>
@@ -722,9 +738,7 @@ export default function ReportesCortes() {
                     </div>
 
                     <p className="mt-2 text-xs font-bold text-slate-700">
-                      {previewData.totalRegistros.toLocaleString(
-                        "en-US"
-                      )}
+                      Se calcularán al generar el reporte
                     </p>
 
                   </div>
@@ -757,7 +771,7 @@ export default function ReportesCortes() {
 
                 </div>
 
-                {/* MENSAJE API */}
+                {/* MENSAJE */}
 
                 <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
 
@@ -770,11 +784,12 @@ export default function ReportesCortes() {
                     <div>
 
                       <p className="text-xs font-bold text-[#006cb7]">
-                        Respuesta del sistema
+                        Información del sistema
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-blue-700">
-                        {previewData.message}
+                        El archivo Excel se generará directamente
+                        desde la API con el periodo seleccionado.
                       </p>
 
                     </div>
@@ -892,8 +907,8 @@ export default function ReportesCortes() {
                       </p>
 
                       <p className="mt-1 text-[10px] leading-5 text-emerald-600">
-                        La API generó correctamente el archivo
-                        correspondiente al periodo seleccionado.
+                        Se utilizarán las fechas seleccionadas
+                        para generar el archivo Excel.
                       </p>
 
                     </div>

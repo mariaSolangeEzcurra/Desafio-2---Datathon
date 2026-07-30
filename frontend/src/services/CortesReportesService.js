@@ -7,11 +7,11 @@ import axios from "axios";
 const API_URL = "http://localhost:8000/api/cortes/reportes";
 
 // =====================================================
-// REPORTE FINANCIERO
-// POST /api/cortes/reportes/financiero
+// DESCARGAR REPORTE FINANCIERO EXCEL
+// GET /api/cortes/reportes/financiero/excel
 // =====================================================
 
-export const exportarReporteFinanciero = async ({
+export const descargarReporteFinanciero = async ({
   fecha_inicio = null,
   fecha_fin = null,
 } = {}) => {
@@ -25,13 +25,14 @@ export const exportarReporteFinanciero = async ({
     params.fecha_fin = fecha_fin;
   }
 
-  const response = await axios.post(
-    `${API_URL}/financiero`,
-    null,
+  const response = await axios.get(
+    `${API_URL}/financiero/excel`,
     {
       params,
+      responseType: "blob",
       headers: {
-        Accept: "application/json",
+        Accept:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     }
   );
@@ -40,11 +41,11 @@ export const exportarReporteFinanciero = async ({
 };
 
 // =====================================================
-// REPORTE DE INEFICIENCIA
-// POST /api/cortes/reportes/ineficiencia
+// DESCARGAR REPORTE DE INEFICIENCIA EXCEL
+// GET /api/cortes/reportes/ineficiencia/excel
 // =====================================================
 
-export const exportarReporteIneficiencia = async ({
+export const descargarReporteIneficiencia = async ({
   fecha_inicio = null,
   fecha_fin = null,
 } = {}) => {
@@ -58,13 +59,14 @@ export const exportarReporteIneficiencia = async ({
     params.fecha_fin = fecha_fin;
   }
 
-  const response = await axios.post(
-    `${API_URL}/ineficiencia`,
-    null,
+  const response = await axios.get(
+    `${API_URL}/ineficiencia/excel`,
     {
       params,
+      responseType: "blob",
       headers: {
-        Accept: "application/json",
+        Accept:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     }
   );
@@ -77,6 +79,6 @@ export const exportarReporteIneficiencia = async ({
 // =====================================================
 
 export default {
-  exportarReporteFinanciero,
-  exportarReporteIneficiencia,
+  descargarReporteFinanciero,
+  descargarReporteIneficiencia,
 };
