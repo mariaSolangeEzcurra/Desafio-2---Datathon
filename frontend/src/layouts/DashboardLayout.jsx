@@ -1,6 +1,6 @@
 import React from "react";
 import Header from "../Components/Header";
-import Sidebar from "../Components/Sidebar";
+import Sidebar from "../Components/SideBar";
 import Usuarios from "../Pages/Usuarios";
 //TI
 import UploadLectura from "../Pages/TI/UploadLectura";  
