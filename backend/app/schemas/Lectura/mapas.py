@@ -27,7 +27,10 @@ class PuntoCalorItem(BaseModel):
     lng: float
     peso: float = 1.0
     motivo: Optional[str] = None
+    codigo_impedimento: Optional[str] = None
+    codigo_observacion: Optional[str] = None
     ccodcnx: Optional[str] = None
+    trabajador_id: Optional[str] = None
     cmetfac: Optional[str] = None
     cseccli: Optional[str] = None
 

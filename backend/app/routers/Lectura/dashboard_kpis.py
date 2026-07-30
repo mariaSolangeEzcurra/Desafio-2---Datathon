@@ -12,11 +12,12 @@ router = APIRouter(prefix="/lectura/kpis", tags=["KPIs y Dashboard de Lectura"])
 def obtener_dashboard_lectura(
     fecha_inicio: Optional[date] = Query(None, description="Fecha de inicio (YYYY-MM-DD)"),
     fecha_fin: Optional[date] = Query(None, description="Fecha de fin (YYYY-MM-DD)"),
+    periodo: Optional[str] = Query(None, description="Filtro rápido: hoy, semana, mes, 3meses"),
     zona_id: Optional[str] = Query(None, description="Filtrar por ID de Zona o CMETFAC"),
     db: Session = Depends(get_db)
 ):
-    resumen = KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id)
-    ranking = KpiLecturaService.obtener_ranking_lectores(db, fecha_inicio, fecha_fin, limit=10)
+    resumen = KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id, periodo)
+    ranking = KpiLecturaService.obtener_ranking_lectores(db, fecha_inicio, fecha_fin, limit=10, periodo=periodo)
 
     return {
         "resumen_general": resumen,
@@ -27,7 +28,8 @@ def obtener_dashboard_lectura(
 def obtener_resumen_indicadores(
     fecha_inicio: Optional[date] = Query(None),
     fecha_fin: Optional[date] = Query(None),
+    periodo: Optional[str] = Query(None, description="Filtro rápido: hoy, semana, mes, 3meses"),
     zona_id: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    return KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id)
+    return KpiLecturaService.obtener_kpis_generales(db, fecha_inicio, fecha_fin, zona_id, periodo)

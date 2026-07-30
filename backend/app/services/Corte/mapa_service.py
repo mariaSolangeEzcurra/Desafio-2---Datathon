@@ -1,7 +1,24 @@
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 from app.model import OrdenCorte
+
+def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
+    """Calcula automáticamente las fechas si se pasa un período predefinido"""
+    if fecha_inicio and fecha_fin:
+        return fecha_inicio, fecha_fin
+        
+    hoy = date.today()
+    if periodo == "hoy":
+        return hoy, hoy
+    elif periodo == "semana":
+        return hoy - timedelta(days=7), hoy
+    elif periodo == "mes":
+        return hoy - timedelta(days=30), hoy
+    elif periodo == "3meses":
+        return hoy - timedelta(days=90), hoy
+        
+    return fecha_inicio, fecha_fin
 
 def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
     """
@@ -21,7 +38,6 @@ def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
             return v_lat, v_lng
 
         # Si están usando UTM en Perú (Zona 18S/19S aprox: X entre 100k-900k, Y entre 7M-9M)
-        # Ajusta estos límites si tu frontend maneja proyección UTM directamente
         if (100000.0 <= v_lng <= 900000.0) and (7000000.0 <= v_lat <= 9000000.0):
             return v_lat, v_lng
 
@@ -33,8 +49,11 @@ def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
 def obtener_datos_heatmap(
     db: Session,
     fecha_inicio: Optional[date] = None,
-    fecha_fin: Optional[date] = None
+    fecha_fin: Optional[date] = None,
+    periodo: Optional[str] = None
 ) -> dict:
+    f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
     query = db.query(
         OrdenCorte.ccodcnx,
         OrdenCorte.cutmy,
@@ -47,10 +66,10 @@ def obtener_datos_heatmap(
         OrdenCorte.cutmy.isnot(None)
     )
 
-    if fecha_inicio:
-        query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
-    if fecha_fin:
-        query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
+    if f_inicio:
+        query = query.filter(OrdenCorte.dgenprg >= f_inicio)
+    if f_fin:
+        query = query.filter(OrdenCorte.dgenprg <= f_fin)
 
     ordenes = query.all()
     puntos = []
@@ -79,7 +98,10 @@ def obtener_datos_impedimentos(
     db: Session,
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
+    periodo: Optional[str] = None
 ) -> dict:
+    f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
     query = (
         db.query(
             OrdenCorte.ccodcnx,
@@ -99,10 +121,10 @@ def obtener_datos_impedimentos(
         )
     )
 
-    if fecha_inicio:
-        query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
-    if fecha_fin:
-        query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
+    if f_inicio:
+        query = query.filter(OrdenCorte.dgenprg >= f_inicio)
+    if f_fin:
+        query = query.filter(OrdenCorte.dgenprg <= f_fin)
 
     ordenes = query.all()
     impedimentos = []

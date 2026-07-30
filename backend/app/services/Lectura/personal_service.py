@@ -2,36 +2,66 @@ from typing import Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc,and_, func, cast, Date, nullslast
-from datetime import date
+from datetime import date, timedelta
 from app.model import (Actividad,Alerta,Conexion,EvaluacionDesempeno,ResumenDiarioLector,Trabajador,)
-
 
 class PersonalService:
 
     @staticmethod
+    def _calcular_fechas_por_periodo(periodo: str, fecha: date = None):
+        if fecha:
+            return fecha, fecha        
+        hoy = date.today()
+        if periodo == "hoy":
+            return hoy, hoy
+        elif periodo == "semana":
+            return hoy - timedelta(days=7), hoy
+        elif periodo == "mes":
+            return hoy - timedelta(days=30), hoy
+        elif periodo == "3meses":
+            return hoy - timedelta(days=90), hoy            
+        return None, None
+    
+    @classmethod
     def listar_trabajadores(
+        cls, 
         db: Session, 
         skip: int = 0, 
         limit: int = 50, 
-        fecha: Optional[date] = None
+        fecha: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> List[Trabajador]:        
         query = db.query(Trabajador)
         
-        if fecha:
-            # Filtramos los trabajadores que tienen un resumen diario en la fecha especificada
-            query = query.join(
-                ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
-            ).filter(ResumenDiarioLector.fecha == fecha)
-            
+        f_inicio, f_fin = cls._calcular_fechas_por_periodo(periodo, fecha)
+        
+        if f_inicio and f_fin:
+            if f_inicio == f_fin:
+                # Si es una sola fecha exacta (o "hoy")
+                query = query.join(
+                    ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
+                ).filter(ResumenDiarioLector.fecha == f_inicio)
+            else:
+                # Si es un rango (semana, mes, 3meses)
+                query = query.join(
+                    ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
+                ).filter(ResumenDiarioLector.fecha.between(f_inicio, f_fin)).distinct()
+             
         return query.offset(skip).limit(limit).all()
 
-    @staticmethod
+    @classmethod
     def calcular_y_actualizar_desempeno(
+        cls, 
         db: Session, 
         ccodprs: Optional[str] = None, 
-        fecha_eval: Optional[date] = None
+        fecha_eval: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> Dict:
         try:
+            f_inicio, _ = cls._calcular_fechas_por_periodo(periodo, fecha_eval)
+            if f_inicio:
+                fecha_eval = f_inicio
+
             if not fecha_eval:
                 fecha_eval = db.query(func.max(ResumenDiarioLector.fecha)).scalar()
                 if not fecha_eval:
@@ -166,6 +196,7 @@ class PersonalService:
             })
         ultima_actividad = (
             db.query(Conexion.ruta_id, Actividad.cmetfac)
+            .select_from(Actividad)
             .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
             .filter(
                 Actividad.ccodprs == ccodprs,
@@ -175,6 +206,7 @@ class PersonalService:
             .order_by(desc(Actividad.fecha))
             .first()
         )
+
         ruta_actual = ultima_actividad.ruta_id if (ultima_actividad and ultima_actividad.ruta_id) else "No asignada"
         metfac_actual = ultima_actividad.cmetfac if (ultima_actividad and ultima_actividad.cmetfac) else "No asignada"
         alertas_pendientes_count = (

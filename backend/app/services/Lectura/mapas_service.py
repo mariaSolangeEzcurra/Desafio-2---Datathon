@@ -1,12 +1,31 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from datetime import date
+from datetime import date, timedelta
+from typing import Optional
 from app.model import (
     Actividad, ActividadLectura, Conexion, 
     CatalogoImpedimento, CatalogoObservacion, Impedimento, Observacion
 )
 
 class MapasService:
+
+    @staticmethod
+    def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
+        """Calcula automáticamente las fechas si se pasa un período predefinido"""
+        if fecha_inicio and fecha_fin:
+            return fecha_inicio, fecha_fin
+            
+        hoy = date.today()
+        if periodo == "hoy":
+            return hoy, hoy
+        elif periodo == "semana":
+            return hoy - timedelta(days=7), hoy
+        elif periodo == "mes":
+            return hoy - timedelta(days=30), hoy
+        elif periodo == "3meses":
+            return hoy - timedelta(days=90), hoy
+            
+        return None, None
 
     @staticmethod
     def _sanitizar_coordenada(lat, lng) -> tuple[float | None, float | None]:
@@ -21,11 +40,9 @@ class MapasService:
             val_lat = float(lat)
             val_lng = float(lng)
             
-            # Filtro de coordenadas no válidas / fuera del rango terrestre
             if not (-90.0 <= val_lat <= 90.0) or not (-180.0 <= val_lng <= 180.0):
                 return None, None
             
-            # Filtro opcional: si (0,0) es una coordenada inválida en tu contexto
             if val_lat == 0.0 and val_lng == 0.0:
                 return None, None
 
@@ -33,21 +50,25 @@ class MapasService:
         except (ValueError, TypeError):
             return None, None
 
-    @staticmethod
+    @classmethod
     def obtener_discrepancias_espaciales(
+        cls, 
         db: Session, 
-        fecha_inicio: date = None, 
-        fecha_fin: date = None, 
-        zona_id: str = None,
-        cmetfac: str = None
+        fecha_inicio: Optional[date] = None, 
+        fecha_fin: Optional[date] = None, 
+        zona_id: Optional[str] = None,
+        cmetfac: Optional[str] = None,
+        periodo: Optional[str] = None
     ) -> dict:
+        f_inicio, f_fin = cls._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
         query = db.query(Actividad, ActividadLectura, Conexion)\
             .join(ActividadLectura, Actividad.actividad_id == ActividadLectura.actividad_id)\
             .join(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)\
             .filter(Actividad.distancia_metros > 50.0)
 
-        if fecha_inicio and fecha_fin:
-            query = query.filter(Actividad.fecha.between(fecha_inicio, fecha_fin))        
+        if f_inicio and f_fin:
+            query = query.filter(Actividad.fecha.between(f_inicio, f_fin))        
         if zona_id:
             query = query.filter(Conexion.zona_id == zona_id)
         if cmetfac:
@@ -61,14 +82,14 @@ class MapasService:
                 continue
 
             # Validar coordenada REAL (GPS capturado)
-            lat_real, lng_real = MapasService._sanitizar_coordenada(det.cgpslat, det.cgpslon)
+            lat_real, lng_real = cls._sanitizar_coordenada(det.cgpslat, det.cgpslon)
             if lat_real is None or lng_real is None:
-                continue  # Descartar si el GPS es invalido (ej: 9999999999)
+                continue 
 
             # Validar coordenada TEÓRICA (Base de conexiones)
             raw_lat_teo = getattr(cnx, 'latitud_real', getattr(cnx, 'CUTMY', None))
             raw_lng_teo = getattr(cnx, 'longitud_real', getattr(cnx, 'CUTMX', None))
-            lat_teo, lng_teo = MapasService._sanitizar_coordenada(raw_lat_teo, raw_lng_teo)
+            lat_teo, lng_teo = cls._sanitizar_coordenada(raw_lat_teo, raw_lng_teo)
 
             marcadores_desfase.append({
                 "ccodcnx": cnx.ccodcnx,
@@ -92,14 +113,18 @@ class MapasService:
             "elementos": marcadores_desfase
         }
 
-    @staticmethod
+    @classmethod
     def obtener_heatmap_impedimentos(
+        cls, 
         db: Session, 
-        fecha_inicio: date = None, 
-        fecha_fin: date = None, 
-        zona_id: str = None,
-        cmetfac: str = None
+        fecha_inicio: Optional[date] = None, 
+        fecha_fin: Optional[date] = None, 
+        zona_id: Optional[str] = None,
+        cmetfac: Optional[str] = None,
+        periodo: Optional[str] = None
     ) -> dict:
+        f_inicio, f_fin = cls._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
         codigos_invalidos = ["0", "00", "000", ""]
         condicion_impedimento = and_(
             ActividadLectura.cimplec.isnot(None),
@@ -122,8 +147,8 @@ class MapasService:
         .outerjoin(CatalogoObservacion, ActividadLectura.cobsmdr == CatalogoObservacion.codigo)\
         .filter(or_(condicion_impedimento, condicion_observacion))
 
-        if fecha_inicio and fecha_fin:
-            query = query.filter(Actividad.fecha.between(fecha_inicio, fecha_fin))
+        if f_inicio and f_fin:
+            query = query.filter(Actividad.fecha.between(f_inicio, f_fin))
         if zona_id:
             query = query.filter(Conexion.zona_id == zona_id)
         if cmetfac:
@@ -134,15 +159,14 @@ class MapasService:
 
         for det, act, cnx, desc_imp, desc_obs in resultados:
             # Intentar obtener la coordenada real del GPS primero
-            lat, lng = MapasService._sanitizar_coordenada(det.cgpslat, det.cgpslon)
+            lat, lng = cls._sanitizar_coordenada(det.cgpslat, det.cgpslon)
 
             # Si el GPS del detalle no es válido, usar la coordenada teórica como respaldo
             if lat is None or lng is None:
                 raw_lat_teo = getattr(cnx, 'latitud_real', getattr(cnx, 'CUTMY', None))
                 raw_lng_teo = getattr(cnx, 'longitud_real', getattr(cnx, 'CUTMX', None))
-                lat, lng = MapasService._sanitizar_coordenada(raw_lat_teo, raw_lng_teo)
+                lat, lng = cls._sanitizar_coordenada(raw_lat_teo, raw_lng_teo)
 
-            # Si ni el GPS ni la teórica son válidas, omitimos este punto de calor
             if lat is None or lng is None:
                 continue
 

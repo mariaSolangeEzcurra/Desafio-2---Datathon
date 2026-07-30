@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, case
-from datetime import date
+from datetime import date, timedelta, datetime
 from fastapi import HTTPException
 from typing import Optional, List
 import logging
@@ -12,22 +12,54 @@ logger = logging.getLogger(__name__)
 class AlertasService:
 
     @staticmethod
+    def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
+        """Calcula automáticamente las fechas si se pasa un período predefinido"""
+        if fecha_inicio and fecha_fin:
+            return fecha_inicio, fecha_fin
+            
+        hoy = date.today()
+        if periodo == "hoy":
+            return hoy, hoy
+        elif periodo == "semana":
+            return hoy - timedelta(days=7), hoy
+        elif periodo == "mes":
+            return hoy - timedelta(days=30), hoy
+        elif periodo == "3meses":
+            return hoy - timedelta(days=90), hoy
+            
+        return None, None
+
+    @staticmethod
     def listar_alertas(
         db: Session, 
         estado: Optional[str] = None, 
         zona_id: Optional[str] = None, 
         ccodprs: Optional[str] = None, 
-        fecha: Optional[date] = None
+        fecha: Optional[date] = None,
+        fecha_inicio: Optional[date] = None,
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> List[Alerta]:
         query = db.query(Alerta)
+        
         if estado:
             query = query.filter(Alerta.estado_alerta == estado)
         if zona_id:
             query = query.filter(Alerta.zona_id == zona_id)
         if ccodprs:
             query = query.filter(Alerta.ccodprs == ccodprs)
+
+        # Manejo de fecha individual o por período/rango
+        f_inicio, f_fin = AlertasService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+        
         if fecha:
             query = query.filter(Alerta.fecha == fecha)
+        elif f_inicio and f_fin:
+            query = query.filter(Alerta.fecha.between(f_inicio, f_fin))
+        elif f_inicio:
+            query = query.filter(Alerta.fecha >= f_inicio)
+        elif f_fin:
+            query = query.filter(Alerta.fecha <= f_fin)
 
         return query.order_by(desc(Alerta.fecha_generacion)).all()
 
@@ -106,6 +138,7 @@ class AlertasService:
                     db.add(nueva)
                     alertas_existentes.add((ccodprs, kpi_nombre))
                     alertas_creadas += 1
+
             resumenes = db.query(ResumenDiarioLector, Trabajador)\
                 .join(Trabajador, ResumenDiarioLector.ccodprs == Trabajador.ccodprs)\
                 .filter(ResumenDiarioLector.fecha == target_fecha)\
@@ -124,27 +157,28 @@ class AlertasService:
                 tiempo_prom = (duracion_total_min / real) if real > 0 else 0.0
                 pct_imp = (impedimentos / prog * 100) if prog > 0 else 0.0
                 pct_obs = (observaciones / real * 100) if real > 0 else 0.0
+                
                 # KPI 1: Cumplimiento
                 if prog > 0 and cumplimiento < 80:
                     nivel = "Alto" if cumplimiento < 70 else "Medio"
                     registrar_alerta(ccodprs, zona, "Cumplimiento de lectura", "CUMP", cumplimiento, 80.0, 
-                                    f"Cumplimiento bajo: {round(cumplimiento, 2)}% (Mínimo esperado: 80%).", nivel)
+                                     f"Cumplimiento bajo: {round(cumplimiento, 2)}% (Mínimo esperado: 80%).", nivel)
                 # KPI 2: Productividad
                 if horas_campo > 0 and productividad < 15.0:
                     registrar_alerta(ccodprs, zona, "Productividad de lectura", "PROD", productividad, 15.0, 
-                                    f"Productividad baja: {round(productividad, 2)} lect./hora.", "Medio")
+                                     f"Productividad baja: {round(productividad, 2)} lect./hora.", "Medio")
                 # KPI 3: Tiempo promedio
                 if real > 0 and tiempo_prom > 2.0:
                     registrar_alerta(ccodprs, zona, "Tiempo promedio de lectura", "TPROM", tiempo_prom, 2.0, 
-                                    f"Tiempo promedio elevado: {round(tiempo_prom, 2)} min/lectura.", "Medio")
+                                     f"Tiempo promedio elevado: {round(tiempo_prom, 2)} min/lectura.", "Medio")
                 # KPI 4: Impedimentos
                 if prog > 0 and pct_imp > 20:
                     registrar_alerta(ccodprs, zona, "Impedimentos de lectura", "IMP", pct_imp, 20.0, 
-                                    f"Alto índice de impedimentos: {round(pct_imp, 2)}% (Umbral máximo: 20%).", "Alto")
+                                     f"Alto índice de impedimentos: {round(pct_imp, 2)}% (Umbral máximo: 20%).", "Alto")
                 # KPI 5: Observaciones
                 if real > 0 and pct_obs > 4:
                     registrar_alerta(ccodprs, zona, "Observaciones de lectura", "OBS", pct_obs, 4.0, 
-                                    f"Exceso de observaciones: {round(pct_obs, 2)}% (Umbral máximo: 4%).", "Alto")
+                                     f"Exceso de observaciones: {round(pct_obs, 2)}% (Umbral máximo: 4%).", "Alto")
 
             # --- EVALUACIÓN DE KPIS 6 Y 7
             condicion_fuera = case((func.lower(Actividad.resultado).like("%fuera%"), 1), else_=0)

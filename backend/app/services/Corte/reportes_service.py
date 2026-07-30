@@ -1,13 +1,31 @@
 import io
 import pandas as pd
 from typing import Tuple, Optional, Dict
-from datetime import date
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from openpyxl.utils import get_column_letter
 from app.model import OrdenCorte
 
 class CortesReportesService:
+
+    @staticmethod
+    def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
+        """Calcula automáticamente las fechas si se pasa un período predefinido"""
+        if fecha_inicio and fecha_fin:
+            return fecha_inicio, fecha_fin
+            
+        hoy = date.today()
+        if periodo == "hoy":
+            return hoy, hoy
+        elif periodo == "semana":
+            return hoy - timedelta(days=7), hoy
+        elif periodo == "mes":
+            return hoy - timedelta(days=30), hoy
+        elif periodo == "3meses":
+            return hoy - timedelta(days=90), hoy
+            
+        return fecha_inicio, fecha_fin
 
     @staticmethod
     def _fmt_fecha(val) -> str:
@@ -52,8 +70,10 @@ class CortesReportesService:
     def exportar_reporte_financiero_excel(
         db: Session, 
         fecha_inicio: Optional[date] = None, 
-        fecha_fin: Optional[date] = None
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> Tuple[io.BytesIO, str, str]:
+        f_inicio, f_fin = CortesReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
         col_zona = getattr(OrdenCorte, 'cmetfac', OrdenCorte.distrito)
 
         q = db.query(
@@ -67,10 +87,10 @@ class CortesReportesService:
             func.sum(case((OrdenCorte.dejecuc == None, OrdenCorte.ntotdeu), else_=0)).label("deuda_riesgo")
         )
 
-        if fecha_inicio:
-            q = q.filter(OrdenCorte.dgenprg >= fecha_inicio)
-        if fecha_fin:
-            q = q.filter(OrdenCorte.dgenprg <= fecha_fin)
+        if f_inicio:
+            q = q.filter(OrdenCorte.dgenprg >= f_inicio)
+        if f_fin:
+            q = q.filter(OrdenCorte.dgenprg <= f_fin)
 
         resumen = q.group_by(OrdenCorte.distrito, col_zona).all()
 
@@ -95,7 +115,7 @@ class CortesReportesService:
                 "Órdenes Pendientes", "Deuda Total (S/)", "Dinero Recuperado (S/)", "Deuda en Riesgo (S/)"
             ])
 
-        rango_str = f"_{CortesReportesService._fmt_fecha(fecha_inicio)}_a_{CortesReportesService._fmt_fecha(fecha_fin)}" if (fecha_inicio and fecha_fin) else ""
+        rango_str = f"_{CortesReportesService._fmt_fecha(f_inicio)}_a_{CortesReportesService._fmt_fecha(f_fin)}" if (f_inicio and f_fin) else ""
         nombre_base = f"reporte_financiero_cortes{rango_str}_{date.today().strftime('%Y%m%d')}"
 
         hojas = {"Resumen Financiero": df}
@@ -105,17 +125,20 @@ class CortesReportesService:
     def exportar_reporte_ineficiencia_excel(
         db: Session, 
         fecha_inicio: Optional[date] = None, 
-        fecha_fin: Optional[date] = None
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> Tuple[io.BytesIO, str, str]:
+        f_inicio, f_fin = CortesReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
         query = db.query(OrdenCorte).filter(
             (OrdenCorte.cimpcrp != None) | 
             (OrdenCorte.csitreg == 'S') | 
             (OrdenCorte.ccodacc != None)
         )
-        if fecha_inicio:
-            query = query.filter(OrdenCorte.dgenprg >= fecha_inicio)
-        if fecha_fin:
-            query = query.filter(OrdenCorte.dgenprg <= fecha_fin)
+        if f_inicio:
+            query = query.filter(OrdenCorte.dgenprg >= f_inicio)
+        if f_fin:
+            query = query.filter(OrdenCorte.dgenprg <= f_fin)
 
         ordenes = query.all()
         data = [
@@ -143,7 +166,7 @@ class CortesReportesService:
                 "Código Impedimento / Acceso (CCODACC)", "Descripción Impedimento (CDESACC)", "Fecha Programada (DGENPRG)"
             ])
 
-        rango_str = f"_{CortesReportesService._fmt_fecha(fecha_inicio)}_a_{CortesReportesService._fmt_fecha(fecha_fin)}" if (fecha_inicio and fecha_fin) else ""
+        rango_str = f"_{CortesReportesService._fmt_fecha(f_inicio)}_a_{CortesReportesService._fmt_fecha(f_fin)}" if (f_inicio and f_fin) else ""
         nombre_base = f"reporte_ineficiencia_impedimentos{rango_str}_{date.today().strftime('%Y%m%d')}"
 
         hojas = {"Detalle Ineficiencias": df}

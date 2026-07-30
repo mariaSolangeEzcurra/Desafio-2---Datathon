@@ -14,7 +14,8 @@ class Usuario(Base):
     correo = Column(String, unique=True, index=True, nullable=False)
     rol = Column(String, nullable=False)  # 'Administrador', 'Supervisor', etc.
     estado = Column(String, default="Activo")
-
+    contrasena_hash = Column(String, nullable=True)  # Nullable porque los usuarios de Google no usan contraseña
+    proveedor = Column(String, default="local")
     # Relaciones
     alertas_revisadas = relationship("Alerta", back_populates="supervisor")
     intervenciones = relationship("Intervencion", back_populates="supervisor")

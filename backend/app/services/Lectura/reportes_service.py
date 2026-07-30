@@ -1,29 +1,51 @@
 import io
 import pandas as pd
 from typing import Tuple, Optional, List, Dict, Any
-from datetime import date
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from openpyxl.utils import get_column_letter
-from app.model import (Alerta, ResumenDiarioLector, Trabajador, Actividad, Intervencion, EvaluacionDesempeno,Zona)
+from app.model import (Alerta, ResumenDiarioLector, Trabajador, Actividad, Intervencion, EvaluacionDesempeno, Zona)
 
 class ReportesService:
+
+    @staticmethod
+    def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
+        """Calcula automáticamente las fechas si se pasa un período predefinido"""
+        if fecha_inicio and fecha_fin:
+            return fecha_inicio, fecha_fin
+            
+        hoy = date.today()
+        if periodo == "hoy":
+            return hoy, hoy
+        elif periodo == "semana":
+            return hoy - timedelta(days=7), hoy
+        elif periodo == "mes":
+            return hoy - timedelta(days=30), hoy
+        elif periodo == "3meses":
+            return hoy - timedelta(days=90), hoy
+            
+        return fecha_inicio, fecha_fin
+
     @staticmethod
     def obtener_resumen_kpis(
         db: Session, 
         fecha_inicio: Optional[date] = None, 
         fecha_fin: Optional[date] = None, 
-        zona_id: Optional[str] = None
+        zona_id: Optional[str] = None,
+        periodo: Optional[str] = None
     ) -> dict:        
+        f_inicio, f_fin = ReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
         query_alertas = db.query(Alerta)
         query_resumen = db.query(ResumenDiarioLector)
 
-        if fecha_inicio:
-            query_alertas = query_alertas.filter(Alerta.fecha >= fecha_inicio)
-            query_resumen = query_resumen.filter(ResumenDiarioLector.fecha >= fecha_inicio)
-        if fecha_fin:
-            query_alertas = query_alertas.filter(Alerta.fecha <= fecha_fin)
-            query_resumen = query_resumen.filter(ResumenDiarioLector.fecha <= fecha_fin)
+        if f_inicio:
+            query_alertas = query_alertas.filter(Alerta.fecha >= f_inicio)
+            query_resumen = query_resumen.filter(ResumenDiarioLector.fecha >= f_inicio)
+        if f_fin:
+            query_alertas = query_alertas.filter(Alerta.fecha <= f_fin)
+            query_resumen = query_resumen.filter(ResumenDiarioLector.fecha <= f_fin)
         if zona_id:
             query_alertas = query_alertas.filter(Alerta.zona_id == zona_id)
             query_resumen = query_resumen.filter(ResumenDiarioLector.cmetfac == zona_id)
@@ -37,6 +59,7 @@ class ReportesService:
         por_kpi_raw = query_alertas.with_entities(Alerta.kpi, func.count(Alerta.alerta_id))\
             .group_by(Alerta.kpi).all()
         alertas_por_kpi = {kpi or "Sin KPI": count for kpi, count in por_kpi_raw}
+        
         resumenes = query_resumen.all()
         total_programadas = sum(r.cantidad_lecturas or 0 for r in resumenes)
         total_realizadas = sum(r.lecturas_realizadas or 0 for r in resumenes)
@@ -51,6 +74,7 @@ class ReportesService:
                 cumplimientos.append((real / prog) * 100)
         
         promedio_general = round(sum(cumplimientos) / len(cumplimientos), 2) if cumplimientos else 0.0
+        
         metricas_por_zona = db.query(
             ResumenDiarioLector.cmetfac.label("zona_grupo"),
             func.sum(ResumenDiarioLector.cantidad_lecturas).label("programadas"),
@@ -58,12 +82,13 @@ class ReportesService:
             func.sum(ResumenDiarioLector.cantidad_impedimentos).label("impedimentos"),
             func.sum(ResumenDiarioLector.cantidad_observaciones).label("observaciones")
         )
-        if fecha_inicio:
-            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha >= fecha_inicio)
-        if fecha_fin:
-            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha <= fecha_fin)
+        if f_inicio:
+            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha >= f_inicio)
+        if f_fin:
+            metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.fecha <= f_fin)
         if zona_id:
             metricas_por_zona = metricas_por_zona.filter(ResumenDiarioLector.cmetfac == zona_id)
+            
         resumen_zonas_raw = metricas_por_zona.group_by(ResumenDiarioLector.cmetfac).all()
         desglose_zonas = []
         for z in resumen_zonas_raw:
@@ -78,6 +103,7 @@ class ReportesService:
                 "Observaciones": z.observaciones or 0,
                 "% Cumplimiento": cumpl
             })
+            
         return {
             "total_alertas": total_alertas,
             "total_programadas": total_programadas,
@@ -94,13 +120,16 @@ class ReportesService:
     def obtener_estado_alertas(
         db: Session, 
         fecha_inicio: Optional[date] = None, 
-        fecha_fin: Optional[date] = None
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> list:
+        f_inicio, f_fin = ReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
         query = db.query(Alerta.estado_alerta, func.count(Alerta.alerta_id))
-        if fecha_inicio:
-            query = query.filter(Alerta.fecha >= fecha_inicio)
-        if fecha_fin:
-            query = query.filter(Alerta.fecha <= fecha_fin)
+        if f_inicio:
+            query = query.filter(Alerta.fecha >= f_inicio)
+        if f_fin:
+            query = query.filter(Alerta.fecha <= f_fin)
             
         resultado = query.group_by(Alerta.estado_alerta).all()
         return [{"estado": estado or "Pendiente", "cantidad": count} for estado, count in resultado]
@@ -156,7 +185,7 @@ class ReportesService:
                         len(str(col))
                     ) + 3
                     col_letter = get_column_letter(col_idx)
-                    worksheet.column_dimensions[col_letter].width = min(max_len, 50)  # máx 50 px
+                    worksheet.column_dimensions[col_letter].width = min(max_len, 50)  
                     
         buffer.seek(0)
         return buffer
@@ -173,9 +202,10 @@ class ReportesService:
         db: Session, 
         fecha_inicio: Optional[date] = None, 
         fecha_fin: Optional[date] = None,
-        zona_id: Optional[str] = None
+        zona_id: Optional[str] = None,
+        periodo: Optional[str] = None
     ) -> Tuple[io.BytesIO, str, str]:        
-        data = ReportesService.obtener_resumen_kpis(db, fecha_inicio, fecha_fin, zona_id)
+        data = ReportesService.obtener_resumen_kpis(db, fecha_inicio, fecha_fin, zona_id, periodo)
 
         df_resumen = pd.DataFrame([{
             "Total Alertas Registradas": data["total_alertas"],
@@ -207,13 +237,16 @@ class ReportesService:
     def exportar_estado_alertas(
         db: Session, 
         fecha_inicio: Optional[date] = None, 
-        fecha_fin: Optional[date] = None
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
     ) -> Tuple[io.BytesIO, str, str]:
+        f_inicio, f_fin = ReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
         
-        resumen_data = ReportesService.obtener_estado_alertas(db, fecha_inicio, fecha_fin)
+        resumen_data = ReportesService.obtener_estado_alertas(db, fecha_inicio, fecha_fin, periodo)
         df_resumen = pd.DataFrame(resumen_data)
         if not df_resumen.empty:
             df_resumen.columns = ["Estado de Alerta", "Total Alertas"]
+            
         query_detalle = db.query(
             Alerta.alerta_id,
             Alerta.fecha,
@@ -228,10 +261,10 @@ class ReportesService:
             Alerta.valor_umbral
         ).outerjoin(Trabajador, Alerta.ccodprs == Trabajador.ccodprs)
 
-        if fecha_inicio:
-            query_detalle = query_detalle.filter(Alerta.fecha >= fecha_inicio)
-        if fecha_fin:
-            query_detalle = query_detalle.filter(Alerta.fecha <= fecha_fin)
+        if f_inicio:
+            query_detalle = query_detalle.filter(Alerta.fecha >= f_inicio)
+        if f_fin:
+            query_detalle = query_detalle.filter(Alerta.fecha <= f_fin)
 
         alertas_lista = query_detalle.order_by(Alerta.fecha.desc()).all()
 
@@ -264,7 +297,6 @@ class ReportesService:
         db: Session, 
         fecha: Optional[date] = None
     ) -> Tuple[io.BytesIO, str, str]:
-        
         target_fecha = fecha or date.today()        
         query = db.query(
             ResumenDiarioLector,

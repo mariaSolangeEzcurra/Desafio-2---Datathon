@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class DashboardKpiResponse(BaseModel):
     total_ordenes: int
@@ -18,7 +18,7 @@ class ResumenDistritoItem(BaseModel):
     deuda_total: float
 
 class ResumenTipoProgramaItem(BaseModel):
-    ctipprg: int
+    ctipprg: Optional[int] = 1
     total_ordenes: int
     ejecutadas: int
     pendientes: int

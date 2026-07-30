@@ -18,6 +18,8 @@ class FichaPersonalResponse(BaseModel):
     ccodprs: str
     nombre: str
     telefono: Optional[str] = None
+    ruta_actual: Optional[str] = None      
+    metfac_actual: Optional[str] = None  
     ultimo_puntaje: Optional[float] = None
     ultima_clasificacion: Optional[str] = None
     fecha_ultima_evaluacion: Optional[date] = None
