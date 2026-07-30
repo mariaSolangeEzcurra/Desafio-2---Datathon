@@ -476,10 +476,6 @@ export function UsuarioModal({
                   Supervisor
                 </option>
 
-                <option value="Coordinador">
-                  Coordinador
-                </option>
-
                 <option value="Gerencia">
                   Gerencia
                 </option>

@@ -24,7 +24,6 @@ def decodificar_token(token: str):
 def obtener_tipo_rol(rol: str) -> str:
     rol = rol.lower()
     if "supervisor" in rol: return "Supervisor"
-    if "coordinador" in rol: return "Coordinador"
     if "gerencia" in rol: return "Gerencia"
     if "ti" in rol: return "TI"
     return "Usuario"
