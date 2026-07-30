@@ -4,7 +4,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.services.Lectura.personal_service import PersonalService
 from app.schemas.Lectura.personal import TrabajadorListResponse, FichaPersonalResponse
-
+from datetime import date
 router = APIRouter(prefix="/lectura/personal", tags=["Gestión de Personal y Asistencia"])
 
 @router.get("/", response_model=List[TrabajadorListResponse])
