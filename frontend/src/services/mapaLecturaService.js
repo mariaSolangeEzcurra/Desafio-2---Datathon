@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 export async function obtenerPersonal() {
 
     const response = await fetch(
-        `${API}/lectura/personal/?skip=0&limit=200`
+        `${API_URL}/lectura/personal/?skip=0&limit=200`
     );
 
     if (!response.ok) {
@@ -53,7 +53,7 @@ export async function obtenerDiscrepancias(
     });
 
     const url =
-        `${API}/api/maps/discrepancias${
+        `${API_URL}/api/maps/discrepancias${
             params.toString()
                 ? `?${params.toString()}`
                 : ""
@@ -106,7 +106,7 @@ export async function obtenerHeatmapImpedimentos(
     });
 
     const url =
-        `${API}/api/maps/heatmap-impedimentos${
+        `${API_URL}/api/maps/heatmap-impedimentos${
             params.toString()
                 ? `?${params.toString()}`
                 : ""
@@ -133,7 +133,7 @@ export async function obtenerHeatmapImpedimentos(
 export async function obtenerCatalogo(tipo) {
 
     const response = await fetch(
-        `${API}/api/catalogos/${tipo}`
+        `${API_URL}/api/catalogos/${tipo}`
     );
 
     if (!response.ok) {
@@ -150,7 +150,7 @@ export async function obtenerCatalogo(tipo) {
 // ============================================================ 
 export async function obtenerGruposFacturacion() { 
     const response = await fetch( 
-        `${API}/api/catalogos/grupos` 
+        `${API_URL}/api/catalogos/grupos` 
     );
     
     if (!response.ok) {
