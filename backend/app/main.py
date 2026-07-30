@@ -11,7 +11,7 @@ from app.routers.Lectura import uploadLectura, uploadReporteDiario, dashboard_kp
 from app.routers.gerencia import router as gerencia_router
 from app.routers.Corte import uploadCorte, kpisCorte, mapa, reporte
 # 1. Crear las tablas
-#model.Base.metadata.create_all(bind=engine)
+model.Base.metadata.create_all(bind=engine)
 
 # 2. ÚNICA instancia de la app
 app = FastAPI()
