@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/api/usuarios/";
+const API_URL = `${import.meta.env.VITE_API_URL}/api/usuarios/`;
 
 export async function obtenerUsuarios() {
     const token = localStorage.getItem("token");
@@ -33,7 +33,7 @@ export async function crearUsuario(usuario) {
 
 export async function actualizarUsuario(id, datos) {
     const response = await fetch(
-        `http://localhost:8000/api/usuarios/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/usuarios/${id}`,
         {
             method: "PUT",
             headers: {"Content-Type": "application/json",},
@@ -48,7 +48,8 @@ export async function actualizarUsuario(id, datos) {
 
 export async function eliminarUsuario(id) {
     const response = await fetch(
-        `http://localhost:8000/api/usuarios/${id}`,{
+       `${import.meta.env.VITE_API_URL}/api/usuarios/${id}`,
+        {
             method: "DELETE",}
     );
     const data = await response.json();

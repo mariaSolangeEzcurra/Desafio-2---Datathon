@@ -229,7 +229,7 @@ export default function CortesKPI({ idSeleccionado }) {
     if (err?.request) {
       return (
         "No se pudo conectar con el API de cortes. " +
-        "Verifica que el backend esté ejecutándose en http://localhost:8000."
+        "Verifica que el backend esté ejecutándose."
       );
     }
     return err?.message || "No se pudieron cargar los indicadores de cortes.";

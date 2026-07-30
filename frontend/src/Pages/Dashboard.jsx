@@ -266,7 +266,7 @@ export default function Dashboard({ idSeleccionado }) {
       }
 
       const response = await fetch(
-        `http://localhost:8000/lectura/kpis/dashboard?${params.toString()}`
+        `${import.meta.env.VITE_API_URL}/lectura/kpis/dashboard?${params.toString()}`
       );
 
       if (!response.ok) {

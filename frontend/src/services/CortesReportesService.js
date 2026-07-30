@@ -4,8 +4,7 @@ import axios from "axios";
 // CONFIGURACIÓN
 // =====================================================
 
-const API_URL = "http://localhost:8000/api/cortes/reportes";
-
+const API_URL = `${import.meta.env.VITE_API_URL}/api/cortes/reportes`;
 // =====================================================
 // DESCARGAR REPORTE FINANCIERO EXCEL
 // GET /api/cortes/reportes/financiero/excel

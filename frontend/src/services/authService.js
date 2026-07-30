@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/auth";
+const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 export async function loginConGoogle(tokenGoogle) {
     const response = await fetch(`${API_URL}/login`, {

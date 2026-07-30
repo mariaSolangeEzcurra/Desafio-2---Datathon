@@ -45,7 +45,7 @@ export default function CatalogosDashboard() {
 
       try {
         const response = await axios.get(
-          `http://localhost:8000/api/catalogos/${catalogoSeleccionado}`
+          `${import.meta.env.VITE_API_URL}/api/catalogos/${catalogoSeleccionado}`
         );
 
         setDatos(
