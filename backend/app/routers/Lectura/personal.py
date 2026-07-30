@@ -11,9 +11,10 @@ router = APIRouter(prefix="/lectura/personal", tags=["Gestión de Personal y Asi
 def listar_personal(
     skip: int = Query(0, description="Registros a saltar"),
     limit: int = Query(50, description="Límite de registros a mostrar"),
+    fecha: Optional[date] = Query(None, description="Filtrar por fecha de resumen diario (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
-    return PersonalService.listar_trabajadores(db, skip=skip, limit=limit)
+    return PersonalService.listar_trabajadores(db, skip=skip, limit=limit, fecha=fecha)
 
 @router.post("/calcular-desempeno")
 def calcular_desempeno(

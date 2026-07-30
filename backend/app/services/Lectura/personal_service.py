@@ -9,8 +9,21 @@ from app.model import (Actividad,Alerta,Conexion,EvaluacionDesempeno,ResumenDiar
 class PersonalService:
 
     @staticmethod
-    def listar_trabajadores(db: Session, skip: int = 0, limit: int = 50) -> List[Trabajador]:
-        return db.query(Trabajador).offset(skip).limit(limit).all()
+    def listar_trabajadores(
+        db: Session, 
+        skip: int = 0, 
+        limit: int = 50, 
+        fecha: Optional[date] = None
+    ) -> List[Trabajador]:        
+        query = db.query(Trabajador)
+        
+        if fecha:
+            # Filtramos los trabajadores que tienen un resumen diario en la fecha especificada
+            query = query.join(
+                ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
+            ).filter(ResumenDiarioLector.fecha == fecha)
+            
+        return query.offset(skip).limit(limit).all()
 
     @staticmethod
     def calcular_y_actualizar_desempeno(
