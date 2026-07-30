@@ -16,7 +16,7 @@ import {
   BarChart3,
   RotateCcw,
 } from "lucide-react";
-import { cortesKPIService } from "../services/CortesKpiService";
+import { cortesKPIService } from "../services/CortesKPIService";
 // ============================================================
 // TOOLTIP
 // ============================================================
