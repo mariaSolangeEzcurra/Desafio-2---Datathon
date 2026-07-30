@@ -1,29 +1,29 @@
 import React from "react";
-import Header from "../components/Header";
-import Sidebar from "../components/Sidebar";
-import Usuarios from "../pages/Usuarios";
+import Header from "../Components/Header";
+import Sidebar from "../Components/SideBar";
+import Usuarios from "../Pages/Usuarios";
 //TI
-import UploadLectura from "../pages/TI/UploadLectura";  
-import UploadCortes from "../pages/TI/UploadCortes";    
-import Trabajadores from "../pages/TI/Trabajadores";
-import CatalogosView from "../pages/TI/CatalogosDashboard";
-import UploadLecturaDiario from "../pages/TI/UploadLecturaDiario";
+import UploadLectura from "../Pages/TI/UploadLectura";  
+import UploadCortes from "../Pages/TI/UploadCortes";    
+import Trabajadores from "../Pages/TI/Trabajadores";
+import CatalogosView from "../Pages/TI/CatalogosDashboard";
+import UploadLecturaDiario from "../Pages/TI/UploadLecturaDiario";
 //SUPERVISOR
-import TrabajadoresLecturas from "../pages/supervisor/TrabajadoresLecturas";
-import Alertas from "../pages/supervisor/Alertas";
-import ReportesLectura from "../pages/supervisor/Reportes";
-import LecturaKPI from "../pages/LecturaKPI";
-import Dashboard from "../pages/Dashboard";
-import CortesKPI from "../pages/CortesKPI";
-import MapaLectura from "../pages/MapaLectura";
-import MapaCortes from "../pages/MapaCortes";
-import ReporteCortes from "../pages/supervisor/ReportesCortes";
+import TrabajadoresLecturas from "../Pages/Supervisor/TrabajadoresLecturas";
+import Alertas from "../Pages/Supervisor/Alertas";
+import ReportesLectura from "../Pages/Supervisor/Reportes";
+import LecturaKPI from "../Pages/LecturaKPI";
+import Dashboard from "../Pages/Dashboard";
+import CortesKPI from "../Pages/CortesKPI";
+import MapaLectura from "../Pages/MapaLectura";
+import MapaCortes from "../Pages/MapaCortes";
+import ReporteCortes from "../Pages/Supervisor/ReportesCortes";
 
 
 //GERENCIA
-import Resumen from "../pages/Gerencia/Resumen";
-import RankingGerencia from "../pages/Gerencia/RankingGerencia";
-import RiesgoGerencia from "../pages/Gerencia/RiesgoGerencia";
+import Resumen from "../Pages/Gerencia/Resumen";
+import RankingGerencia from "../Pages/Gerencia/RankingGerencia";
+import RiesgoGerencia from "../Pages/Gerencia/RiesgoGerencia";
 import CortesGerencia from "../Pages/Gerencia/CortesGerencia";
 
 

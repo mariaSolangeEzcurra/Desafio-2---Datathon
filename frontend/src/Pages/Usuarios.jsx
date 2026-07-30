@@ -11,7 +11,7 @@ import {
   UsuarioTable,
   UsuarioModal,
   ConfirmEliminarModal,
-} from "../components/usuarios/UsuarioComponents";
+} from "../Components/Usuarios/UsuarioComponents";
 
 export default function Usuarios() {
 

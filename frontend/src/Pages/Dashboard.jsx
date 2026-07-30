@@ -9,7 +9,7 @@ import {
   Gauge,
   Trophy,
 } from "lucide-react";
-import MapaRutas from "../pages/MapaRutas";
+import MapaRutas from "../Pages/MapaRutas";
 
 // ============================================================
 // TOOLTIP
