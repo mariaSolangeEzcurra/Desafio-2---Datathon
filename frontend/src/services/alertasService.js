@@ -1,6 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
-const ALERTAS_URL = `${API_URL}/api/alertas`;
+const ALERTAS_URL = `${API_URL}/alertas`;
 
 
 /**
