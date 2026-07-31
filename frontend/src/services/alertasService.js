@@ -1,8 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL;
+
+const ALERTAS_URL = `${API_URL}/api/alertas`;
+
+
 /**
  * ============================================================
  * OBTENER ALERTAS
- * GET /alertas/
+ *
+ * GET /api/alertas/
+ *
+ * Filtros:
+ * estado
+ * zona_id
+ * ccodprs
+ * fecha
+ * fecha_inicio
+ * fecha_fin
+ * periodo
  * ============================================================
  */
 export async function obtenerAlertas(filtros = {}) {
@@ -24,29 +38,64 @@ export async function obtenerAlertas(filtros = {}) {
         params.append("fecha", filtros.fecha);
     }
 
+    if (filtros.fecha_inicio) {
+        params.append(
+            "fecha_inicio",
+            filtros.fecha_inicio
+        );
+    }
+
+    if (filtros.fecha_fin) {
+        params.append(
+            "fecha_fin",
+            filtros.fecha_fin
+        );
+    }
+
+    if (filtros.periodo) {
+        params.append(
+            "periodo",
+            filtros.periodo
+        );
+    }
+
     const query = params.toString();
 
-    const response = await fetch(
-        `${API_URL}/alertas/${query ? `?${query}` : ""}`
+    const url =
+        `${ALERTAS_URL}/` +
+        `${query ? `?${query}` : ""}`;
+
+    console.log(
+        "GET ALERTAS:",
+        url
     );
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            Accept: "application/json",
+        },
+    });
 
     if (!response.ok) {
         let detalle = "";
 
         try {
-            const errorData = await response.json();
+            const errorData =
+                await response.json();
 
             detalle =
                 typeof errorData?.detail === "string"
                     ? errorData.detail
                     : JSON.stringify(errorData);
+
         } catch {
             detalle = "";
         }
 
         throw new Error(
             detalle ||
-            "No se pudieron obtener las alertas."
+                `No se pudieron obtener las alertas. Código ${response.status}.`
         );
     }
 
@@ -57,41 +106,62 @@ export async function obtenerAlertas(filtros = {}) {
 /**
  * ============================================================
  * EVALUAR ALERTAS
- * POST /alertas/evaluar
+ *
+ * POST /api/alertas/evaluar
+ *
+ * fecha opcional:
+ * ?fecha=YYYY-MM-DD
  * ============================================================
  */
-export async function evaluarAlertas(fecha = null) {
-    const url = fecha
-        ? `${API_URL}/alertas/evaluar?fecha=${fecha}`
-        : `${API_URL}/alertas/evaluar`;
+export async function evaluarAlertas(
+    fecha = null
+) {
+    const params = new URLSearchParams();
 
-    const response = await fetch(
-        url,
-        {
-            method: "POST",
-            headers: {
-                Accept: "application/json"
-            }
-        }
+    if (fecha) {
+        params.append(
+            "fecha",
+            fecha
+        );
+    }
+
+    const query = params.toString();
+
+    const url =
+        `${ALERTAS_URL}/evaluar` +
+        `${query ? `?${query}` : ""}`;
+
+    console.log(
+        "POST EVALUAR ALERTAS:",
+        url
     );
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Accept: "application/json",
+        },
+    });
 
     if (!response.ok) {
         let detalle = "";
 
         try {
-            const errorData = await response.json();
+            const errorData =
+                await response.json();
 
             detalle =
                 typeof errorData?.detail === "string"
                     ? errorData.detail
                     : JSON.stringify(errorData);
+
         } catch {
             detalle = "";
         }
 
         throw new Error(
             detalle ||
-            "No se pudo ejecutar la evaluación de alertas."
+                `No se pudo ejecutar la evaluación de alertas. Código ${response.status}.`
         );
     }
 
@@ -102,18 +172,20 @@ export async function evaluarAlertas(fecha = null) {
 /**
  * ============================================================
  * OBTENER DETALLE DE ALERTA
- * GET /alertas/{alerta_id}
+ *
+ * GET /api/alertas/{alerta_id}
  * ============================================================
  */
 export async function obtenerDetalleAlerta(
     alerta_id
 ) {
     const response = await fetch(
-        `${API_URL}/alertas/${alerta_id}`,
+        `${ALERTAS_URL}/${alerta_id}`,
         {
+            method: "GET",
             headers: {
-                Accept: "application/json"
-            }
+                Accept: "application/json",
+            },
         }
     );
 
@@ -121,19 +193,21 @@ export async function obtenerDetalleAlerta(
         let detalle = "";
 
         try {
-            const errorData = await response.json();
+            const errorData =
+                await response.json();
 
             detalle =
                 typeof errorData?.detail === "string"
                     ? errorData.detail
                     : JSON.stringify(errorData);
+
         } catch {
             detalle = "";
         }
 
         throw new Error(
             detalle ||
-            "No se pudo obtener el detalle de la alerta."
+                "No se pudo obtener el detalle de la alerta."
         );
     }
 
@@ -145,16 +219,7 @@ export async function obtenerDetalleAlerta(
  * ============================================================
  * CAMBIAR ESTADO DE ALERTA
  *
- * PATCH /alertas/{alerta_id}/estado
- *
- * Body esperado por el backend:
- *
- * {
- *   "estado_alerta": "En Revisión",
- *   "comentario": "Comentario...",
- *   "supervisor_id": "..."
- * }
- *
+ * PATCH /api/alertas/{alerta_id}/estado
  * ============================================================
  */
 export async function cambiarEstadoAlerta(
@@ -162,19 +227,21 @@ export async function cambiarEstadoAlerta(
     datos
 ) {
     const response = await fetch(
-        `${API_URL}/alertas/${alerta_id}/estado`,
+        `${ALERTAS_URL}/${alerta_id}/estado`,
         {
             method: "PATCH",
             headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
+                "Content-Type":
+                    "application/json",
+                Accept: "application/json",
             },
             body: JSON.stringify(datos),
         }
     );
 
     if (!response.ok) {
-        const errorTexto = await response.text();
+        const errorTexto =
+            await response.text();
 
         console.error(
             "Error del backend al actualizar alerta:",

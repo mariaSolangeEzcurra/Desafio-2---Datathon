@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Info,
@@ -23,6 +28,7 @@ function Tooltip({
   width = "w-80",
 }) {
   const [visible, setVisible] = useState(false);
+
   const [coords, setCoords] = useState({
     top: 0,
     left: 0,
@@ -40,14 +46,17 @@ function Tooltip({
     const rect = el.getBoundingClientRect();
 
     const espacioArriba = rect.top;
-    const espacioAbajo = window.innerHeight - rect.bottom;
+    const espacioAbajo =
+      window.innerHeight - rect.bottom;
 
     const placement =
-      espacioArriba > 170 || espacioArriba > espacioAbajo
+      espacioArriba > 170 ||
+      espacioArriba > espacioAbajo
         ? "top"
         : "bottom";
 
-    let left = rect.left + rect.width / 2;
+    let left =
+      rect.left + rect.width / 2;
 
     const margen = 150;
 
@@ -68,7 +77,9 @@ function Tooltip({
 
   const mostrar = () => {
     clearTimeout(hideTimer.current);
+
     calcularPosicion();
+
     setVisible(true);
   };
 
@@ -124,11 +135,13 @@ function Tooltip({
             `}
           >
             <div className="flex items-start gap-2">
+
               <div className="mt-0.5 p-1.5 rounded-lg bg-blue-50 text-[#006cb7] shrink-0">
                 <Info size={13} />
               </div>
 
               <div className="text-left w-full">
+
                 <p className="text-[11px] font-bold text-slate-800 mb-1">
                   {title}
                 </p>
@@ -141,6 +154,7 @@ function Tooltip({
 
                 {formula && (
                   <div className="border-t border-slate-100 mt-3 pt-3">
+
                     <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                       Fórmula
                     </p>
@@ -148,11 +162,13 @@ function Tooltip({
                     <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
                       {formula}
                     </p>
+
                   </div>
                 )}
 
                 {datos && (
                   <div className="border-t border-slate-100 mt-3 pt-3">
+
                     <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                       Datos utilizados
                     </p>
@@ -160,13 +176,17 @@ function Tooltip({
                     <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
                       {datos}
                     </p>
+
                   </div>
                 )}
+
               </div>
+
             </div>
           </div>,
           document.body
         )}
+
     </span>
   );
 }
@@ -174,14 +194,18 @@ function Tooltip({
 // ============================================================
 // DASHBOARD
 // ============================================================
-export default function Dashboard({ idSeleccionado }) {
+export default function Dashboard({
+  idSeleccionado,
+}) {
+
   // ============================================================
   // FECHA ACTUAL
   // ============================================================
   const obtenerFechaHoy = () => {
     const fecha = new Date();
 
-    const year = fecha.getFullYear();
+    const year =
+      fecha.getFullYear();
 
     const month = String(
       fecha.getMonth() + 1
@@ -194,24 +218,29 @@ export default function Dashboard({ idSeleccionado }) {
     return `${year}-${month}-${day}`;
   };
 
-  const hoy = obtenerFechaHoy();
+  const hoy =
+    obtenerFechaHoy();
 
   // ============================================================
   // ESTADOS
   // ============================================================
-  const [dashboard, setDashboard] = useState({
-    resumen_general: {},
-    ranking_lectores: [],
-  });
+  const [dashboard, setDashboard] =
+    useState({
+      resumen_general: {},
+      ranking_lectores: [],
+    });
 
   const [listaActividades, setListaActividades] =
     useState([]);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState(null);
 
   // ============================================================
-  // FILTROS DE FECHA
+  // FECHAS
   // ============================================================
   const [fechaInicio, setFechaInicio] =
     useState(hoy);
@@ -220,24 +249,96 @@ export default function Dashboard({ idSeleccionado }) {
     useState(hoy);
 
   // ============================================================
+  // PERÍODO
+  // ============================================================
+  const [periodo, setPeriodo] =
+    useState("");
+
+  // ============================================================
   // VISTA ACTIVA
   // ============================================================
-  const [prefijo, vistaActiva] = idSeleccionado
-    ? idSeleccionado.split("_")
-    : ["lecturas", "resumen"];
+  const [prefijo, vistaActiva] =
+    idSeleccionado
+      ? idSeleccionado.split("_")
+      : [
+          "lecturas",
+          "resumen",
+        ];
+
+  // ============================================================
+  // CAMBIAR PERÍODO
+  // ============================================================
+  const handlePeriodoChange = (
+    e
+  ) => {
+
+    const nuevoPeriodo =
+      e.target.value;
+
+    // ----------------------------------------------------------
+    // IMPORTANTE:
+    // "Seleccionar período" = ""
+    // NO debe hacer nada.
+    // ----------------------------------------------------------
+
+    setPeriodo(
+      nuevoPeriodo
+    );
+  };
+
+  // ============================================================
+  // CAMBIAR FECHA INICIO
+  // ============================================================
+  const handleFechaInicioChange = (
+    e
+  ) => {
+
+    const nuevaFecha =
+      e.target.value;
+
+    // Si usamos fechas,
+    // eliminamos el período.
+    setPeriodo("");
+
+    setFechaInicio(
+      nuevaFecha
+    );
+  };
+
+  // ============================================================
+  // CAMBIAR FECHA FIN
+  // ============================================================
+  const handleFechaFinChange = (
+    e
+  ) => {
+
+    const nuevaFecha =
+      e.target.value;
+
+    // Si usamos fechas,
+    // eliminamos el período.
+    setPeriodo("");
+
+    setFechaFin(
+      nuevaFecha
+    );
+  };
 
   // ============================================================
   // CARGAR DASHBOARD
   // ============================================================
   const cargarDashboard = async () => {
+
     // ----------------------------------------------------------
     // VALIDAR FECHAS
     // ----------------------------------------------------------
     if (
+      !periodo &&
       fechaInicio &&
       fechaFin &&
       fechaFin < fechaInicio
     ) {
+
       setError(
         "La fecha fin no puede ser anterior a la fecha de inicio."
       );
@@ -249,42 +350,126 @@ export default function Dashboard({ idSeleccionado }) {
     setError(null);
 
     try {
-      const params = new URLSearchParams();
 
-      if (fechaInicio) {
+      const params =
+        new URLSearchParams();
+
+      // ========================================================
+      // PERÍODO
+      // ========================================================
+      if (periodo) {
+
         params.append(
-          "fecha_inicio",
-          fechaInicio
+          "periodo",
+          periodo
         );
+
       }
 
-      if (fechaFin) {
-        params.append(
-          "fecha_fin",
-          fechaFin
-        );
+      // ========================================================
+      // FECHAS
+      // ========================================================
+      else {
+
+        if (fechaInicio) {
+
+          params.append(
+            "fecha_inicio",
+            fechaInicio
+          );
+
+        }
+
+        if (fechaFin) {
+
+          params.append(
+            "fecha_fin",
+            fechaFin
+          );
+
+        }
+
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/lectura/kpis/dashboard?${params.toString()}`
+      const url =
+        `${import.meta.env.VITE_API_URL}/lectura/kpis/dashboard?${params.toString()}`;
+
+      console.log(
+        "======================================"
       );
 
-      if (!response.ok) {
-        throw new Error(
-          "Error obteniendo dashboard"
+      console.log(
+        "FILTROS DEL DASHBOARD"
+      );
+
+      if (periodo) {
+
+        console.log(
+          "Tipo: PERÍODO"
         );
+
+        console.log(
+          "Período:",
+          periodo
+        );
+
+      } else {
+
+        console.log(
+          "Tipo: FECHAS"
+        );
+
+        console.log(
+          "Fecha inicio:",
+          fechaInicio
+        );
+
+        console.log(
+          "Fecha fin:",
+          fechaFin
+        );
+
       }
 
-      const data = await response.json();
+      console.log(
+        "URL:",
+        url
+      );
+
+      console.log(
+        "======================================"
+      );
+
+      // ========================================================
+      // PETICIÓN
+      // ========================================================
+      const response =
+        await fetch(url);
+
+      if (!response.ok) {
+
+        throw new Error(
+          `Error HTTP ${response.status}`
+        );
+
+      }
+
+      const data =
+        await response.json();
 
       console.log(
         "Dashboard recibido:",
         data
       );
 
+      // ========================================================
+      // ACTUALIZAR DATOS
+      // ========================================================
       setDashboard({
+
         resumen_general:
-          data?.resumen_general || {},
+          data?.resumen_general ||
+          {},
 
         ranking_lectores:
           Array.isArray(
@@ -292,12 +477,13 @@ export default function Dashboard({ idSeleccionado }) {
           )
             ? data.ranking_lectores
             : [],
+
       });
 
-      // Actualmente no existe endpoint
-      // para obtener actividades individuales.
       setListaActividades([]);
+
     } catch (err) {
+
       console.error(
         "Error cargando dashboard:",
         err
@@ -306,39 +492,65 @@ export default function Dashboard({ idSeleccionado }) {
       setError(
         "No se pudo cargar el dashboard."
       );
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
   // ============================================================
-  // ACTUALIZAR AL CAMBIAR FECHAS
+  // ACTUALIZAR DASHBOARD
   // ============================================================
   useEffect(() => {
+
+    // ----------------------------------------------------------
+    // CASO 1:
+    // No hay ningún filtro.
+    // No hacemos nada.
+    // ----------------------------------------------------------
+    if (
+      !periodo &&
+      !fechaInicio &&
+      !fechaFin
+    ) {
+
+      return;
+
+    }
+
     cargarDashboard();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicio, fechaFin]);
+  }, [
+    fechaInicio,
+    fechaFin,
+    periodo,
+  ]);
 
   // ============================================================
-  // RESUMEN GENERAL
+  // RESUMEN
   // ============================================================
   const resumen =
-    dashboard.resumen_general || {};
+    dashboard.resumen_general ||
+    {};
 
   // ============================================================
   // KPIs
   // ============================================================
   const metrics = {
-    // ----------------------------------------------------------
-    // CUMPLIMIENTO
-    // ----------------------------------------------------------
-    cumplimiento: {
-      nombre: "Cumplimiento",
 
-      valor: `${Number(
-        resumen.cumplimiento_lectura ?? 0
-      ).toFixed(2)}%`,
+    cumplimiento: {
+
+      nombre:
+        "Cumplimiento",
+
+      valor:
+        `${Number(
+          resumen.cumplimiento_lectura ??
+            0
+        ).toFixed(2)}%`,
 
       descripcion:
         "Porcentaje de lecturas realizadas respecto a las lecturas programadas.",
@@ -348,17 +560,19 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "total_lecturas_realizadas y total_lecturas_programadas",
+
     },
 
-    // ----------------------------------------------------------
-    // PRODUCTIVIDAD
-    // ----------------------------------------------------------
     productividad: {
-      nombre: "Productividad",
 
-      valor: `${Number(
-        resumen.productividad_lectura ?? 0
-      ).toFixed(2)}/h`,
+      nombre:
+        "Productividad",
+
+      valor:
+        `${Number(
+          resumen.productividad_lectura ??
+            0
+        ).toFixed(2)}/h`,
 
       descripcion:
         "Cantidad promedio de lecturas realizadas por cada hora trabajada.",
@@ -368,17 +582,19 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "productividad_lectura",
+
     },
 
-    // ----------------------------------------------------------
-    // TIEMPO PROMEDIO DE LECTURA
-    // ----------------------------------------------------------
     tiempo_promedio: {
-      nombre: "Tiempo Promedio de Lectura",
 
-      valor: `${Number(
-        resumen.tiempo_promedio_lectura ?? 0
-      ).toFixed(2)} min`,
+      nombre:
+        "Tiempo Promedio de Lectura",
+
+      valor:
+        `${Number(
+          resumen.tiempo_promedio_lectura ??
+            0
+        ).toFixed(2)} min`,
 
       descripcion:
         "Tiempo promedio que demora un lector en completar una lectura. Un valor menor indica una mayor rapidez en la ejecución.",
@@ -388,17 +604,19 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "tiempo_promedio_lectura",
+
     },
 
-    // ----------------------------------------------------------
-    // IMPEDIMENTOS
-    // ----------------------------------------------------------
     impedimentos: {
-      nombre: "Impedimentos",
 
-      valor: `${Number(
-        resumen.impedimentos_lectura ?? 0
-      ).toFixed(2)}%`,
+      nombre:
+        "Impedimentos",
+
+      valor:
+        `${Number(
+          resumen.impedimentos_lectura ??
+            0
+        ).toFixed(2)}%`,
 
       descripcion:
         "Porcentaje de lecturas que presentaron algún impedimento.",
@@ -408,17 +626,19 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "impedimentos_lectura",
+
     },
 
-    // ----------------------------------------------------------
-    // OBSERVACIONES
-    // ----------------------------------------------------------
     observaciones: {
-      nombre: "Observaciones",
 
-      valor: `${Number(
-        resumen.observaciones_lectura ?? 0
-      ).toFixed(2)}%`,
+      nombre:
+        "Observaciones",
+
+      valor:
+        `${Number(
+          resumen.observaciones_lectura ??
+            0
+        ).toFixed(2)}%`,
 
       descripcion:
         "Porcentaje de lecturas que registraron observaciones.",
@@ -428,17 +648,19 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "observaciones_lectura",
+
     },
 
-    // ----------------------------------------------------------
-    // COBERTURA GPS
-    // ----------------------------------------------------------
     coberturaGps: {
-      nombre: "Cobertura geográfica",
 
-      valor: `${Number(
-        resumen.cobertura_georreferenciada ?? 0
-      ).toFixed(2)}%`,
+      nombre:
+        "Cobertura geográfica",
+
+      valor:
+        `${Number(
+          resumen.cobertura_georreferenciada ??
+            0
+        ).toFixed(2)}%`,
 
       descripcion:
         "Porcentaje de actividades que cuentan con georreferenciación válida.",
@@ -448,13 +670,13 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "cobertura_georreferenciada",
+
     },
 
-    // ----------------------------------------------------------
-    // FUERA DE RADIO
-    // ----------------------------------------------------------
     fueraDeRadio: {
-      nombre: "Fuera de punto",
+
+      nombre:
+        "Fuera de punto",
 
       valor:
         resumen.actividades_fuera_de_punto ??
@@ -468,109 +690,198 @@ export default function Dashboard({ idSeleccionado }) {
 
       datos:
         "actividades_fuera_de_punto",
+
     },
+
   };
 
   // ============================================================
-  // VALIDACIÓN DE FECHAS
+  // VALIDACIÓN FECHAS
   // ============================================================
   const fechasInvalidas =
+    !periodo &&
     fechaInicio &&
     fechaFin &&
     fechaFin < fechaInicio;
 
   // ============================================================
+  // ESTADOS VISUALES
+  // ============================================================
+  const periodoActivo =
+    Boolean(periodo);
+
+  const fechasDeshabilitadas =
+    Boolean(periodo);
+
+  // ============================================================
   // RENDER
   // ============================================================
   return (
+
     <div className="space-y-6 text-left">
 
       {/* ======================================================
-          ESTADO DE CARGA
+          LOADING
       ======================================================= */}
       {loading && (
+
         <div className="flex items-center gap-2 text-xs text-slate-400">
+
           <Loader2
             className="animate-spin text-[#006cb7]"
             size={16}
           />
 
           Actualizando indicadores...
+
         </div>
+
       )}
 
       {/* ======================================================
           FILTROS
       ======================================================= */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+
         <div className="flex flex-col md:flex-row md:items-end gap-4">
 
-          {/* FECHA INICIO */}
+          {/* ==================================================
+              PERÍODO
+          ================================================== */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+
+            <label
+              className={`
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-wide
+
+                ${
+                  periodoActivo
+                    ? "text-[#006cb7]"
+                    : "text-slate-400"
+                }
+              `}
+            >
+              Período
+            </label>
+
+            <select
+              value={periodo}
+              onChange={
+                handlePeriodoChange
+              }
+              className={`
+                h-10
+                min-w-[160px]
+                px-3
+                rounded-lg
+                border
+                text-xs
+                outline-none
+                transition
+
+                ${
+                  periodoActivo
+                    ? `
+                      border-[#006cb7]
+                      bg-blue-50
+                      text-[#006cb7]
+                      font-semibold
+                    `
+                    : `
+                      border-slate-200
+                      bg-white
+                      text-slate-700
+                    `
+                }
+
+                focus:border-[#006cb7]
+                focus:ring-2
+                focus:ring-blue-100
+              `}
+            >
+
+              {/* =================================================
+                  ESTADO NEUTRO
+              ================================================== */}
+              <option value="">
+                Seleccionar período
+              </option>
+
+              <option value="hoy">
+                Hoy
+              </option>
+
+              <option value="semana">
+                Semana
+              </option>
+
+              <option value="mes">
+                Mes
+              </option>
+
+              <option value="3meses">
+                3 meses
+              </option>
+
+            </select>
+
+          </div>
+
+          {/* ==================================================
+              FECHA INICIO
+          ================================================== */}
+          <div className="flex flex-col gap-1.5">
+
+            <label
+              className={`
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-wide
+
+                ${
+                  fechasDeshabilitadas
+                    ? "text-slate-300"
+                    : "text-slate-400"
+                }
+              `}
+            >
               Fecha inicio
             </label>
 
             <div className="relative">
+
               <Calendar
                 size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7]"
+                className={`
+                  absolute
+                  left-3
+                  top-1/2
+                  -translate-y-1/2
+
+                  ${
+                    fechasDeshabilitadas
+                      ? "text-slate-300"
+                      : fechasInvalidas
+                      ? "text-red-500"
+                      : "text-[#006cb7]"
+                  }
+                `}
               />
 
               <input
                 type="date"
-                value={fechaInicio}
-                onChange={(e) =>
-                  setFechaInicio(
-                    e.target.value
-                  )
+                value={
+                  fechaInicio
                 }
-                className="
-                  h-10
-                  pl-10
-                  pr-3
-                  rounded-lg
-                  border
-                  border-slate-200
-                  bg-white
-                  text-xs
-                  text-slate-700
-                  outline-none
-                  focus:border-[#006cb7]
-                  focus:ring-2
-                  focus:ring-blue-100
-                  transition
-                "
-              />
-            </div>
-          </div>
-
-          {/* FECHA FIN */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-              Fecha fin
-            </label>
-
-            <div className="relative">
-              <Calendar
-                size={15}
-                className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                  fechasInvalidas
-                    ? "text-red-500"
-                    : "text-[#006cb7]"
-                }`}
-              />
-
-              <input
-                type="date"
-                value={fechaFin}
-                min={
-                  fechaInicio || undefined
+                disabled={
+                  fechasDeshabilitadas
                 }
-                onChange={(e) =>
-                  setFechaFin(
-                    e.target.value
-                  )
+                onChange={
+                  handleFechaInicioChange
                 }
                 className={`
                   h-10
@@ -578,35 +889,161 @@ export default function Dashboard({ idSeleccionado }) {
                   pr-3
                   rounded-lg
                   border
-                  bg-white
                   text-xs
-                  text-slate-700
                   outline-none
                   transition
+
                   ${
-                    fechasInvalidas
-                      ? "border-red-300 bg-red-50"
-                      : "border-slate-200 focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
+                    fechasDeshabilitadas
+                      ? `
+                        border-slate-200
+                        bg-slate-100
+                        text-slate-400
+                        cursor-not-allowed
+                      `
+                      : fechasInvalidas
+                      ? `
+                        border-red-300
+                        bg-red-50
+                        text-slate-700
+                      `
+                      : `
+                        border-slate-200
+                        bg-white
+                        text-slate-700
+                        focus:border-[#006cb7]
+                        focus:ring-2
+                        focus:ring-blue-100
+                      `
                   }
                 `}
               />
+
             </div>
+
           </div>
+
+          {/* ==================================================
+              FECHA FIN
+          ================================================== */}
+          <div className="flex flex-col gap-1.5">
+
+            <label
+              className={`
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-wide
+
+                ${
+                  fechasDeshabilitadas
+                    ? "text-slate-300"
+                    : "text-slate-400"
+                }
+              `}
+            >
+              Fecha fin
+            </label>
+
+            <div className="relative">
+
+              <Calendar
+                size={15}
+                className={`
+                  absolute
+                  left-3
+                  top-1/2
+                  -translate-y-1/2
+
+                  ${
+                    fechasDeshabilitadas
+                      ? "text-slate-300"
+                      : fechasInvalidas
+                      ? "text-red-500"
+                      : "text-[#006cb7]"
+                  }
+                `}
+              />
+
+              <input
+                type="date"
+                value={
+                  fechaFin
+                }
+                min={
+                  !periodo &&
+                  fechaInicio
+                    ? fechaInicio
+                    : undefined
+                }
+                disabled={
+                  fechasDeshabilitadas
+                }
+                onChange={
+                  handleFechaFinChange
+                }
+                className={`
+                  h-10
+                  pl-10
+                  pr-3
+                  rounded-lg
+                  border
+                  text-xs
+                  outline-none
+                  transition
+
+                  ${
+                    fechasDeshabilitadas
+                      ? `
+                        border-slate-200
+                        bg-slate-100
+                        text-slate-400
+                        cursor-not-allowed
+                      `
+                      : fechasInvalidas
+                      ? `
+                        border-red-300
+                        bg-red-50
+                        text-slate-700
+                      `
+                      : `
+                        border-slate-200
+                        bg-white
+                        text-slate-700
+                        focus:border-[#006cb7]
+                        focus:ring-2
+                        focus:ring-blue-100
+                      `
+                  }
+                `}
+              />
+
+            </div>
+
+          </div>
+
         </div>
       </div>
 
       {/* ======================================================
-          ERROR DE FECHAS
+          ERROR FECHAS
       ======================================================= */}
       {fechasInvalidas && (
+
         <div className="bg-white border border-red-200 rounded-2xl p-4 shadow-sm">
+
           <div className="flex items-start gap-3">
 
             <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0">
-              <AlertTriangle size={18} />
+
+              <AlertTriangle
+                size={18}
+              />
+
             </div>
 
             <div>
+
               <p className="text-xs font-bold text-red-700">
                 Rango de fechas inválido
               </p>
@@ -615,38 +1052,60 @@ export default function Dashboard({ idSeleccionado }) {
                 La fecha fin no puede ser anterior
                 a la fecha de inicio.
               </p>
+
             </div>
+
           </div>
+
         </div>
+
       )}
 
       {/* ======================================================
           ERROR API
       ======================================================= */}
-      {error && !fechasInvalidas && (
-        <div className="bg-white border border-red-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-start gap-3">
+      {error &&
+        !fechasInvalidas && (
 
-            <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0">
-              <AlertTriangle size={18} />
+          <div className="bg-white border border-red-200 rounded-2xl p-4 shadow-sm">
+
+            <div className="flex items-start gap-3">
+
+              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0">
+
+                <AlertTriangle
+                  size={18}
+                />
+
+              </div>
+
+              <p className="text-xs font-semibold text-red-700">
+                {error}
+              </p>
+
             </div>
 
-            <p className="text-xs font-semibold text-red-700">
-              {error}
-            </p>
           </div>
-        </div>
-      )}
+
+        )}
 
       {/* ======================================================
           KPIs
       ======================================================= */}
-      {vistaActiva === "resumen" && (
+      {vistaActiva ===
+        "resumen" && (
+
         <>
+
+          {/* ==================================================
+              INDICADORES
+          ================================================== */}
           <div>
+
             <div className="flex items-center justify-between mb-3">
 
               <div>
+
                 <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Indicadores principales
                 </h2>
@@ -654,14 +1113,18 @@ export default function Dashboard({ idSeleccionado }) {
                 <p className="text-[10px] text-slate-400 mt-1">
                   Resumen del rendimiento de lecturas
                 </p>
+
               </div>
 
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
-              {Object.entries(metrics).map(
+              {Object.entries(
+                metrics
+              ).map(
                 ([key, kpi]) => (
+
                   <Tooltip
                     key={key}
                     title={kpi.nombre}
@@ -670,11 +1133,13 @@ export default function Dashboard({ idSeleccionado }) {
                     datos={kpi.datos}
                     width="w-80"
                   >
+
                     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-help">
 
                       <div className="flex items-center justify-between gap-4">
 
                         <div>
+
                           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                             {kpi.nombre}
                           </p>
@@ -682,34 +1147,47 @@ export default function Dashboard({ idSeleccionado }) {
                           <p className="text-3xl font-bold text-slate-800 mt-2">
                             {kpi.valor}
                           </p>
+
                         </div>
 
                         <div className="p-3 rounded-xl bg-blue-50 text-[#006cb7] shrink-0">
-                          <Gauge size={20} />
+
+                          <Gauge
+                            size={20}
+                          />
+
                         </div>
 
                       </div>
 
                     </div>
+
                   </Tooltip>
+
                 )
               )}
 
             </div>
+
           </div>
 
-          {/* ====================================================
+          {/* ==================================================
               RANKING
-          ===================================================== */}
+          ================================================== */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
 
             <div className="flex items-center gap-3 mb-4">
 
               <div className="p-2.5 bg-blue-50 text-[#006cb7] rounded-xl shrink-0">
-                <Trophy size={18} />
+
+                <Trophy
+                  size={18}
+                />
+
               </div>
 
               <div>
+
                 <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Ranking de Lectores
                 </h2>
@@ -718,13 +1196,16 @@ export default function Dashboard({ idSeleccionado }) {
                   Rendimiento de los lectores durante
                   el período seleccionado.
                 </p>
+
               </div>
 
             </div>
 
             <div className="border border-slate-200 rounded-xl overflow-auto max-h-[500px]">
 
-              {dashboard.ranking_lectores?.length > 0 ? (
+              {dashboard
+                .ranking_lectores
+                ?.length > 0 ? (
 
                 <table className="w-full min-w-[700px] text-left text-xs border-collapse">
 
@@ -741,9 +1222,11 @@ export default function Dashboard({ idSeleccionado }) {
                           text="Código único que identifica al lector dentro del sistema."
                           width="w-72"
                         >
+
                           <span className="cursor-help">
                             Código
                           </span>
+
                         </Tooltip>
 
                       </th>
@@ -756,9 +1239,11 @@ export default function Dashboard({ idSeleccionado }) {
                           text="Nombre completo del lector registrado en el sistema."
                           width="w-72"
                         >
+
                           <span className="cursor-help">
                             Nombre
                           </span>
+
                         </Tooltip>
 
                       </th>
@@ -771,9 +1256,11 @@ export default function Dashboard({ idSeleccionado }) {
                           text="Porcentaje promedio de cumplimiento de lecturas del lector en el período seleccionado. Un valor más alto indica mejor rendimiento."
                           width="w-80"
                         >
+
                           <span className="cursor-help">
                             Eficiencia
                           </span>
+
                         </Tooltip>
 
                       </th>
@@ -788,9 +1275,11 @@ export default function Dashboard({ idSeleccionado }) {
                           datos="promedio_min_por_lectura"
                           width="w-80"
                         >
+
                           <span className="cursor-help">
                             Min/Lectura
                           </span>
+
                         </Tooltip>
 
                       </th>
@@ -802,63 +1291,82 @@ export default function Dashboard({ idSeleccionado }) {
                   {/* DATOS */}
                   <tbody className="divide-y divide-slate-100">
 
-                    {dashboard.ranking_lectores.map(
-                      (r, index) => (
+                    {dashboard
+                      .ranking_lectores
+                      .map(
+                        (
+                          r,
+                          index
+                        ) => (
 
-                        <tr
-                          key={
-                            r.ccodprs ||
-                            `lector-${index}`
-                          }
-                          className="hover:bg-slate-50/70 transition-colors"
-                        >
+                          <tr
+                            key={
+                              r.ccodprs ||
+                              `lector-${index}`
+                            }
+                            className="hover:bg-slate-50/70 transition-colors"
+                          >
 
-                          {/* CÓDIGO */}
-                          <td className="px-5 py-4">
+                            {/* CÓDIGO */}
+                            <td className="px-5 py-4">
 
-                            <span className="font-mono text-[11px] font-bold text-[#006cb7] whitespace-nowrap">
-                              {r.ccodprs || "--"}
-                            </span>
+                              <span className="font-mono text-[11px] font-bold text-[#006cb7] whitespace-nowrap">
 
-                          </td>
+                                {r.ccodprs ||
+                                  "--"}
 
-                          {/* NOMBRE */}
-                          <td className="px-5 py-4">
+                              </span>
 
-                            <div className="font-semibold text-slate-800 whitespace-nowrap">
-                              {r.nombre || "--"}
-                            </div>
+                            </td>
 
-                          </td>
+                            {/* NOMBRE */}
+                            <td className="px-5 py-4">
 
-                          {/* EFICIENCIA */}
-                          <td className="px-5 py-4 text-center">
+                              <div className="font-semibold text-slate-800 whitespace-nowrap">
 
-                            <span className="font-bold text-[#006cb7] whitespace-nowrap">
+                                {r.nombre ||
+                                  "--"}
+
+                              </div>
+
+                            </td>
+
+                            {/* EFICIENCIA */}
+                            <td className="px-5 py-4 text-center">
+
+                              <span className="font-bold text-[#006cb7] whitespace-nowrap">
+
+                                {Number(
+                                  r.eficiencia_promedio ??
+                                    0
+                                ).toFixed(
+                                  2
+                                )}
+
+                                %
+
+                              </span>
+
+                            </td>
+
+                            {/* MIN / LECTURA */}
+                            <td className="px-5 py-4 text-center text-slate-600 whitespace-nowrap">
+
                               {Number(
-                                r.eficiencia_promedio ??
+                                r.promedio_min_por_lectura ??
                                   0
-                              ).toFixed(2)}
-                              %
-                            </span>
+                              ).toFixed(
+                                2
+                              )}{" "}
 
-                          </td>
+                              min
 
-                          {/* MIN / LECTURA */}
-                          <td className="px-5 py-4 text-center text-slate-600 whitespace-nowrap">
+                            </td>
 
-                            {Number(
-                              r.promedio_min_por_lectura ??
-                                0
-                            ).toFixed(2)}{" "}
-                            min
+                          </tr>
 
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
+                        )
+                      )}
 
                   </tbody>
 
@@ -869,7 +1377,11 @@ export default function Dashboard({ idSeleccionado }) {
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
 
                   <div className="p-3 bg-slate-50 rounded-xl">
-                    <Database size={24} />
+
+                    <Database
+                      size={24}
+                    />
+
                   </div>
 
                   <p className="text-xs font-medium text-slate-500">
@@ -882,19 +1394,25 @@ export default function Dashboard({ idSeleccionado }) {
               )}
 
             </div>
+
           </div>
+
         </>
+
       )}
 
       {/* ======================================================
           MAPA
       ======================================================= */}
-      {vistaActiva === "mapa" && (
+      {vistaActiva ===
+        "mapa" && (
+
         <MapaRutas
           actividadesTotales={
             listaActividades
           }
         />
+
       )}
 
     </div>

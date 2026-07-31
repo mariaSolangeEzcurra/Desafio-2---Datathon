@@ -456,21 +456,7 @@ export default function CortesKPI({ idSeleccionado }) {
               <RotateCcw size={14} />
               Limpiar
             </button>
-          </div>
-          {/* PERÍODO */}
-          <div className="flex items-center gap-2 h-10 px-3 rounded-lg bg-blue-50 border border-blue-100">
-            <Calendar size={15} className="text-[#006cb7]" />
-            <div>
-              <p className="text-[9px] uppercase font-bold text-slate-400">
-                Período analizado
-              </p>
-              <p className="text-[10px] font-semibold text-[#006cb7]">
-                {filtroAplicado.fechaInicio || "--"}
-                {" → "}
-                {filtroAplicado.fechaFin || "--"}
-              </p>
-            </div>
-          </div>
+          </div>          
         </div>
       </div>
       {/* ======================================================

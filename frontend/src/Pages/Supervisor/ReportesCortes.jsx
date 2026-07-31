@@ -68,7 +68,11 @@ export default function ReportesCortes() {
       titulo: "Reporte financiero",
       descripcion:
         "Reporte consolidado de deuda, dinero recuperado y deuda en riesgo por distrito y zona.",
-      icono: <DollarSign size={22} />,
+        icono: (
+    <span className="text-lg font-bold leading-none">
+      S/
+    </span>
+  ),
       fondo: "bg-blue-50",
       texto: "text-[#006cb7]",
       archivo: "reporte_financiero_cortes",

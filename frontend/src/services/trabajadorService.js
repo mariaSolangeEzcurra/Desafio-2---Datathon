@@ -1,33 +1,86 @@
 import axios from "axios";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/lectura`;
+
 /**
- * Obtener listado general del personal
- * GET /lectura/personal/?skip=0&limit=50
+ * ============================================================
+ * OBTENER PERSONAL
+ * GET /lectura/personal/
+ *
+ * Parámetros:
+ * - skip
+ * - limit
+ * - fecha     -> YYYY-MM-DD
+ * - periodo   -> hoy | semana | mes | 3meses
+ *
+ * IMPORTANTE:
+ * Si se envía fecha, NO se envía periodo.
+ * Si se envía periodo, NO se envía fecha.
+ * ============================================================
  */
-export const obtenerPersonal = async (skip = 0, limit = 50) => {
+export const obtenerPersonal = async ({
+    skip = 0,
+    limit = 50,
+    fecha = "",
+    periodo = "",
+} = {}) => {
     try {
+        const params = {
+            skip,
+            limit,
+        };
+
+        // Filtro por fecha exacta
+        if (fecha) {
+            params.fecha = fecha;
+        }
+        // Filtro rápido por periodo
+        else if (periodo) {
+            params.periodo = periodo;
+        }
+
+        console.log(
+            "GET /lectura/personal/ - parámetros:",
+            params
+        );
+
         const response = await axios.get(
             `${API_URL}/personal/`,
             {
-                params: {
-                    skip,
-                    limit,
-                },
+                params,
             }
+        );
+
+        console.log(
+            "PERSONAL RECIBIDO:",
+            response.data
         );
 
         return response.data;
     } catch (error) {
-        console.error("Error al obtener personal:", error);
+        console.error(
+            "Error al obtener personal:",
+            error
+        );
+
+        console.error(
+            "Respuesta del servidor:",
+            error?.response?.data
+        );
+
         throw error;
     }
 };
 
 
 /**
- * Obtener ficha individual del trabajador
+ * ============================================================
+ * OBTENER FICHA INDIVIDUAL
+ *
  * GET /lectura/personal/{ccodprs}/ficha
+ *
+ * La ficha NO recibe fecha ni periodo según el API actual.
+ * ============================================================
  */
 export const obtenerFichaPersonal = async (ccodprs) => {
     try {
@@ -41,28 +94,58 @@ export const obtenerFichaPersonal = async (ccodprs) => {
             "Error al obtener ficha del trabajador:",
             error
         );
+
+        console.error(
+            "Respuesta del servidor:",
+            error?.response?.data
+        );
+
         throw error;
     }
 };
 
 
 /**
- * Calcular desempeño
+ * ============================================================
+ * CALCULAR DESEMPEÑO
+ *
  * POST /lectura/personal/calcular-desempeno
  *
- * Sin ccodprs:
- * calcula todos los trabajadores.
+ * Parámetros:
+ * - ccodprs
+ * - fecha_eval
+ * - periodo
  *
- * Con ccodprs:
- * calcula solamente ese trabajador.
+ * Igual que en obtenerPersonal:
+ * fecha_eval y periodo son excluyentes.
+ * ============================================================
  */
-export const calcularDesempeno = async (ccodprs = null) => {
+export const calcularDesempeno = async ({
+    ccodprs = "",
+    fecha_eval = "",
+    periodo = "",
+} = {}) => {
     try {
         const params = {};
 
+        // Trabajador específico
         if (ccodprs) {
             params.ccodprs = ccodprs;
         }
+
+        // Fecha específica
+        if (fecha_eval) {
+            params.fecha_eval = fecha_eval;
+        }
+        // Periodo rápido
+        else if (periodo) {
+            params.periodo = periodo;
+        }
+
+        console.log(
+            "POST /lectura/personal/calcular-desempeno - parámetros:",
+            params
+        );
 
         const response = await axios.post(
             `${API_URL}/personal/calcular-desempeno`,
@@ -72,12 +155,23 @@ export const calcularDesempeno = async (ccodprs = null) => {
             }
         );
 
+        console.log(
+            "RESULTADO CÁLCULO DESEMPEÑO:",
+            response.data
+        );
+
         return response.data;
     } catch (error) {
         console.error(
             "Error al calcular desempeño:",
             error
         );
+
+        console.error(
+            "Respuesta del servidor:",
+            error?.response?.data
+        );
+
         throw error;
     }
 };
