@@ -6,6 +6,8 @@ import {
   X,
   AlertTriangle,
   Loader2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import {
@@ -24,6 +26,7 @@ export function UsuarioTable({
   onEditar,
   onEliminar,
 }) {
+
   // ----------------------------------------------------------
   // CARGANDO
   // ----------------------------------------------------------
@@ -41,6 +44,7 @@ export function UsuarioTable({
       </div>
     );
   }
+
 
   // ----------------------------------------------------------
   // SIN USUARIOS
@@ -61,15 +65,14 @@ export function UsuarioTable({
     );
   }
 
+
   // ----------------------------------------------------------
   // TABLA
   // ----------------------------------------------------------
   return (
     <table className="w-full min-w-[950px] text-xs border-collapse">
 
-      {/* ======================================================
-          CABECERA FIJA
-      ======================================================= */}
+      {/* CABECERA */}
       <thead className="sticky top-0 z-20 bg-slate-50 text-slate-600 uppercase">
 
         <tr className="border-b border-slate-200">
@@ -103,9 +106,7 @@ export function UsuarioTable({
       </thead>
 
 
-      {/* ======================================================
-          FILAS
-      ======================================================= */}
+      {/* FILAS */}
       <tbody className="divide-y divide-slate-100">
 
         {usuarios.map((usr, index) => (
@@ -118,9 +119,7 @@ export function UsuarioTable({
             className="hover:bg-slate-50/70 transition-colors"
           >
 
-            {/* ==================================================
-                CÓDIGO
-            =================================================== */}
+            {/* CÓDIGO */}
             <td className="p-3 whitespace-nowrap">
 
               <span className="font-bold text-[#006cb7]">
@@ -130,9 +129,7 @@ export function UsuarioTable({
             </td>
 
 
-            {/* ==================================================
-                USUARIO
-            =================================================== */}
+            {/* USUARIO */}
             <td className="p-3">
 
               <div className="flex items-center gap-2 min-w-0">
@@ -146,9 +143,7 @@ export function UsuarioTable({
             </td>
 
 
-            {/* ==================================================
-                CORREO
-            =================================================== */}
+            {/* CORREO */}
             <td className="p-3 text-slate-600">
 
               <span className="whitespace-nowrap">
@@ -158,9 +153,7 @@ export function UsuarioTable({
             </td>
 
 
-            {/* ==================================================
-                ROL
-            =================================================== */}
+            {/* ROL */}
             <td className="p-3">
 
               <span className="font-medium text-slate-700 whitespace-nowrap">
@@ -170,9 +163,7 @@ export function UsuarioTable({
             </td>
 
 
-            {/* ==================================================
-                ESTADO
-            =================================================== */}
+            {/* ESTADO */}
             <td className="p-3 text-center">
 
               <span
@@ -189,9 +180,7 @@ export function UsuarioTable({
             </td>
 
 
-            {/* ==================================================
-                ACCIONES
-            =================================================== */}
+            {/* ACCIONES */}
             <td className="p-3 text-center">
 
               <div className="flex items-center justify-center gap-1.5">
@@ -241,10 +230,15 @@ export function UsuarioModal({
   onClose,
   onSuccess,
 }) {
+
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [rol, setRol] = useState("Supervisor");
   const [estado, setEstado] = useState("Activo");
+
+  // NUEVO: contraseña
+  const [password, setPassword] = useState("");
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -254,10 +248,16 @@ export function UsuarioModal({
   // LIMPIAR FORMULARIO
   // ==========================================================
   const limpiarFormulario = () => {
+
     setNombre("");
     setCorreo("");
     setRol("Supervisor");
     setEstado("Activo");
+
+    // Limpiar contraseña
+    setPassword("");
+    setMostrarPassword(false);
+
     setError("");
   };
 
@@ -273,6 +273,9 @@ export function UsuarioModal({
       setCorreo(usuario.correo || "");
       setRol(usuario.rol || "Supervisor");
       setEstado(usuario.estado || "Activo");
+
+      // No cargar contraseña al editar
+      setPassword("");
 
     } else {
 
@@ -290,8 +293,10 @@ export function UsuarioModal({
   // CERRAR
   // ==========================================================
   const cerrar = () => {
+
     limpiarFormulario();
     onClose();
+
   };
 
 
@@ -305,33 +310,90 @@ export function UsuarioModal({
     setLoading(true);
     setError("");
 
-    const datosUsuario = {
-      nombre,
-      correo,
-      rol,
-      estado,
-    };
 
     try {
 
+      // ======================================================
+      // EDITAR USUARIO
+      // ======================================================
       if (usuario) {
+
+        const datosUsuario = {
+          nombre: nombre.trim(),
+          correo: correo.trim(),
+          rol,
+          estado,
+        };
 
         await actualizarUsuario(
           usuario.id_usuario,
           datosUsuario
         );
 
-      } else {
+      }
+
+      // ======================================================
+      // CREAR USUARIO
+      // ======================================================
+      else {
+
+        // Validar contraseña
+        if (!password.trim()) {
+
+          setError(
+            "La contraseña es obligatoria para crear un usuario."
+          );
+
+          setLoading(false);
+          return;
+
+        }
+
+
+        if (password.length < 6) {
+
+          setError(
+            "La contraseña debe tener al menos 6 caracteres."
+          );
+
+          setLoading(false);
+          return;
+
+        }
+
+
+        const datosUsuario = {
+          nombre: nombre.trim(),
+          correo: correo.trim(),
+          rol,
+          estado,
+          password: password,
+        };
+
+
+        console.log(
+          "CREANDO USUARIO:",
+          {
+            ...datosUsuario,
+            password: "********",
+          }
+        );
+
 
         await crearUsuario(datosUsuario);
 
       }
 
+
+      // ======================================================
+      // ÉXITO
+      // ======================================================
       limpiarFormulario();
 
-      onSuccess();
+      await onSuccess();
 
       onClose();
+
 
     } catch (err) {
 
@@ -350,6 +412,7 @@ export function UsuarioModal({
       setLoading(false);
 
     }
+
   };
 
 
@@ -357,6 +420,7 @@ export function UsuarioModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
 
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+
 
         {/* ====================================================
             CABECERA
@@ -366,18 +430,23 @@ export function UsuarioModal({
           <div>
 
             <h2 className="text-lg font-bold text-slate-800">
+
               {usuario
                 ? "Editar Usuario"
                 : "Nuevo Usuario"}
+
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
+
               {usuario
                 ? "Actualice la información del usuario en el sistema."
                 : "Complete la información para registrar un nuevo usuario."}
+
             </p>
 
           </div>
+
 
           <button
             type="button"
@@ -397,6 +466,7 @@ export function UsuarioModal({
           onSubmit={guardar}
           className="space-y-5 p-6"
         >
+
 
           {/* ERROR */}
           {error && (
@@ -455,9 +525,74 @@ export function UsuarioModal({
           </div>
 
 
+          {/* ==================================================
+              CONTRASEÑA
+              SOLO AL CREAR
+          =================================================== */}
+          {!usuario && (
+
+            <div>
+
+              <label className="text-xs font-bold text-slate-700">
+                Contraseña
+              </label>
+
+              <div className="relative mt-2">
+
+                <input
+                  type={
+                    mostrarPassword
+                      ? "text"
+                      : "password"
+                  }
+                  value={password}
+                  onChange={(e) =>
+                    setPassword(e.target.value)
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 pr-11 text-sm outline-none focus:border-[#006cb7] focus:ring-4 focus:ring-blue-50"
+                  placeholder="Ingrese una contraseña"
+                  minLength={6}
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarPassword(
+                      !mostrarPassword
+                    )
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#006cb7] transition"
+                  title={
+                    mostrarPassword
+                      ? "Ocultar contraseña"
+                      : "Mostrar contraseña"
+                  }
+                >
+
+                  {mostrarPassword ? (
+                    <EyeOff size={17} />
+                  ) : (
+                    <Eye size={17} />
+                  )}
+
+                </button>
+
+              </div>
+
+              <p className="mt-1.5 text-[10px] text-slate-400">
+                La contraseña debe tener al menos 6 caracteres.
+              </p>
+
+            </div>
+
+          )}
+
+
           {/* ROL / ESTADO */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
+            {/* ROL */}
             <div>
 
               <label className="text-xs font-bold text-slate-700">
@@ -489,6 +624,7 @@ export function UsuarioModal({
             </div>
 
 
+            {/* ESTADO */}
             <div>
 
               <label className="text-xs font-bold text-slate-700">
@@ -526,10 +662,12 @@ export function UsuarioModal({
             <button
               type="button"
               onClick={cerrar}
-              className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+              disabled={loading}
+              className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition"
             >
               Cancelar
             </button>
+
 
             <button
               type="submit"
@@ -572,6 +710,7 @@ export function ConfirmEliminarModal({
   onClose,
   onSuccess,
 }) {
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -593,7 +732,8 @@ export function ConfirmEliminarModal({
         usuario.id_usuario
       );
 
-      onSuccess();
+      await onSuccess();
+
       onClose();
 
     } catch (err) {
@@ -621,9 +761,8 @@ export function ConfirmEliminarModal({
 
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-        {/* ====================================================
-            INFORMACIÓN
-        ===================================================== */}
+
+        {/* INFORMACIÓN */}
         <div className="flex items-center gap-4">
 
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
@@ -651,9 +790,7 @@ export function ConfirmEliminarModal({
         {error && (
 
           <div className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-
             {error}
-
           </div>
 
         )}
@@ -672,9 +809,7 @@ export function ConfirmEliminarModal({
         </p>
 
 
-        {/* ====================================================
-            BOTONES
-        ===================================================== */}
+        {/* BOTONES */}
         <div className="mt-6 flex justify-end gap-3">
 
           <button
@@ -685,6 +820,7 @@ export function ConfirmEliminarModal({
           >
             Cancelar
           </button>
+
 
           <button
             type="button"

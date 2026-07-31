@@ -279,7 +279,7 @@ export default function CortesGerencia() {
   const formatoNumero = (valor) =>
     Number(valor || 0).toLocaleString("en-US");
   const formatoDinero = (valor) =>
-    `$${Number(valor || 0).toLocaleString("en-US", {
+    `S/${Number(valor || 0).toLocaleString("es-PE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
