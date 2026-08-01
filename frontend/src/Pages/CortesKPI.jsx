@@ -15,8 +15,10 @@ import {
   MapPin,
   BarChart3,
   RotateCcw,
+  Filter,
 } from "lucide-react";
 import { cortesKPIService } from "../services/CortesKPIService";
+
 // ============================================================
 // TOOLTIP
 // ============================================================
@@ -121,6 +123,7 @@ function Tooltip({ children, title, text, formula, datos, width = "w-80" }) {
     </span>
   );
 }
+
 // ============================================================
 // FORMATO MONEDA
 // ============================================================
@@ -131,12 +134,14 @@ const formatearMonto = (valor) => {
     maximumFractionDigits: 2,
   });
 };
+
 // ============================================================
 // PORCENTAJE
 // ============================================================
 const formatearPorcentaje = (valor) => {
   return `${Number(valor ?? 0).toFixed(2)}%`;
 };
+
 // ============================================================
 // FECHA ACTUAL
 // ============================================================
@@ -147,11 +152,24 @@ const obtenerFechaHoy = () => {
   const day = String(fecha.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+// ============================================================
+// OPCIONES DE PERIODO
+// ============================================================
+const OPCIONES_PERIODO = [
+  { value: "", label: "Personalizado" },
+  { value: "hoy", label: "Hoy" },
+  { value: "semana", label: "Esta semana" },
+  { value: "mes", label: "Este mes" },
+  { value: "3meses", label: "Últimos 3 meses" },
+];
+
 // ============================================================
 // DASHBOARD DE CORTES
 // ============================================================
 export default function CortesKPI({ idSeleccionado }) {
   const hoy = obtenerFechaHoy();
+
   // ==========================================================
   // ESTADOS
   // ==========================================================
@@ -170,29 +188,41 @@ export default function CortesKPI({ idSeleccionado }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
   // ==========================================================
   // FILTROS
   // ==========================================================
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [fechaFin, setFechaFin] = useState(hoy);
+  const [periodo, setPeriodo] = useState("");
+
   // ==========================================================
-  // FILTROS APLICADOS (último rango realmente consultado)
+  // FILTROS APLICADOS (último filtro realmente consultado)
   // ==========================================================
   const [filtroAplicado, setFiltroAplicado] = useState({
     fechaInicio: hoy,
     fechaFin: hoy,
+    periodo: "",
   });
+
   // ==========================================================
   // VISTA
   // ==========================================================
   const [, vistaActiva] = idSeleccionado
     ? idSeleccionado.split("_")
     : ["cortes", "resumen"];
+
   // ==========================================================
   // VALIDACIÓN DE FECHAS
+  // Solo aplica cuando NO hay un periodo predefinido seleccionado,
+  // ya que en ese caso las fechas quedan deshabilitadas.
   // ==========================================================
   const fechasInvalidas =
-    Boolean(fechaInicio) && Boolean(fechaFin) && fechaFin < fechaInicio;
+    !periodo &&
+    Boolean(fechaInicio) &&
+    Boolean(fechaFin) &&
+    fechaFin < fechaInicio;
+
   // ==========================================================
   // EXTRAER MENSAJE DEL ERROR
   // ==========================================================
@@ -207,7 +237,7 @@ export default function CortesKPI({ idSeleccionado }) {
       if (status === 500) {
         return (
           "El API de cortes respondió con un error interno (500). " +
-          "Los endpoints están disponibles, pero el backend presenta un problema al procesar las fechas enviadas."
+          "Los endpoints están disponibles, pero el backend presenta un problema al procesar los filtros enviados."
         );
       }
       if (status === 422) {
@@ -234,31 +264,52 @@ export default function CortesKPI({ idSeleccionado }) {
     }
     return err?.message || "No se pudieron cargar los indicadores de cortes.";
   };
+
   // ==========================================================
   // CARGAR DATOS
+  // Si hay un periodo seleccionado, tiene prioridad sobre las
+  // fechas (que además quedan deshabilitadas en la UI).
   // ==========================================================
-  const cargarDashboard = async (inicio, fin) => {
-    if (!inicio || !fin) {
-      setError("Debes seleccionar una fecha de inicio y una fecha de fin.");
-      return;
+  const cargarDashboard = async (inicio, fin, periodoActual) => {
+    if (!periodoActual) {
+      if (!inicio || !fin) {
+        setError("Debes seleccionar una fecha de inicio y una fecha de fin.");
+        return;
+      }
+      if (fin < inicio) {
+        setError("La fecha fin no puede ser anterior a la fecha de inicio.");
+        return;
+      }
     }
-    if (fin < inicio) {
-      setError("La fecha fin no puede ser anterior a la fecha de inicio.");
-      return;
-    }
+
     setLoading(true);
     setError(null);
     try {
+      const inicioConsulta = periodoActual ? "" : inicio;
+      const finConsulta = periodoActual ? "" : fin;
+
       console.log("Consultando API de cortes:", {
-        fecha_inicio: inicio,
-        fecha_fin: fin,
+        periodo: periodoActual,
+        fecha_inicio: inicioConsulta,
+        fecha_fin: finConsulta,
       });
+
       const [dashboardData, resumenData] = await Promise.all([
-        cortesKPIService.obtenerDashboardKpis(inicio, fin),
-        cortesKPIService.obtenerResumen(inicio, fin),
+        cortesKPIService.obtenerDashboardKpis(
+          inicioConsulta,
+          finConsulta,
+          periodoActual
+        ),
+        cortesKPIService.obtenerResumen(
+          inicioConsulta,
+          finConsulta,
+          periodoActual
+        ),
       ]);
+
       console.log("Dashboard KPIs cortes:", dashboardData);
       console.log("Resumen analítico cortes:", resumenData);
+
       // ======================================================
       // DASHBOARD
       // ======================================================
@@ -272,6 +323,7 @@ export default function CortesKPI({ idSeleccionado }) {
         monto_deuda_recuperada: dashboardData?.monto_deuda_recuperada ?? 0,
         monto_deuda_en_riesgo: dashboardData?.monto_deuda_en_riesgo ?? 0,
       });
+
       // ======================================================
       // RESUMEN
       // ======================================================
@@ -283,8 +335,13 @@ export default function CortesKPI({ idSeleccionado }) {
           ? resumenData.por_tipo_programa
           : [],
       });
-      // Guardar rango realmente consultado
-      setFiltroAplicado({ fechaInicio: inicio, fechaFin: fin });
+
+      // Guardar el filtro realmente consultado
+      setFiltroAplicado({
+        fechaInicio: inicioConsulta,
+        fechaFin: finConsulta,
+        periodo: periodoActual,
+      });
     } catch (err) {
       console.error("Error cargando KPIs de cortes:", err);
       setError(obtenerMensajeError(err));
@@ -292,16 +349,29 @@ export default function CortesKPI({ idSeleccionado }) {
       setLoading(false);
     }
   };
+
   // ==========================================================
   // CARGA AUTOMÁTICA
   // Se dispara al entrar a la sección (cambio de idSeleccionado)
-  // y cada vez que cambian las fechas, sin depender de botones.
+  // y cada vez que cambian las fechas o el periodo, sin depender
+  // de botones.
   // ==========================================================
   useEffect(() => {
     if (fechasInvalidas) return;
-    cargarDashboard(fechaInicio, fechaFin);
+    cargarDashboard(fechaInicio, fechaFin, periodo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicio, fechaFin, idSeleccionado]);
+  }, [fechaInicio, fechaFin, periodo, idSeleccionado]);
+
+  // ==========================================================
+  // CAMBIO DE PERIODO
+  // Al elegir un periodo predefinido, las fechas quedan
+  // deshabilitadas (se ignoran en la consulta).
+  // ==========================================================
+  const manejarCambioPeriodo = (e) => {
+    setError(null);
+    setPeriodo(e.target.value);
+  };
+
   // ==========================================================
   // LIMPIAR FILTROS
   // ==========================================================
@@ -309,8 +379,10 @@ export default function CortesKPI({ idSeleccionado }) {
     setError(null);
     setFechaInicio(hoy);
     setFechaFin(hoy);
-    // La carga se dispara sola vía useEffect al cambiar las fechas
+    setPeriodo("");
+    // La carga se dispara sola vía useEffect al cambiar los filtros
   };
+
   // ==========================================================
   // DATOS CALCULADOS
   // ==========================================================
@@ -321,6 +393,7 @@ export default function CortesKPI({ idSeleccionado }) {
   const deudaTotal = Number(dashboard.monto_total_deuda ?? 0);
   const deudaRecuperada = Number(dashboard.monto_deuda_recuperada ?? 0);
   const deudaRiesgo = Number(dashboard.monto_deuda_en_riesgo ?? 0);
+
   // ==========================================================
   // KPIs
   // ==========================================================
@@ -383,6 +456,7 @@ export default function CortesKPI({ idSeleccionado }) {
       icon: CircleAlert,
     },
   ];
+
   // ==========================================================
   // RENDER
   // ==========================================================
@@ -397,11 +471,37 @@ export default function CortesKPI({ idSeleccionado }) {
           Consultando indicadores de cortes...
         </div>
       )}
+
       {/* ======================================================
           FILTROS
       ====================================================== */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+          {/* PERIODO */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Periodo
+            </label>
+            <div className="relative">
+              <Filter
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <select
+                value={periodo}
+                onChange={manejarCambioPeriodo}
+                disabled={loading}
+                className="h-10 pl-10 pr-8 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition appearance-none disabled:opacity-50 disabled:cursor-not-allowed min-w-[170px]"
+              >
+                {OPCIONES_PERIODO.map((opcion) => (
+                  <option key={opcion.value || "personalizado"} value={opcion.value}>
+                    {opcion.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* FECHA INICIO */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -410,16 +510,20 @@ export default function CortesKPI({ idSeleccionado }) {
             <div className="relative">
               <Calendar
                 size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7]"
+                className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                  periodo ? "text-slate-300" : "text-[#006cb7]"
+                }`}
               />
               <input
                 type="date"
                 value={fechaInicio}
                 onChange={(e) => setFechaInicio(e.target.value)}
-                className="h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition"
+                disabled={Boolean(periodo)}
+                className="h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
+
           {/* FECHA FIN */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -429,7 +533,11 @@ export default function CortesKPI({ idSeleccionado }) {
               <Calendar
                 size={15}
                 className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                  fechasInvalidas ? "text-red-500" : "text-[#006cb7]"
+                  fechasInvalidas
+                    ? "text-red-500"
+                    : periodo
+                    ? "text-slate-300"
+                    : "text-[#006cb7]"
                 }`}
               />
               <input
@@ -437,7 +545,8 @@ export default function CortesKPI({ idSeleccionado }) {
                 value={fechaFin}
                 min={fechaInicio || undefined}
                 onChange={(e) => setFechaFin(e.target.value)}
-                className={`h-10 pl-10 pr-3 rounded-lg border bg-white text-xs text-slate-700 outline-none transition ${
+                disabled={Boolean(periodo)}
+                className={`h-10 pl-10 pr-3 rounded-lg border bg-white text-xs text-slate-700 outline-none transition disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed ${
                   fechasInvalidas
                     ? "border-red-300 bg-red-50"
                     : "border-slate-200 focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
@@ -445,6 +554,7 @@ export default function CortesKPI({ idSeleccionado }) {
               />
             </div>
           </div>
+
           {/* BOTÓN LIMPIAR */}
           <div className="flex items-center gap-2">
             <button
@@ -456,9 +566,10 @@ export default function CortesKPI({ idSeleccionado }) {
               <RotateCcw size={14} />
               Limpiar
             </button>
-          </div>          
+          </div>
         </div>
       </div>
+
       {/* ======================================================
           ERROR FECHAS
       ====================================================== */}
@@ -479,6 +590,7 @@ export default function CortesKPI({ idSeleccionado }) {
           </div>
         </div>
       )}
+
       {/* ======================================================
           ERROR API
       ====================================================== */}
@@ -496,19 +608,35 @@ export default function CortesKPI({ idSeleccionado }) {
                 {error}
               </p>
               <p className="text-[10px] text-slate-400 mt-2">
-                Rango enviado:{" "}
-                <span className="font-semibold">
-                  {filtroAplicado.fechaInicio}
-                </span>
-                {" → "}
-                <span className="font-semibold">
-                  {filtroAplicado.fechaFin}
-                </span>
+                {filtroAplicado.periodo ? (
+                  <>
+                    Periodo aplicado:{" "}
+                    <span className="font-semibold">
+                      {
+                        OPCIONES_PERIODO.find(
+                          (o) => o.value === filtroAplicado.periodo
+                        )?.label
+                      }
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Rango enviado:{" "}
+                    <span className="font-semibold">
+                      {filtroAplicado.fechaInicio}
+                    </span>
+                    {" → "}
+                    <span className="font-semibold">
+                      {filtroAplicado.fechaFin}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
         </div>
       )}
+
       {/* ======================================================
           RESUMEN GENERAL
       ====================================================== */}
@@ -561,6 +689,7 @@ export default function CortesKPI({ idSeleccionado }) {
               })}
             </div>
           </div>
+
           {/* ==================================================
               EJECUTADAS VS PENDIENTES
           ================================================== */}
@@ -632,6 +761,7 @@ export default function CortesKPI({ idSeleccionado }) {
                 </div>
               </div>
             </div>
+
             {/* DEUDA */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-5">
@@ -675,6 +805,7 @@ export default function CortesKPI({ idSeleccionado }) {
               </div>
             </div>
           </div>
+
           {/* ==================================================
               ANÁLISIS POR DISTRITO
           ================================================== */}
@@ -781,6 +912,7 @@ export default function CortesKPI({ idSeleccionado }) {
               )}
             </div>
           </div>
+
           {/* ==================================================
               ANÁLISIS POR TIPO DE PROGRAMA
           ================================================== */}

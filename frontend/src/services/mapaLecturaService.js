@@ -1,13 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
-
 /**
  * Obtener listado de personal
  */
-export async function obtenerPersonal() {
+export async function obtenerPersonal(filtros = {}) {
+    const params = new URLSearchParams();
+
+    params.append("skip", filtros.skip ?? 0);
+    params.append("limit", filtros.limit ?? 200);
+
+    if (filtros.periodo) {
+        params.append("periodo", filtros.periodo);
+    } else if (filtros.fecha) {
+        params.append("fecha", filtros.fecha);
+    }
 
     const response = await fetch(
-        `${API_URL}/lectura/personal/?skip=0&limit=200`
+        `${API_URL}/lectura/personal/?${params.toString()}`
     );
 
     if (!response.ok) {
@@ -27,14 +36,43 @@ export async function obtenerDiscrepancias(
 
     const params = new URLSearchParams();
 
-    const filtrosPermitidos = [
-        "fecha_inicio",
-        "fecha_fin",
-        "zona_id",
-        "cmetfac"
-    ];
+    // ========================================================
+    // PERIODO Y FECHAS SON EXCLUYENTES
+    // ========================================================
 
-    filtrosPermitidos.forEach((campo) => {
+    if (
+        filtros.periodo &&
+        filtros.periodo !== "TODOS"
+    ) {
+        params.append("periodo", filtros.periodo);
+    } else {
+
+        if (
+            filtros.fecha_inicio &&
+            filtros.fecha_inicio !== "TODOS"
+        ) {
+            params.append(
+                "fecha_inicio",
+                filtros.fecha_inicio
+            );
+        }
+
+        if (
+            filtros.fecha_fin &&
+            filtros.fecha_fin !== "TODOS"
+        ) {
+            params.append(
+                "fecha_fin",
+                filtros.fecha_fin
+            );
+        }
+    }
+
+    // ========================================================
+    // RESTO DE FILTROS
+    // ========================================================
+
+    ["zona_id", "cmetfac"].forEach((campo) => {
 
         if (
             filtros[campo] !== undefined &&
@@ -42,12 +80,7 @@ export async function obtenerDiscrepancias(
             filtros[campo] !== "" &&
             filtros[campo] !== "TODOS"
         ) {
-
-            params.append(
-                campo,
-                filtros[campo]
-            );
-
+            params.append(campo, filtros[campo]);
         }
 
     });
@@ -80,14 +113,43 @@ export async function obtenerHeatmapImpedimentos(
 
     const params = new URLSearchParams();
 
-    const filtrosPermitidos = [
-        "fecha_inicio",
-        "fecha_fin",
-        "zona_id",
-        "cmetfac"
-    ];
+    // ========================================================
+    // PERIODO Y FECHAS SON EXCLUYENTES
+    // ========================================================
 
-    filtrosPermitidos.forEach((campo) => {
+    if (
+        filtros.periodo &&
+        filtros.periodo !== "TODOS"
+    ) {
+        params.append("periodo", filtros.periodo);
+    } else {
+
+        if (
+            filtros.fecha_inicio &&
+            filtros.fecha_inicio !== "TODOS"
+        ) {
+            params.append(
+                "fecha_inicio",
+                filtros.fecha_inicio
+            );
+        }
+
+        if (
+            filtros.fecha_fin &&
+            filtros.fecha_fin !== "TODOS"
+        ) {
+            params.append(
+                "fecha_fin",
+                filtros.fecha_fin
+            );
+        }
+    }
+
+    // ========================================================
+    // RESTO DE FILTROS
+    // ========================================================
+
+    ["zona_id", "cmetfac"].forEach((campo) => {
 
         if (
             filtros[campo] !== undefined &&
@@ -95,12 +157,7 @@ export async function obtenerHeatmapImpedimentos(
             filtros[campo] !== "" &&
             filtros[campo] !== "TODOS"
         ) {
-
-            params.append(
-                campo,
-                filtros[campo]
-            );
-
+            params.append(campo, filtros[campo]);
         }
 
     });
@@ -145,28 +202,44 @@ export async function obtenerCatalogo(tipo) {
     return await response.json();
 }
 
-// ============================================================ 
-// // OBTENER GRUPOS DE FACTURACIÓN // 
-// ============================================================ 
-export async function obtenerGruposFacturacion() { 
-    const response = await fetch( 
-        `${API_URL}/api/catalogos/grupos` 
-    );
-    
-    if (!response.ok) {
-        let mensaje = "Error obteniendo grupos de facturación"; 
-        
-        try { 
-            const errorData = await response.json(); 
-            if (errorData?.detail)
-                 { mensaje = typeof errorData.detail === "string" ? errorData.detail : JSON.stringify(errorData.detail);
 
-                  } } 
-                  catch {
-                    // Mantener mensaje por defecto
-                     } 
-                     
-                throw new Error(mensaje); 
-            } const data = await response.json(); 
-            // Aseguramos que siempre devolvamos un arreglo 
-            return Array.isArray(data) ? data : []; }
+// ============================================================
+// OBTENER GRUPOS DE FACTURACIÓN
+// ============================================================
+export async function obtenerGruposFacturacion() {
+
+    const response = await fetch(
+        `${API_URL}/api/catalogos/grupos`
+    );
+
+    if (!response.ok) {
+
+        let mensaje =
+            "Error obteniendo grupos de facturación";
+
+        try {
+
+            const errorData =
+                await response.json();
+
+            if (errorData?.detail) {
+
+                mensaje =
+                    typeof errorData.detail === "string"
+                        ? errorData.detail
+                        : JSON.stringify(errorData.detail);
+
+            }
+
+        } catch {
+            // Mantener mensaje por defecto
+        }
+
+        throw new Error(mensaje);
+
+    }
+
+    const data = await response.json();
+
+    return Array.isArray(data) ? data : [];
+}

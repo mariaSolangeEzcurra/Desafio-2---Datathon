@@ -3,9 +3,24 @@ import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const cortesKPIService = {
-
-  obtenerDashboardKpis: async (fechaInicio = "", fechaFin = "") => {
+  // ==========================================================
+  // DASHBOARD KPIs
+  // GET /api/cortes/kpis/dashboard
+  // Filtros:
+  // - fecha_inicio
+  // - fecha_fin
+  // - periodo (hoy, semana, mes, 3meses)
+  // ==========================================================
+  obtenerDashboardKpis: async (
+    fechaInicio = "",
+    fechaFin = "",
+    periodo = ""
+  ) => {
     const params = {};
+
+    if (periodo) {
+      params.periodo = periodo;
+    }
 
     if (fechaInicio) {
       params.fecha_inicio = fechaInicio;
@@ -31,9 +46,21 @@ export const cortesKPIService = {
   // ==========================================================
   // RESUMEN ANALÍTICO
   // GET /api/cortes/kpis/resumen
+  // Filtros:
+  // - fecha_inicio
+  // - fecha_fin
+  // - periodo (hoy, semana, mes, 3meses)
   // ==========================================================
-  obtenerResumen: async (fechaInicio = "", fechaFin = "") => {
+  obtenerResumen: async (
+    fechaInicio = "",
+    fechaFin = "",
+    periodo = ""
+  ) => {
     const params = {};
+
+    if (periodo) {
+      params.periodo = periodo;
+    }
 
     if (fechaInicio) {
       params.fecha_inicio = fechaInicio;
@@ -55,5 +82,4 @@ export const cortesKPIService = {
 
     return response.data;
   },
-
 };

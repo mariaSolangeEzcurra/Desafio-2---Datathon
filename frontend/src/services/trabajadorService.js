@@ -2,22 +2,6 @@ import axios from "axios";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/lectura`;
 
-/**
- * ============================================================
- * OBTENER PERSONAL
- * GET /lectura/personal/
- *
- * Parámetros:
- * - skip
- * - limit
- * - fecha     -> YYYY-MM-DD
- * - periodo   -> hoy | semana | mes | 3meses
- *
- * IMPORTANTE:
- * Si se envía fecha, NO se envía periodo.
- * Si se envía periodo, NO se envía fecha.
- * ============================================================
- */
 export const obtenerPersonal = async ({
     skip = 0,
     limit = 50,
@@ -72,16 +56,6 @@ export const obtenerPersonal = async ({
     }
 };
 
-
-/**
- * ============================================================
- * OBTENER FICHA INDIVIDUAL
- *
- * GET /lectura/personal/{ccodprs}/ficha
- *
- * La ficha NO recibe fecha ni periodo según el API actual.
- * ============================================================
- */
 export const obtenerFichaPersonal = async (ccodprs) => {
     try {
         const response = await axios.get(

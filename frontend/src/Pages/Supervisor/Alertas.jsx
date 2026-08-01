@@ -14,6 +14,13 @@ import {
   RefreshCw,
   CalendarDays,
   Play,
+  Filter,
+  RotateCcw,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  Hash,
 } from "lucide-react";
 import {
   obtenerAlertas,
@@ -22,10 +29,23 @@ import {
   cambiarEstadoAlerta,
 } from "../../services/alertasService";
 import { obtenerUsuarios } from "../../services/usuarioService";
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 export default function Alertas() {
+  // ==========================================================
+  // FECHA ACTUAL
+  // ==========================================================
+  const obtenerFechaHoy = () => {
+    const fecha = new Date();
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const hoy = obtenerFechaHoy();
+
   // ==========================================================
   // ESTADOS
   // ==========================================================
@@ -38,25 +58,69 @@ export default function Alertas() {
   const [supervisorNombre, setSupervisorNombre] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
+
   // ==========================================================
   // BUSCADOR LOCAL
   // ==========================================================
   const [busqueda, setBusqueda] = useState("");
+
   // ==========================================================
   // FILTROS API
+  // Por defecto se muestran las alertas del día en curso; si el
+  // usuario elige un período rápido o cambia la fecha, eso
+  // reemplaza este valor inicial.
   // ==========================================================
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [zonaFiltro, setZonaFiltro] = useState("");
   const [trabajadorFiltro, setTrabajadorFiltro] = useState("");
-  const [fechaFiltro, setFechaFiltro] = useState("");
+  const [fechaFiltro, setFechaFiltro] = useState(hoy);
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [periodoFiltro, setPeriodoFiltro] = useState("");
+
+  // ==========================================================
+  // MOSTRAR / OCULTAR FILTROS AVANZADOS
+  // ==========================================================
+  const [mostrarMasFiltros, setMostrarMasFiltros] = useState(false);
+
   // ==========================================================
   // VALIDACIÓN DE FECHAS
   // ==========================================================
   const fechasInvalidas =
     Boolean(fechaInicio) && Boolean(fechaFin) && fechaFin < fechaInicio;
+
+  // ==========================================================
+  // FILTROS AVANZADOS ACTIVOS
+  // (para mostrar un indicador en el botón "Más filtros")
+  // ==========================================================
+  const filtrosAvanzadosActivos = Boolean(
+    zonaFiltro || trabajadorFiltro || fechaInicio || fechaFin
+  );
+
+  // ==========================================================
+  // CAMBIO DE PERÍODO
+  // Al elegir un periodo predefinido, la fecha específica se
+  // limpia (se ignoraría en la consulta si quedara puesta).
+  // ==========================================================
+  const handlePeriodoChange = (e) => {
+    const valor = e.target.value;
+    setPeriodoFiltro(valor);
+    if (valor) {
+      setFechaFiltro("");
+    }
+  };
+
+  // ==========================================================
+  // CAMBIO DE FECHA ESPECÍFICA
+  // ==========================================================
+  const handleFechaChange = (e) => {
+    const valor = e.target.value;
+    setFechaFiltro(valor);
+    if (valor) {
+      setPeriodoFiltro("");
+    }
+  };
+
   // ==========================================================
   // OBTENER NOMBRE COMPLETO DEL USUARIO
   // ==========================================================
@@ -76,6 +140,7 @@ export default function Alertas() {
       ""
     );
   };
+
   // ==========================================================
   // BUSCAR NOMBRE DEL SUPERVISOR
   // ==========================================================
@@ -99,6 +164,7 @@ export default function Alertas() {
       return "";
     }
   };
+
   // ==========================================================
   // CONSTRUIR FILTROS
   // ==========================================================
@@ -127,6 +193,7 @@ export default function Alertas() {
     }
     return filtros;
   };
+
   // ==========================================================
   // CARGAR ALERTAS
   // ==========================================================
@@ -142,13 +209,13 @@ export default function Alertas() {
       console.error("Error cargando alertas:", error);
       setAlertas([]);
       setError(
-        error?.message ||
-          "No se pudieron obtener las alertas desde el API."
+        error?.message || "No se pudieron obtener las alertas desde el API."
       );
     } finally {
       setLoading(false);
     }
   };
+
   // ==========================================================
   // EVALUAR ALERTAS
   // ==========================================================
@@ -178,6 +245,7 @@ export default function Alertas() {
       setEvaluando(false);
     }
   };
+
   // ==========================================================
   // CARGA AUTOMÁTICA
   // Se dispara al entrar a la sección y cada vez que cambia
@@ -196,6 +264,7 @@ export default function Alertas() {
     fechaFin,
     periodoFiltro,
   ]);
+
   // ==========================================================
   // LIMPIAR FILTROS
   // ==========================================================
@@ -203,13 +272,14 @@ export default function Alertas() {
     setEstadoFiltro("");
     setZonaFiltro("");
     setTrabajadorFiltro("");
-    setFechaFiltro("");
+    setFechaFiltro(hoy);
     setFechaInicio("");
     setFechaFin("");
     setPeriodoFiltro("");
     setBusqueda("");
     // La carga se dispara sola vía useEffect al cambiar los filtros
   };
+
   // ==========================================================
   // REFRESCO MANUAL
   // ==========================================================
@@ -220,6 +290,7 @@ export default function Alertas() {
       setMensaje("");
     }, 4000);
   };
+
   // ==========================================================
   // VER DETALLE
   // ==========================================================
@@ -243,6 +314,7 @@ export default function Alertas() {
       );
     }
   };
+
   // ==========================================================
   // ACTUALIZAR ESTADO
   // ==========================================================
@@ -345,6 +417,7 @@ export default function Alertas() {
       );
     }
   };
+
   // ==========================================================
   // CERRAR MODAL
   // ==========================================================
@@ -354,6 +427,7 @@ export default function Alertas() {
     setComentario("");
     setSupervisorNombre("");
   };
+
   // ==========================================================
   // COLOR NIVEL
   // ==========================================================
@@ -372,6 +446,7 @@ export default function Alertas() {
         return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
+
   // ==========================================================
   // COLOR ESTADO
   // ==========================================================
@@ -391,6 +466,7 @@ export default function Alertas() {
         return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
+
   // ==========================================================
   // RESUMEN
   // ==========================================================
@@ -410,6 +486,7 @@ export default function Alertas() {
     ).length,
     resueltas: contarPorEstado("Resuelto"),
   };
+
   // ==========================================================
   // BUSCADOR LOCAL
   // ==========================================================
@@ -425,6 +502,7 @@ export default function Alertas() {
       String(a.motivo || "").toLowerCase().includes(texto)
     );
   });
+
   // ==========================================================
   // TOOLTIP
   // ==========================================================
@@ -443,8 +521,7 @@ export default function Alertas() {
     });
     const triggerRef = useRef(null);
     const anchoPx = ANCHO_TOOLTIP[width] || 320;
-    const tieneContenido =
-      typeof text === "string" && text.trim().length > 0;
+    const tieneContenido = typeof text === "string" && text.trim().length > 0;
     const calcularPosicion = () => {
       const el = triggerRef.current;
       if (!el) return;
@@ -453,9 +530,7 @@ export default function Alertas() {
       const espacioArriba = rect.top;
       const espacioAbajo = window.innerHeight - rect.bottom;
       const placement =
-        espacioArriba > 170 || espacioArriba > espacioAbajo
-          ? "top"
-          : "bottom";
+        espacioArriba > 170 || espacioArriba > espacioAbajo ? "top" : "bottom";
       let left = rect.left + rect.width / 2 - anchoPx / 2;
       if (left < margen) {
         left = margen;
@@ -498,9 +573,7 @@ export default function Alertas() {
                 left: coords.left,
                 width: anchoPx,
                 transform:
-                  coords.placement === "top"
-                    ? "translateY(-100%)"
-                    : "none",
+                  coords.placement === "top" ? "translateY(-100%)" : "none",
                 zIndex: 9999,
               }}
               className="pointer-events-none rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-2xl"
@@ -524,137 +597,259 @@ export default function Alertas() {
       </div>
     );
   };
+
   // ==========================================================
   // RENDER
   // ==========================================================
   return (
     <div className="space-y-6 text-left">
       {/* ======================================================
+          LOADING
+      ======================================================= */}
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <Loader2 className="animate-spin text-[#006cb7]" size={16} />
+          Actualizando alertas...
+        </div>
+      )}
+
+      {/* ======================================================
           FILTROS
       ====================================================== */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-        {/* FILA 1 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        {/* FILA PRINCIPAL: los 3 filtros más usados */}
+        <div className="flex flex-col xl:flex-row xl:items-end gap-4">
           {/* ESTADO */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
               Estado
             </label>
-            <select
-              value={estadoFiltro}
-              onChange={(e) => setEstadoFiltro(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="">Todos los estados</option>
-              <option value="Pendiente">Pendiente</option>
-              <option value="En Revisión">En Revisión</option>
-              <option value="Escalada">Escalada</option>
-              <option value="Resuelto">Resuelto</option>
-            </select>
+            <div className="relative">
+              <Filter
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <select
+                value={estadoFiltro}
+                onChange={(e) => setEstadoFiltro(e.target.value)}
+                disabled={loading}
+                className="h-10 pl-10 pr-8 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition appearance-none disabled:opacity-50 disabled:cursor-not-allowed min-w-[170px]"
+              >
+                <option value="">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="En Revisión">En Revisión</option>
+                <option value="Escalada">Escalada</option>
+                <option value="Resuelto">Resuelto</option>
+              </select>
+            </div>
           </div>
-          {/* PERIODO */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+
+          {/* PERÍODO RÁPIDO */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
               Período rápido
             </label>
-            <select
-              value={periodoFiltro}
-              onChange={(e) => setPeriodoFiltro(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="">Sin período</option>
-              <option value="hoy">Hoy</option>
-              <option value="semana">Esta semana</option>
-              <option value="mes">Este mes</option>
-              <option value="3meses">Últimos 3 meses</option>
-            </select>
+            <div className="relative">
+              <Filter
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <select
+                value={periodoFiltro}
+                onChange={handlePeriodoChange}
+                disabled={loading}
+                className="h-10 pl-10 pr-8 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition appearance-none disabled:opacity-50 disabled:cursor-not-allowed min-w-[170px]"
+              >
+                <option value="">Sin período</option>
+                <option value="hoy">Hoy</option>
+                <option value="semana">Esta semana</option>
+                <option value="mes">Este mes</option>
+                <option value="3meses">Últimos 3 meses</option>
+              </select>
+            </div>
           </div>
-        </div>
-        {/* FILA 2 - FECHAS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* FECHA ESPECIFICA */}
-          <div>
-            <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-              <CalendarDays size={11} />
+
+          {/* FECHA ESPECÍFICA */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
               Fecha específica
             </label>
-            <input
-              type="date"
-              value={fechaFiltro}
-              onChange={(e) => setFechaFiltro(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
-            />
+            <div className="relative">
+              <CalendarDays
+                size={15}
+                className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                  periodoFiltro ? "text-slate-300" : "text-[#006cb7]"
+                }`}
+              />
+              <input
+                type="date"
+                value={fechaFiltro}
+                disabled={loading || Boolean(periodoFiltro)}
+                onChange={handleFechaChange}
+                className="h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed"
+              />
+            </div>
           </div>
-          {/* FECHA INICIO */}
-          <div>
-            <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-              <CalendarDays size={11} />
-              Fecha inicio
-            </label>
-            <input
-              type="date"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-          {/* FECHA FIN */}
-          <div>
-            <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-              <CalendarDays size={11} />
-              Fecha fin
-            </label>
-            <input
-              type="date"
-              value={fechaFin}
-              min={fechaInicio || undefined}
-              onChange={(e) => setFechaFin(e.target.value)}
-              className={`w-full h-10 rounded-lg border bg-white px-3 text-xs text-slate-700 outline-none transition ${
-                fechasInvalidas
-                  ? "border-red-300 bg-red-50"
-                  : "border-slate-200 focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
-              }`}
-            />
-          </div>
-        </div>
-        {/* BUSCADOR LOCAL */}
-        <div className="flex items-center gap-3 border border-slate-200 rounded-lg px-3 h-10">
-          <Search size={16} className="text-slate-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Buscar dentro de los resultados por código, KPI, zona o motivo..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full text-xs bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
-          />
-          {busqueda && (
+
+          {/* BOTONES */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setBusqueda("")}
-              title="Limpiar búsqueda"
-              className="text-slate-400 hover:text-slate-600"
+              type="button"
+              onClick={() => setMostrarMasFiltros((v) => !v)}
+              className={`h-10 px-4 rounded-lg border text-xs font-bold flex items-center gap-2 transition ${
+                mostrarMasFiltros || filtrosAvanzadosActivos
+                  ? "border-blue-200 bg-blue-50 text-[#006cb7] hover:bg-blue-100"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
             >
-              <X size={15} />
+              <SlidersHorizontal size={14} />
+              Más filtros
+              {filtrosAvanzadosActivos && !mostrarMasFiltros && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[#006cb7]" />
+              )}
+              {mostrarMasFiltros ? (
+                <ChevronUp size={14} />
+              ) : (
+                <ChevronDown size={14} />
+              )}
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={loading}
+              className="h-10 px-4 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold flex items-center gap-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <RotateCcw size={14} />
+              Limpiar
+            </button>
+          </div>
         </div>
+
+        {/* ==================================================
+            FILTROS AVANZADOS (colapsable)
+        ================================================== */}
+        {mostrarMasFiltros && (
+          <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {/* ZONA */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Zona
+              </label>
+              <div className="relative">
+                <MapPin
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={zonaFiltro}
+                  onChange={(e) => setZonaFiltro(e.target.value)}
+                  placeholder="ID de zona"
+                  className="w-full h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+            </div>
+
+            {/* TRABAJADOR */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Trabajador
+              </label>
+              <div className="relative">
+                <Hash
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={trabajadorFiltro}
+                  onChange={(e) => setTrabajadorFiltro(e.target.value)}
+                  placeholder="Código del trabajador"
+                  className="w-full h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+            </div>
+
+            {/* FECHA INICIO */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Fecha inicio
+              </label>
+              <div className="relative">
+                <CalendarDays
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="w-full h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+            </div>
+
+            {/* FECHA FIN */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Fecha fin
+              </label>
+              <div className="relative">
+                <CalendarDays
+                  size={15}
+                  className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                    fechasInvalidas ? "text-red-500" : "text-slate-400"
+                  }`}
+                />
+                <input
+                  type="date"
+                  value={fechaFin}
+                  min={fechaInicio || undefined}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className={`w-full h-10 pl-10 pr-3 rounded-lg border bg-white text-xs text-slate-700 outline-none transition ${
+                    fechasInvalidas
+                      ? "border-red-300 bg-red-50"
+                      : "border-slate-200 focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AVISO FECHAS INVÁLIDAS */}
         {fechasInvalidas && (
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-red-600">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-red-600 mt-3">
             <AlertTriangle size={13} />
             La fecha fin no puede ser anterior a la fecha de inicio.
           </div>
         )}
-        {/* BOTÓN LIMPIAR */}
-        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
-          <button
-            onClick={limpiarFiltros}
-            className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-xs font-bold transition"
-          >
-            <X size={14} />
-            Limpiar
-          </button>
-        </div>
       </div>
+
+      {/* ======================================================
+          BUSCADOR LOCAL
+      ====================================================== */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+        <Search size={18} className="text-slate-400 ml-2 shrink-0" />
+        <input
+          type="text"
+          placeholder="Buscar dentro de los resultados por código, KPI, zona o motivo..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-full text-xs bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
+        />
+        {busqueda && (
+          <button
+            onClick={() => setBusqueda("")}
+            title="Limpiar búsqueda"
+            className="text-slate-400 hover:text-slate-600 shrink-0"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
       {/* ======================================================
           MENSAJES
       ====================================================== */}
@@ -668,6 +863,7 @@ export default function Alertas() {
           {error}
         </div>
       )}
+
       {/* ======================================================
           RESUMEN
       ====================================================== */}
@@ -676,7 +872,7 @@ export default function Alertas() {
           title="Alertas totales"
           text="Cantidad total de alertas devueltas por el API según los filtros seleccionados."
         >
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm cursor-help">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-help">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -696,7 +892,7 @@ export default function Alertas() {
           title="Pendientes"
           text="Alertas que aún no han sido revisadas y requieren atención."
         >
-          <div className="bg-white border border-red-200 rounded-2xl p-5 shadow-sm cursor-help">
+          <div className="bg-white border border-red-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">
@@ -716,7 +912,7 @@ export default function Alertas() {
           title="En revisión"
           text="Alertas que actualmente están siendo atendidas por un supervisor."
         >
-          <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-sm cursor-help">
+          <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
@@ -732,11 +928,8 @@ export default function Alertas() {
             </div>
           </div>
         </Tooltip>
-        <Tooltip
-          title="Resueltas"
-          text="Alertas que ya fueron atendidas y cerradas."
-        >
-          <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm cursor-help">
+        <Tooltip title="Resueltas" text="Alertas que ya fueron atendidas y cerradas.">
+          <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">
@@ -753,6 +946,7 @@ export default function Alertas() {
           </div>
         </Tooltip>
       </div>
+
       {/* ======================================================
           TABLA
       ====================================================== */}
@@ -777,10 +971,7 @@ export default function Alertas() {
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-[10px] font-bold transition"
             >
-              <RefreshCw
-                size={13}
-                className={loading ? "animate-spin" : ""}
-              />
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
               Actualizar
             </button>
             <button
@@ -804,9 +995,7 @@ export default function Alertas() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
               <Loader2 className="animate-spin text-[#006cb7]" size={26} />
-              <p className="text-xs">
-                Consultando alertas desde el API...
-              </p>
+              <p className="text-xs">Consultando alertas desde el API...</p>
             </div>
           ) : alertasFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
@@ -941,6 +1130,7 @@ export default function Alertas() {
           )}
         </div>
       </div>
+
       {/* ======================================================
           MODAL DETALLE
       ====================================================== */}
@@ -1025,8 +1215,7 @@ export default function Alertas() {
                       Motivo
                     </p>
                     <p className="text-xs text-slate-700 mt-1 leading-relaxed">
-                      {detalle.motivo ||
-                        "El API no proporcionó un motivo."}
+                      {detalle.motivo || "El API no proporcionó un motivo."}
                     </p>
                   </div>
                 </div>

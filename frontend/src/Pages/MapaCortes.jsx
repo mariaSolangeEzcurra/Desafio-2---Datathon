@@ -18,6 +18,7 @@ import {
   DollarSign,
   X,
   Info,
+  Filter,
 } from "lucide-react";
 import {
   MapContainer,
@@ -46,7 +47,6 @@ function Tooltip({ children, title, text, width = "w-80" }) {
   const [coords, setCoords] = useState({ top: 0, left: 0, placement: "top" });
   const triggerRef = useRef(null);
   const hideTimer = useRef(null);
-
   const calcularPosicion = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
@@ -55,28 +55,23 @@ function Tooltip({ children, title, text, width = "w-80" }) {
     const espacioAbajo = window.innerHeight - rect.bottom;
     const placement =
       espacioArriba > 170 || espacioArriba > espacioAbajo ? "top" : "bottom";
-
     let left = rect.left + rect.width / 2;
     const margen = 150;
     left = Math.min(Math.max(left, margen), window.innerWidth - margen);
-
     setCoords({
       top: placement === "top" ? rect.top - 10 : rect.bottom + 10,
       left,
       placement,
     });
   }, []);
-
   const mostrar = () => {
     clearTimeout(hideTimer.current);
     calcularPosicion();
     setVisible(true);
   };
-
   const ocultar = () => {
     hideTimer.current = setTimeout(() => setVisible(false), 60);
   };
-
   return (
     <span
       ref={triggerRef}
@@ -87,7 +82,6 @@ function Tooltip({ children, title, text, width = "w-80" }) {
       className="inline-block"
     >
       {children}
-
       {visible &&
         text &&
         createPortal(
@@ -141,6 +135,18 @@ function Tooltip({ children, title, text, width = "w-80" }) {
 // CENTRO DE AREQUIPA
 // ============================================================
 const CENTRO_AREQUIPA = [-16.3989, -71.5369];
+
+// ============================================================
+// OPCIONES DE PERIODO
+// ============================================================
+const OPCIONES_PERIODO = [
+  { value: "", label: "Personalizado" },
+  { value: "hoy", label: "Hoy" },
+  { value: "semana", label: "Esta semana" },
+  { value: "mes", label: "Este mes" },
+  { value: "3meses", label: "Últimos 3 meses" },
+];
+
 // ============================================================
 // CONVERSIÓN UTM -> LAT/LNG
 // Zona 19S - WGS84
@@ -213,6 +219,7 @@ function utmToLatLng(
     lng: longitude,
   };
 }
+
 // ============================================================
 // NORMALIZAR COORDENADAS
 // ============================================================
@@ -238,6 +245,7 @@ function convertirCoordenada(item) {
     lngMapa: convertida.lng,
   };
 }
+
 // ============================================================
 // COMPONENTE HEATMAP
 // ============================================================
@@ -282,6 +290,7 @@ function HeatmapLayer({ puntos, activo }) {
   }, [map, puntos, activo]);
   return null;
 }
+
 // ============================================================
 // AJUSTAR MAPA A PUNTOS
 // ============================================================
@@ -305,6 +314,7 @@ function AjustarMapa({ puntos, activo }) {
   }, [map, puntos, activo]);
   return null;
 }
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
@@ -320,11 +330,13 @@ export default function MapasCortes() {
     return `${year}-${month}-${day}`;
   };
   const hoy = obtenerFechaHoy();
+
   // ==========================================================
   // ESTADOS
   // ==========================================================
   const [fechaInicio, setFechaInicio] = useState("2026-03-30");
   const [fechaFin, setFechaFin] = useState(hoy);
+  const [periodo, setPeriodo] = useState("");
   const [heatmap, setHeatmap] = useState({
     total_puntos: 0,
     puntos: [],
@@ -337,12 +349,19 @@ export default function MapasCortes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [seleccionado, setSeleccionado] = useState(null);
+
   // ==========================================================
   // VALIDACIÓN
+  // Solo aplica cuando NO hay un periodo predefinido seleccionado,
+  // ya que en ese caso las fechas quedan deshabilitadas.
   // ==========================================================
-  const fechasInvalidas = fechaInicio && fechaFin && fechaFin < fechaInicio;
+  const fechasInvalidas =
+    !periodo && fechaInicio && fechaFin && fechaFin < fechaInicio;
+
   // ==========================================================
   // CARGAR DATOS
+  // Si hay un periodo seleccionado, tiene prioridad sobre las
+  // fechas (que además quedan deshabilitadas en la UI).
   // ==========================================================
   const cargarDatos = async () => {
     if (fechasInvalidas) {
@@ -353,9 +372,16 @@ export default function MapasCortes() {
     setError(null);
     setSeleccionado(null);
     try {
+      const inicioConsulta = periodo ? "" : fechaInicio;
+      const finConsulta = periodo ? "" : fechaFin;
+
       const [heatmapData, impedimentosData] = await Promise.all([
-        cortesGeoService.obtenerHeatmap(fechaInicio, fechaFin),
-        cortesGeoService.obtenerImpedimentos(fechaInicio, fechaFin),
+        cortesGeoService.obtenerHeatmap(inicioConsulta, finConsulta, periodo),
+        cortesGeoService.obtenerImpedimentos(
+          inicioConsulta,
+          finConsulta,
+          periodo
+        ),
       ]);
       console.log("Heatmap cortes:", heatmapData);
       console.log("Impedimentos cortes:", impedimentosData);
@@ -395,15 +421,38 @@ export default function MapasCortes() {
       setLoading(false);
     }
   };
+
   // ==========================================================
-  // CARGAR AL CAMBIAR FECHAS
+  // CARGAR AL CAMBIAR FECHAS O PERIODO
   // ==========================================================
   useEffect(() => {
     if (!fechasInvalidas) {
       cargarDatos();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicio, fechaFin]);
+  }, [fechaInicio, fechaFin, periodo]);
+
+  // ==========================================================
+  // CAMBIO DE PERIODO
+  // Al elegir un periodo predefinido, las fechas quedan
+  // deshabilitadas (se ignoran en la consulta).
+  // ==========================================================
+  const manejarCambioPeriodo = (e) => {
+    setError(null);
+    setPeriodo(e.target.value);
+  };
+
+  // ==========================================================
+  // LIMPIAR FILTROS
+  // ==========================================================
+  const limpiarFiltros = () => {
+    setError(null);
+    setFechaInicio("2026-03-30");
+    setFechaFin(hoy);
+    setPeriodo("");
+    // La carga se dispara sola vía useEffect al cambiar los filtros
+  };
+
   // ==========================================================
   // DATOS NORMALIZADOS
   // ==========================================================
@@ -421,6 +470,7 @@ export default function MapasCortes() {
       ),
     [impedimentos.impedimentos]
   );
+
   // ==========================================================
   // TOTAL DEUDA
   // ==========================================================
@@ -428,17 +478,61 @@ export default function MapasCortes() {
     () => puntosMapa.reduce((total, item) => total + Number(item?.deuda ?? 0), 0),
     [puntosMapa]
   );
+
   // ==========================================================
   // RENDER
   // ==========================================================
   return (
     <div className="space-y-5 text-left">
-     
       {/* ====================================================
           FILTROS
       ==================================================== */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+          {/* PERIODO */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Periodo
+            </label>
+            <div className="relative">
+              <Filter
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <select
+                value={periodo}
+                onChange={manejarCambioPeriodo}
+                disabled={loading}
+                className="
+                  h-10
+                  pl-10
+                  pr-8
+                  rounded-lg
+                  border
+                  border-slate-200
+                  bg-white
+                  text-xs
+                  text-slate-700
+                  outline-none
+                  focus:border-[#006cb7]
+                  focus:ring-2
+                  focus:ring-blue-100
+                  transition
+                  appearance-none
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  min-w-[170px]
+                "
+              >
+                {OPCIONES_PERIODO.map((opcion) => (
+                  <option key={opcion.value || "personalizado"} value={opcion.value}>
+                    {opcion.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* FECHA INICIO */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -447,12 +541,15 @@ export default function MapasCortes() {
             <div className="relative">
               <Calendar
                 size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7]"
+                className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                  periodo ? "text-slate-300" : "text-[#006cb7]"
+                }`}
               />
               <input
                 type="date"
                 value={fechaInicio}
                 onChange={(e) => setFechaInicio(e.target.value)}
+                disabled={Boolean(periodo)}
                 className="
                   h-10
                   pl-10
@@ -467,10 +564,15 @@ export default function MapasCortes() {
                   focus:border-[#006cb7]
                   focus:ring-2
                   focus:ring-blue-100
+                  transition
+                  disabled:opacity-50
+                  disabled:bg-slate-50
+                  disabled:cursor-not-allowed
                 "
               />
             </div>
           </div>
+
           {/* FECHA FIN */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -480,7 +582,11 @@ export default function MapasCortes() {
               <Calendar
                 size={15}
                 className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                  fechasInvalidas ? "text-red-500" : "text-[#006cb7]"
+                  fechasInvalidas
+                    ? "text-red-500"
+                    : periodo
+                    ? "text-slate-300"
+                    : "text-[#006cb7]"
                 }`}
               />
               <input
@@ -488,6 +594,7 @@ export default function MapasCortes() {
                 value={fechaFin}
                 min={fechaInicio || undefined}
                 onChange={(e) => setFechaFin(e.target.value)}
+                disabled={Boolean(periodo)}
                 className={`
                   h-10
                   pl-10
@@ -498,6 +605,10 @@ export default function MapasCortes() {
                   text-xs
                   text-slate-700
                   outline-none
+                  transition
+                  disabled:opacity-50
+                  disabled:bg-slate-50
+                  disabled:cursor-not-allowed
                   ${
                     fechasInvalidas
                       ? "border-red-300 bg-red-50"
@@ -507,9 +618,21 @@ export default function MapasCortes() {
               />
             </div>
           </div>
-          
+          {/* BOTÓN LIMPIAR */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={loading}
+              className="h-10 px-4 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold flex items-center gap-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <RefreshCw size={14} />
+              Limpiar
+            </button>
+          </div>
         </div>
       </div>
+
       {/* ====================================================
           ERROR FECHAS
       ==================================================== */}
@@ -530,6 +653,7 @@ export default function MapasCortes() {
           </div>
         </div>
       )}
+
       {/* ====================================================
           ERROR API
       ==================================================== */}
@@ -548,6 +672,7 @@ export default function MapasCortes() {
           </div>
         </div>
       )}
+
       {/* ====================================================
           KPIs DEL MAPA
       ==================================================== */}
@@ -622,6 +747,7 @@ export default function MapasCortes() {
           </div>
         </Tooltip>
       </div>
+
       {/* ====================================================
           SELECTOR DE MAPA
       ==================================================== */}
@@ -675,6 +801,7 @@ export default function MapasCortes() {
           Impedimentos
         </button>
       </div>
+
       {/* ====================================================
           MAPA
       ==================================================== */}
@@ -845,6 +972,7 @@ export default function MapasCortes() {
           )}
         </div>
       </div>
+
       {/* ====================================================
           INFORMACIÓN DEL MAPA
       ==================================================== */}

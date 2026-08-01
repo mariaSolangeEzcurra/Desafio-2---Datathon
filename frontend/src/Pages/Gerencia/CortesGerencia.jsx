@@ -21,6 +21,7 @@ import {
   Clock3,
   Eye,
   FileWarning,
+  Filter,
   Info,
   MapPin,
   RefreshCw,
@@ -36,7 +37,6 @@ import {
   obtenerDesgloseCortes,
   obtenerImpedimentosCortes,
 } from "../../services/gerenciaService";
-
 // =====================================================
 // TOOLTIP GLOBAL (renderizado en un portal)
 //
@@ -52,7 +52,6 @@ function Tooltip({ children, title, text, width = "w-80" }) {
   const [coords, setCoords] = useState({ top: 0, left: 0, placement: "top" });
   const triggerRef = useRef(null);
   const hideTimer = useRef(null);
-
   const calcularPosicion = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
@@ -61,28 +60,23 @@ function Tooltip({ children, title, text, width = "w-80" }) {
     const espacioAbajo = window.innerHeight - rect.bottom;
     const placement =
       espacioArriba > 170 || espacioArriba > espacioAbajo ? "top" : "bottom";
-
     let left = rect.left + rect.width / 2;
     const margen = 150;
     left = Math.min(Math.max(left, margen), window.innerWidth - margen);
-
     setCoords({
       top: placement === "top" ? rect.top - 10 : rect.bottom + 10,
       left,
       placement,
     });
   }, []);
-
   const mostrar = () => {
     clearTimeout(hideTimer.current);
     calcularPosicion();
     setVisible(true);
   };
-
   const ocultar = () => {
     hideTimer.current = setTimeout(() => setVisible(false), 60);
   };
-
   return (
     <span
       ref={triggerRef}
@@ -93,7 +87,6 @@ function Tooltip({ children, title, text, width = "w-80" }) {
       className="inline-block"
     >
       {children}
-
       {visible &&
         text &&
         createPortal(
@@ -142,17 +135,113 @@ function Tooltip({ children, title, text, width = "w-80" }) {
     </span>
   );
 }
-
 // =====================================================
 // CORTES - GERENCIA
 // =====================================================
 export default function CortesGerencia() {
   // ===================================================
-  // FECHAS
+  // FECHAS (usando fecha LOCAL, no UTC)
+  //
+  // OJO: no usar new Date().toISOString() para la fecha de hoy,
+  // porque toISOString() convierte a UTC y en Perú (UTC-5) eso
+  // adelanta la fecha después de las 7pm hora local. Formateamos
+  // manualmente con los componentes locales del Date, de modo
+  // que "hoy" siempre coincide con el día calendario real del
+  // navegador del usuario, sin importar la hora.
   // ===================================================
-  const hoy = new Date().toISOString().split("T")[0];
-  const [fechaInicio, setFechaInicio] = useState(hoy);
-  const [fechaFin, setFechaFin] = useState(hoy);
+  const formatoFechaLocal = (fecha) => {
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+    return `${anio}-${mes}-${dia}`;
+  };
+
+  const obtenerHoy = () => formatoFechaLocal(new Date());
+
+  const [fechaInicio, setFechaInicio] = useState(obtenerHoy());
+  const [fechaFin, setFechaFin] = useState(obtenerHoy());
+  const [periodo, setPeriodo] = useState("hoy");
+  // ===================================================
+  // OPCIONES DE PERÍODO
+  // ===================================================
+  const opcionesPeriodo = [
+    { value: "hoy", label: "Hoy" },
+    { value: "semana", label: "Esta semana" },
+    { value: "mes", label: "Este mes" },
+    { value: "3meses", label: "Últimos 3 meses" },
+    { value: "", label: "Personalizado" },
+  ];
+  // ===================================================
+  // CALCULA fecha_inicio / fecha_fin según el período
+  // (siempre con fecha LOCAL, ver nota arriba)
+  // ===================================================
+  const calcularRangoPeriodo = (valorPeriodo) => {
+    const hoyDate = new Date();
+    let inicio = new Date(hoyDate);
+    const fin = new Date(hoyDate);
+
+    switch (valorPeriodo) {
+      case "semana": {
+        const dia = inicio.getDay(); // 0 = domingo
+        const diffLunes = dia === 0 ? 6 : dia - 1;
+        inicio.setDate(inicio.getDate() - diffLunes);
+        break;
+      }
+      case "mes":
+        inicio = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), 1);
+        break;
+      case "3meses":
+        inicio = new Date(
+          hoyDate.getFullYear(),
+          hoyDate.getMonth() - 3,
+          hoyDate.getDate()
+        );
+        break;
+      case "hoy":
+      default:
+        break;
+    }
+
+    return {
+      inicio: formatoFechaLocal(inicio),
+      fin: formatoFechaLocal(fin),
+    };
+  };
+  // ===================================================
+  // HANDLERS DE FILTROS
+  // ===================================================
+  const manejarCambioPeriodo = (valorPeriodo) => {
+    setPeriodo(valorPeriodo);
+    if (valorPeriodo) {
+      const { inicio, fin } = calcularRangoPeriodo(valorPeriodo);
+      setFechaInicio(inicio);
+      setFechaFin(fin);
+    }
+  };
+
+  const manejarCambioFechaInicio = (valor) => {
+    setFechaInicio(valor);
+    setPeriodo(""); // cambio manual -> pasa a "Personalizado"
+  };
+
+  const manejarCambioFechaFin = (valor) => {
+    setFechaFin(valor);
+    setPeriodo(""); // cambio manual -> pasa a "Personalizado"
+  };
+
+  const limpiarFiltros = () => {
+    const hoyActual = obtenerHoy(); // recalcula el día actual al momento de limpiar
+    setPeriodo("hoy");
+    setFechaInicio(hoyActual);
+    setFechaFin(hoyActual);
+    setError("");
+  };
+  // ===================================================
+  // FECHAS INVÁLIDAS (para aviso visual en los inputs)
+  // ===================================================
+  const fechasInvalidas = Boolean(
+    fechaInicio && fechaFin && fechaFin < fechaInicio
+  );
   // ===================================================
   // ESTADOS
   // ===================================================
@@ -370,12 +459,37 @@ export default function CortesGerencia() {
   return (
     <div className="space-y-6 text-left">
       <div className="mx-auto max-w-7xl space-y-6">
-      
+
         {/* =================================================
             FILTROS
         ================================================= */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            {/* PERÍODO */}
+            <div>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Período
+              </label>
+              <div className="relative">
+                <Filter
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7]"
+                />
+                <select
+                  value={periodo}
+                  onChange={(e) => manejarCambioPeriodo(e.target.value)}
+                  className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-xs text-slate-700 outline-none transition focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
+                >
+                  {opcionesPeriodo.map((op) => (
+                    <option key={op.value || "personalizado"} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* FECHA INICIO */}
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Fecha inicio
@@ -388,13 +502,17 @@ export default function CortesGerencia() {
                 <input
                   type="date"
                   value={fechaInicio}
-                  onChange={(e) =>
-                    setFechaInicio(e.target.value)
-                  }
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-xs text-slate-700 outline-none transition focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
+                  onChange={(e) => manejarCambioFechaInicio(e.target.value)}
+                  className={`h-10 w-full rounded-lg border bg-white pl-10 pr-3 text-xs text-slate-700 outline-none transition focus:ring-2 focus:ring-blue-100 ${
+                    fechasInvalidas
+                      ? "border-red-300 focus:border-red-400"
+                      : "border-slate-200 focus:border-[#006cb7]"
+                  }`}
                 />
               </div>
             </div>
+
+            {/* FECHA FIN */}
             <div>
               <label className="mb-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Fecha fin
@@ -408,14 +526,38 @@ export default function CortesGerencia() {
                   type="date"
                   value={fechaFin}
                   min={fechaInicio || undefined}
-                  onChange={(e) =>
-                    setFechaFin(e.target.value)
-                  }
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-xs text-slate-700 outline-none transition focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100"
+                  onChange={(e) => manejarCambioFechaFin(e.target.value)}
+                  className={`h-10 w-full rounded-lg border bg-white pl-10 pr-3 text-xs text-slate-700 outline-none transition focus:ring-2 focus:ring-blue-100 ${
+                    fechasInvalidas
+                      ? "border-red-300 focus:border-red-400"
+                      : "border-slate-200 focus:border-[#006cb7]"
+                  }`}
                 />
               </div>
             </div>
+
+            {/* LIMPIAR */}
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+              >
+                <RefreshCw size={14} />
+                Limpiar
+              </button>
+            </div>
           </div>
+
+          {/* AVISO DE FECHAS INVÁLIDAS */}
+          {fechasInvalidas && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-600">
+              <AlertTriangle size={14} className="shrink-0" />
+              <p className="text-[11px] font-semibold">
+                La fecha final no puede ser anterior a la fecha de inicio.
+              </p>
+            </div>
+          )}
         </div>
         {/* =================================================
             ERROR
