@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.Corte.reportes_service import CortesReportesService
-# from app.schemas.cortes import ReporteGeneradoResponse # Importa tu schema si lo usas en otros endpoints
 
 router = APIRouter(prefix="/api/cortes/reportes", tags=["Reportes de Cortes"])
+
 
 @router.get(
     "/financiero/excel", 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/cortes/reportes", tags=["Reportes de Cortes"])
     responses={
         200: {
             "content": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}},
-            "description": "Devuelve un archivo Excel con el resumen financiero de cortes.",
+            "description": "Devuelve un archivo Excel con el resumen financiero y los KPIs operativos.",
         }
     }
 )
@@ -26,6 +26,10 @@ def exportar_reporte_financiero(
     periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
     db: Session = Depends(get_db)
 ):
+    """
+    Genera un archivo Excel agrupado por Distrito/CMETFAC con el balance de deuda
+    recuperada vs en riesgo, e incluye una pestaña con las Alertas Operativas (KPIs).
+    """
     buffer, media_type, filename = CortesReportesService.exportar_reporte_financiero_excel(
         db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
     )
@@ -34,6 +38,7 @@ def exportar_reporte_financiero(
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
 
 @router.get(
     "/ineficiencia/excel", 
@@ -51,7 +56,41 @@ def exportar_reporte_ineficiencia(
     periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
     db: Session = Depends(get_db)
 ):
+    """
+    Genera un archivo Excel detallado con todas las órdenes que registraron algún
+    tipo de bloqueo operativo (`CSITREG == 'S'`) o código de impedimento (`CCODACC` / `CIMPCRP`).
+    """
     buffer, media_type, filename = CortesReportesService.exportar_reporte_ineficiencia_excel(
+        db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
+    )
+    return StreamingResponse(
+        buffer,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.get(
+    "/personal/excel", 
+    summary="Exportar reporte de rendimiento por personal/operario en Excel",
+    responses={
+        200: {
+            "content": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}},
+            "description": "Devuelve un archivo Excel con la métrica de desempeño y efectividad por operario.",
+        }
+    }
+)
+def exportar_reporte_personal(
+    fecha_inicio: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Genera un archivo Excel consolidado por operario/técnico (`CCODPRS`), indicando total
+    de órdenes asignadas, ejecutadas, impedimentos y su % de efectividad operativa.
+    """
+    buffer, media_type, filename = CortesReportesService.exportar_reporte_personal_excel(
         db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
     )
     return StreamingResponse(

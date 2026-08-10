@@ -351,7 +351,8 @@ class OrdenCorte(Base):
     dgenprg = Column(Date, nullable=True)                    # Fecha de Generacion
     cmetfac = Column(String(10), nullable=True, index=True)  # Grupo de Facturación
     ctipprg = Column(Integer, nullable=True)                 # Tipo de Programa (1, 2, 3)
-    
+    ccodprs = Column(String(20), ForeignKey("trabajadores.ccodprs"), nullable=True, index=True)
+
     # Suministro y Deuda
     ccodcnx = Column(String(20), ForeignKey("conexiones.ccodcnx"), nullable=False, index=True)
     cnromdr = Column(String(30), nullable=True)              # Nro Medidor
@@ -385,3 +386,4 @@ class OrdenCorte(Base):
     # Relaciones
     conexion = relationship("Conexion")
     registro_carga = relationship("RegistroCarga")
+    trabajador = relationship("Trabajador")

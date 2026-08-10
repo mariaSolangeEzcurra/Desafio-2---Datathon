@@ -1,10 +1,14 @@
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 from app.model import OrdenCorte
 
-def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
-    """Calcula automáticamente las fechas si se pasa un período predefinido"""
+def _calcular_fechas_por_periodo(
+    periodo: Optional[str] = None, 
+    fecha_inicio: Optional[date] = None, 
+    fecha_fin: Optional[date] = None
+) -> Tuple[Optional[date], Optional[date]]:
+    """Calcula automáticamente las fechas si se pasa un período predefinido."""
     if fecha_inicio and fecha_fin:
         return fecha_inicio, fecha_fin
         
@@ -20,10 +24,10 @@ def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[
         
     return fecha_inicio, fecha_fin
 
-def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
+def _sanitizar_coordenada(lat: Any, lng: Any) -> Tuple[Optional[float], Optional[float]]:
     """
     Valida y convierte a float.
-    Filtra valores nulos, no numéricos o fuera de rangos terrestres (ej: 9999999999).
+    Filtra valores nulos, vacíos, no numéricos o fuera de rangos terrestres válidos.
     """
     if lat is None or lng is None:
         return None, None
@@ -37,7 +41,7 @@ def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
                 return None, None
             return v_lat, v_lng
 
-        # Si están usando UTM en Perú (Zona 18S/19S aprox: X entre 100k-900k, Y entre 7M-9M)
+        # Si están usando UTM en Perú (Zona 18S/19S: X entre 100k-900k, Y entre 7M-9M)
         if (100000.0 <= v_lng <= 900000.0) and (7000000.0 <= v_lat <= 9000000.0):
             return v_lat, v_lng
 
@@ -45,31 +49,51 @@ def _sanitizar_coordenada(lat, lng) -> tuple[Optional[float], Optional[float]]:
     except (ValueError, TypeError):
         return None, None
 
-
 def obtener_datos_heatmap(
     db: Session,
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
-    periodo: Optional[str] = None
-) -> dict:
+    periodo: Optional[str] = None,
+    distrito: Optional[str] = None,
+    ccodprs: Optional[str] = None,
+    limite: int = 2000
+) -> Dict[str, Any]:
+    """
+    Obtiene los puntos geográficos para el mapa de calor.
+    """
+    # Si no se pasa fecha ni período, aplicamos 'mes' por defecto para evitar sobrecargar
+    if not fecha_inicio and not fecha_fin and not periodo:
+        periodo = "mes"
+
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
 
+    # Consulta segura usando solo filtros compatibles con números en SQL
     query = db.query(
         OrdenCorte.ccodcnx,
         OrdenCorte.cutmy,
         OrdenCorte.cutmx,
         OrdenCorte.ntotdeu,
         OrdenCorte.distrito,
-        OrdenCorte.direccion
+        OrdenCorte.direccion,
+        OrdenCorte.dejecuc
     ).filter(
         OrdenCorte.cutmx.isnot(None),
-        OrdenCorte.cutmy.isnot(None)
+        OrdenCorte.cutmy.isnot(None),
+        OrdenCorte.cutmx != 0,
+        OrdenCorte.cutmy != 0
     )
 
     if f_inicio:
         query = query.filter(OrdenCorte.dgenprg >= f_inicio)
     if f_fin:
         query = query.filter(OrdenCorte.dgenprg <= f_fin)
+    if distrito:
+        query = query.filter(OrdenCorte.distrito == distrito.strip().upper())
+    if ccodprs:
+        query = query.filter(OrdenCorte.ccodprs == ccodprs)
+
+    if limite > 0:
+        query = query.limit(limite)
 
     ordenes = query.all()
     puntos = []
@@ -77,7 +101,7 @@ def obtener_datos_heatmap(
     for o in ordenes:
         lat, lng = _sanitizar_coordenada(o.cutmy, o.cutmx)
         if lat is None or lng is None:
-            continue  # Descarta valores 9999999999 o corruptos
+            continue
 
         puntos.append({
             "ccodcnx": o.ccodcnx,
@@ -85,7 +109,8 @@ def obtener_datos_heatmap(
             "lng": lng,
             "deuda": float(o.ntotdeu or 0.0),
             "distrito": o.distrito,
-            "direccion": o.direccion
+            "direccion": o.direccion,
+            "ejecutada": o.dejecuc is not None
         })
 
     return {
@@ -93,13 +118,21 @@ def obtener_datos_heatmap(
         "puntos": puntos
     }
 
-
 def obtener_datos_impedimentos(
     db: Session,
     fecha_inicio: Optional[date] = None,
     fecha_fin: Optional[date] = None,
-    periodo: Optional[str] = None
-) -> dict:
+    periodo: Optional[str] = None,
+    distrito: Optional[str] = None,
+    ccodprs: Optional[str] = None,
+    limite: int = 2000
+) -> Dict[str, Any]:
+    """
+    Obtiene los impedimentos geolocalizados (csitreg == 'S').
+    """
+    if not fecha_inicio and not fecha_fin and not periodo:
+        periodo = "mes"
+
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
 
     query = (
@@ -117,6 +150,8 @@ def obtener_datos_impedimentos(
         .filter(
             OrdenCorte.cutmx.isnot(None),
             OrdenCorte.cutmy.isnot(None),
+            OrdenCorte.cutmx != 0,
+            OrdenCorte.cutmy != 0,
             OrdenCorte.csitreg == "S",
         )
     )
@@ -125,6 +160,13 @@ def obtener_datos_impedimentos(
         query = query.filter(OrdenCorte.dgenprg >= f_inicio)
     if f_fin:
         query = query.filter(OrdenCorte.dgenprg <= f_fin)
+    if distrito:
+        query = query.filter(OrdenCorte.distrito == distrito.strip().upper())
+    if ccodprs:
+        query = query.filter(OrdenCorte.ccodprs == ccodprs)
+
+    if limite > 0:
+        query = query.limit(limite)
 
     ordenes = query.all()
     impedimentos = []
@@ -132,7 +174,7 @@ def obtener_datos_impedimentos(
     for o in ordenes:
         lat, lng = _sanitizar_coordenada(o.cutmy, o.cutmx)
         if lat is None or lng is None:
-            continue  # Igualmente filtramos basura geográfica
+            continue
 
         impedimentos.append({
             "ccodcnx": o.ccodcnx,

@@ -1,31 +1,35 @@
+from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 
 from app.database import get_db
+from app.model import RegistroCarga, OrdenCorte 
 from app.services.Corte.uploadCorte_service import procesar_archivo_cortes
-from app.model import RegistroCarga, OrdenCorte
 from app.schemas.Corte.uploadCorte import UploadCorteResultResponse, HistorialCorteCargaResponse
 
-router = APIRouter(prefix="/api/cortes", tags=["Carga de Cortes"])
+router = APIRouter(prefix="/api/cortes/cargas", tags=["Carga de Archivos - Cortes"])
 
-@router.post("/upload-excel", response_model=UploadCorteResultResponse)
-def upload_excel_cortes(
+@router.post("/upload", response_model=UploadCorteResultResponse)
+async def upload_archivo_cortes(
     file: UploadFile = File(...),
-    proceso: str = Form("Corte"),
+    proceso: str = Form("CORTE_OPERATIVO"),
     db: Session = Depends(get_db)
 ):
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(
-            status_code=400, 
-            detail="El archivo debe ser una hoja de cálculo Excel (.xlsx o .xls)"
-        )
-    contents = file.file.read()
-    return procesar_archivo_cortes(contents, file.filename, proceso, db)
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Formato no válido, debe ser Excel (.xlsx/.xls)")
+
+    contents = await file.read()
+    return procesar_archivo_cortes(contents=contents, filename=file.filename, proceso=proceso, db=db)
 
 @router.get("/historial", response_model=List[HistorialCorteCargaResponse])
-def get_historial_cortes(db: Session = Depends(get_db)):
-    return db.query(RegistroCarga).filter_by(tipo_archivo="CORTE").order_by(RegistroCarga.fecha_carga.desc()).all()
+def get_historial_cargas(limit: int = 50, db: Session = Depends(get_db)):
+    return (
+        db.query(RegistroCarga)
+        .filter(RegistroCarga.tipo_archivo == "CORTE")
+        .order_by(RegistroCarga.fecha_carga.desc())
+        .limit(limit)
+        .all()
+    )
 
 @router.delete("/historial/{id_carga}", response_model=dict)
 def revertir_carga_cortes(id_carga: int, db: Session = Depends(get_db)):
@@ -38,7 +42,7 @@ def revertir_carga_cortes(id_carga: int, db: Session = Depends(get_db)):
             detail=f"Este endpoint es para cargas de tipo 'CORTE'. Esta carga es de tipo '{carga.tipo_archivo}'."
         )
     try:
-        # Eliminar las órdenes de corte asociadas a esta carga
+        # Elimina las órdenes asociadas a la carga
         db.query(OrdenCorte).filter(OrdenCorte.id_carga == id_carga).delete(synchronize_session=False)
         db.delete(carga)    
         db.commit()

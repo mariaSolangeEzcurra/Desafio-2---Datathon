@@ -1,11 +1,12 @@
 import io
 import pandas as pd
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from openpyxl.utils import get_column_letter
 from app.model import OrdenCorte
+from app.services.Corte.alerta_service import evaluar_alertas_cortes
 
 class CortesReportesService:
 
@@ -108,17 +109,19 @@ class CortesReportesService:
             for r in resumen
         ]
 
-        df = pd.DataFrame(data)
-        if df.empty:
-            df = pd.DataFrame(columns=[
-                "Distrito", "Zona / CMETFAC", "Total Órdenes", "Órdenes Ejecutadas",
-                "Órdenes Pendientes", "Deuda Total (S/)", "Dinero Recuperado (S/)", "Deuda en Riesgo (S/)"
-            ])
+        df_finanzas = pd.DataFrame(data)
+
+        # Generar hoja con resumen de Alertas KPI
+        alertas_res = evaluar_alertas_cortes(db, f_inicio, f_fin, periodo)
+        df_alertas = pd.DataFrame(alertas_res["alertas"])
 
         rango_str = f"_{CortesReportesService._fmt_fecha(f_inicio)}_a_{CortesReportesService._fmt_fecha(f_fin)}" if (f_inicio and f_fin) else ""
         nombre_base = f"reporte_financiero_cortes{rango_str}_{date.today().strftime('%Y%m%d')}"
 
-        hojas = {"Resumen Financiero": df}
+        hojas = {
+            "Resumen Financiero": df_finanzas,
+            "KPIs Operativos": df_alertas
+        }
         return CortesReportesService._empaquetar_excel(hojas, nombre_base)
 
     @staticmethod
@@ -144,7 +147,8 @@ class CortesReportesService:
         data = [
             {
                 "Código Conexión (CCODCNX)": getattr(o, 'ccodcnx', ''),
-                "Código Programa (CCODPRG)": getattr(o, 'ccodprg', getattr(o, 'ctipprg', '')),
+                "Código Personal (CCODPRS)": getattr(o, 'ccodprs', ''),
+                "Nombre Personal (CNOMPRS)": getattr(o, 'cnomprs', 'NO ASIGNADO'),
                 "Distrito": getattr(o, 'distrito', ''),
                 "Dirección": getattr(o, 'direccion', ''),
                 "Categoría": getattr(o, 'categoria', getattr(o, 'cdescateg', 'DOMESTICO')),
@@ -159,15 +163,67 @@ class CortesReportesService:
         ]
 
         df = pd.DataFrame(data)
-        if df.empty:
-            df = pd.DataFrame(columns=[
-                "Código Conexión (CCODCNX)", "Código Programa (CCODPRG)", "Distrito", "Dirección",
-                "Categoría", "Deuda en Riesgo (S/)", "Meses Deuda", "Situación Registro (CSITREG)",
-                "Código Impedimento / Acceso (CCODACC)", "Descripción Impedimento (CDESACC)", "Fecha Programada (DGENPRG)"
-            ])
-
         rango_str = f"_{CortesReportesService._fmt_fecha(f_inicio)}_a_{CortesReportesService._fmt_fecha(f_fin)}" if (f_inicio and f_fin) else ""
         nombre_base = f"reporte_ineficiencia_impedimentos{rango_str}_{date.today().strftime('%Y%m%d')}"
 
         hojas = {"Detalle Ineficiencias": df}
+        return CortesReportesService._empaquetar_excel(hojas, nombre_base)
+
+    @staticmethod
+    def exportar_reporte_personal_excel(
+        db: Session, 
+        fecha_inicio: Optional[date] = None, 
+        fecha_fin: Optional[date] = None,
+        periodo: Optional[str] = None
+    ) -> Tuple[io.BytesIO, str, str]:
+        """Reporte de rendimiento por operario / técnico en campo (CCODPRS / CNOMPRS)"""
+        f_inicio, f_fin = CortesReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
+
+        # Detección segura de la columna de nombre de personal
+        col_nombre = getattr(OrdenCorte, 'cnomprs', getattr(OrdenCorte, 'CNOMPRS', OrdenCorte.ccodprs))
+
+        q = db.query(
+            OrdenCorte.ccodprs.label("codigo_personal"),
+            col_nombre.label("nombre_personal"),
+            func.count(OrdenCorte.id_orden).label("total_asignadas"),
+            func.sum(case((OrdenCorte.dejecuc != None, 1), else_=0)).label("ejecutadas"),
+            func.sum(case((OrdenCorte.csitreg == 'S', 1), else_=0)).label("impedimentos"),
+            func.sum(case((OrdenCorte.dejecuc == None, 1), else_=0)).label("pendientes")
+        )
+
+        if f_inicio:
+            q = q.filter(OrdenCorte.dgenprg >= f_inicio)
+        if f_fin:
+            q = q.filter(OrdenCorte.dgenprg <= f_fin)
+
+        resumen_personal = q.group_by(OrdenCorte.ccodprs, col_nombre).all()
+
+        data = []
+        for r in resumen_personal:
+            total = r.total_asignadas or 0
+            ejec = r.ejecutadas or 0
+            imp = r.impedimentos or 0
+            pct_efectividad = round((ejec / total * 100), 2) if total > 0 else 0.0
+
+            data.append({
+                "Código Operario": r.codigo_personal or "N/A",
+                "Nombre Operario": str(r.nombre_personal or "NO ASIGNADO"),
+                "Órdenes Asignadas": total,
+                "Cortes Ejecutados": ejec,
+                "Impedimentos Registrados": imp,
+                "Órdenes Pendientes": r.pendientes or 0,
+                "% Efectividad Operativa": pct_efectividad
+            })
+
+        df_personal = pd.DataFrame(data)
+        if df_personal.empty:
+            df_personal = pd.DataFrame(columns=[
+                "Código Operario", "Nombre Operario", "Órdenes Asignadas", 
+                "Cortes Ejecutados", "Impedimentos Registrados", "Órdenes Pendientes", "% Efectividad Operativa"
+            ])
+
+        rango_str = f"_{CortesReportesService._fmt_fecha(f_inicio)}_a_{CortesReportesService._fmt_fecha(f_fin)}" if (f_inicio and f_fin) else ""
+        nombre_base = f"reporte_rendimiento_personal{rango_str}_{date.today().strftime('%Y%m%d')}"
+
+        hojas = {"Rendimiento por Operario": df_personal}
         return CortesReportesService._empaquetar_excel(hojas, nombre_base)

@@ -1,6 +1,6 @@
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from pydantic import BaseModel, ConfigDict
 
 class UploadCorteResultResponse(BaseModel):
     status: str
@@ -21,6 +21,4 @@ class HistorialCorteCargaResponse(BaseModel):
     registros_error: int
     detalle_errores: Optional[str] = None
     usuario_id: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
