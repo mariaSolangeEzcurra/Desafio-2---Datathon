@@ -1,9 +1,11 @@
 import io
 import math
-import pandas as pd
 from datetime import datetime, time
+import pandas as pd
+import utm
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+
 from app.model import (
     Zona, Ruta, Trabajador, Conexion, 
     Actividad, ActividadLectura, RegistroCarga
@@ -12,27 +14,49 @@ from app.services.geo_utils import limpiar_fecha
 
 COLUMNAS_OBLIGATORIAS = {"CCODCNX", "CCODPRS", "CMETFAC", "DISTRITO", "DLECTUR"}
 
+
 def _valor_o_none(row: dict, columna: str):
     valor = row.get(columna)
-    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+    if valor is None or pd.isna(valor):
         return None
     return valor
 
+
 def _to_int(valor, default=0):
-    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+    if valor is None or pd.isna(valor):
         return default
     try:
         return int(float(valor))
     except (ValueError, TypeError):
         return default
 
+
 def _to_float(valor):
-    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+    if valor is None or pd.isna(valor):
         return None
     try:
-        return float(valor)
+        val = float(valor)
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
     except (ValueError, TypeError):
         return None
+
+
+def convertir_utm_a_latlon(utm_x: float, utm_y: float, zona_num: int = 19, northern: bool = False):
+    """
+    Convierte coordenadas UTM X/Y a Latitud y Longitud (WGS84).
+    Por defecto se configura para Arequipa/Perú: Zona 19, Hemisferio Sur (northern=False).
+    Garantiza el retorno de tipos float nativos de Python.
+    """
+    if not utm_x or not utm_y:
+        return None, None
+    try:
+        lat, lon = utm.to_latlon(utm_x, utm_y, zona_num, northern=northern)
+        return float(lat), float(lon)  # Convierte numpy.float64 a float nativo
+    except Exception:
+        return None, None
+
 
 def construir_datetime_completo(raw_fecha, raw_h, raw_m, raw_s) -> datetime:
     fecha_base = limpiar_fecha(raw_fecha)
@@ -49,10 +73,12 @@ def construir_datetime_completo(raw_fecha, raw_h, raw_m, raw_s) -> datetime:
 
     return datetime.combine(fecha_base.date(), time(hour=h, minute=m, second=s))
 
+
 def calcular_distancia_utm(x1: float, y1: float, x2: float, y2: float) -> float:
     if None in (x1, y1, x2, y2):
         return None
-    return round(math.sqrt((x1 - x2)**2 + (y1 - y2)**2), 2)
+    return float(round(math.sqrt((x1 - x2)**2 + (y1 - y2)**2), 2))
+
 
 def normalizar_nombre(nombre_raw: str) -> str:
     if not nombre_raw:
@@ -242,8 +268,13 @@ def procesar_archivo_excel(
                 
                 cutmx_real = _to_float(_valor_o_none(row, "CUTMX"))
                 cutmy_real = _to_float(_valor_o_none(row, "CUTMY"))
+                
+                # Intentar leer CGPSLAT/CGPSLON si existen, o calcular desde CUTMX/CUTMY
                 cgpslat = _to_float(_valor_o_none(row, "CGPSLAT"))
-                cgpslon = _to_float(_valor_o_none(row, "CGPSLON"))                
+                cgpslon = _to_float(_valor_o_none(row, "CGPSLON"))
+                
+                if (cgpslat is None or cgpslon is None) and (cutmx_real and cutmy_real):
+                    cgpslat, cgpslon = convertir_utm_a_latlon(cutmx_real, cutmy_real, zona_num=19, northern=False)
                 
                 distancia_m = None
                 if cutmx_real and cutmy_real and conexion.utm_x and conexion.utm_y:
