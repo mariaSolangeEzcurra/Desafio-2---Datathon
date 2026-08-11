@@ -16,6 +16,8 @@ import {
   BarChart3,
   RotateCcw,
   Filter,
+  Trophy,
+  Hash,
 } from "lucide-react";
 import { cortesKPIService } from "../services/CortesKPIService";
 
@@ -125,6 +127,23 @@ function Tooltip({ children, title, text, formula, datos, width = "w-80" }) {
 }
 
 // ============================================================
+// AVISO DE DATOS NO DISPONIBLES POR FILTRO
+// Se usa cuando el endpoint /resumen no soporta el filtro activo
+// (distrito y/o ccodprs) y por lo tanto no podemos mostrar la
+// tabla/sección sin arriesgarnos a mezclar datos que no corresponden.
+// ============================================================
+function AvisoFiltroNoSoportado({ mensaje }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2 px-6 text-center">
+      <div className="p-3 bg-amber-50 rounded-xl text-amber-500">
+        <AlertTriangle size={22} />
+      </div>
+      <p className="text-xs font-medium text-slate-500 max-w-md">{mensaje}</p>
+    </div>
+  );
+}
+
+// ============================================================
 // FORMATO MONEDA
 // ============================================================
 const formatearMonto = (valor) => {
@@ -195,6 +214,10 @@ export default function CortesKPI({ idSeleccionado }) {
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [fechaFin, setFechaFin] = useState(hoy);
   const [periodo, setPeriodo] = useState("");
+  const [distritoInput, setDistritoInput] = useState("");
+  const [distritoFiltro, setDistritoFiltro] = useState("");
+  const [ccodprsInput, setCcodprsInput] = useState("");
+  const [ccodprsFiltro, setCcodprsFiltro] = useState("");
 
   // ==========================================================
   // FILTROS APLICADOS (último filtro realmente consultado)
@@ -222,6 +245,24 @@ export default function CortesKPI({ idSeleccionado }) {
     Boolean(fechaInicio) &&
     Boolean(fechaFin) &&
     fechaFin < fechaInicio;
+
+  // ==========================================================
+  // DEBOUNCE DISTRITO Y TRABAJADOR
+  // Evita disparar un fetch por cada letra escrita.
+  // ==========================================================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDistritoFiltro(distritoInput.trim());
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [distritoInput]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCcodprsFiltro(ccodprsInput.trim());
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [ccodprsInput]);
 
   // ==========================================================
   // EXTRAER MENSAJE DEL ERROR
@@ -269,8 +310,12 @@ export default function CortesKPI({ idSeleccionado }) {
   // CARGAR DATOS
   // Si hay un periodo seleccionado, tiene prioridad sobre las
   // fechas (que además quedan deshabilitadas en la UI).
+  // distrito y ccodprs solo aplican al dashboard: el endpoint
+  // de resumen no los soporta (limitación del backend, no se
+  // puede modificar). Por eso el resumen se filtra/oculta en
+  // el cliente según corresponda (ver bloque de cálculos abajo).
   // ==========================================================
-  const cargarDashboard = async (inicio, fin, periodoActual) => {
+  const cargarDashboard = async (inicio, fin, periodoActual, distrito, ccodprs) => {
     if (!periodoActual) {
       if (!inicio || !fin) {
         setError("Debes seleccionar una fecha de inicio y una fecha de fin.");
@@ -292,19 +337,23 @@ export default function CortesKPI({ idSeleccionado }) {
         periodo: periodoActual,
         fecha_inicio: inicioConsulta,
         fecha_fin: finConsulta,
+        distrito,
+        ccodprs,
       });
 
       const [dashboardData, resumenData] = await Promise.all([
-        cortesKPIService.obtenerDashboardKpis(
-          inicioConsulta,
-          finConsulta,
-          periodoActual
-        ),
-        cortesKPIService.obtenerResumen(
-          inicioConsulta,
-          finConsulta,
-          periodoActual
-        ),
+        cortesKPIService.obtenerDashboardKpis({
+          periodo: periodoActual,
+          fechaInicio: inicioConsulta,
+          fechaFin: finConsulta,
+          distrito,
+          ccodprs,
+        }),
+        cortesKPIService.obtenerResumen({
+          periodo: periodoActual,
+          fechaInicio: inicioConsulta,
+          fechaFin: finConsulta,
+        }),
       ]);
 
       console.log("Dashboard KPIs cortes:", dashboardData);
@@ -353,14 +402,14 @@ export default function CortesKPI({ idSeleccionado }) {
   // ==========================================================
   // CARGA AUTOMÁTICA
   // Se dispara al entrar a la sección (cambio de idSeleccionado)
-  // y cada vez que cambian las fechas o el periodo, sin depender
-  // de botones.
+  // y cada vez que cambian fechas, periodo, distrito o trabajador,
+  // sin depender de botones.
   // ==========================================================
   useEffect(() => {
     if (fechasInvalidas) return;
-    cargarDashboard(fechaInicio, fechaFin, periodo);
+    cargarDashboard(fechaInicio, fechaFin, periodo, distritoFiltro, ccodprsFiltro);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicio, fechaFin, periodo, idSeleccionado]);
+  }, [fechaInicio, fechaFin, periodo, distritoFiltro, ccodprsFiltro, idSeleccionado]);
 
   // ==========================================================
   // CAMBIO DE PERIODO
@@ -380,6 +429,10 @@ export default function CortesKPI({ idSeleccionado }) {
     setFechaInicio(hoy);
     setFechaFin(hoy);
     setPeriodo("");
+    setDistritoInput("");
+    setDistritoFiltro("");
+    setCcodprsInput("");
+    setCcodprsFiltro("");
     // La carga se dispara sola vía useEffect al cambiar los filtros
   };
 
@@ -458,6 +511,88 @@ export default function CortesKPI({ idSeleccionado }) {
   ];
 
   // ==========================================================
+  // RANKINGS Y TABLAS DERIVADAS DEL RESUMEN
+  //
+  // IMPORTANTE: el endpoint /resumen (backend) NO soporta los
+  // filtros de distrito ni ccodprs, a diferencia de /dashboard.
+  // Como no podemos modificar el backend, nos adaptamos así:
+  //
+  //  - Sin filtro de distrito/trabajador -> se muestra todo tal
+  //    cual llega del API (comportamiento normal).
+  //  - Solo filtro de distrito (sin trabajador) -> SÍ podemos
+  //    filtrar "por_distrito" en el cliente, porque el campo
+  //    coincide exactamente con lo que el usuario pidió.
+  //  - Filtro de trabajador (con o sin distrito) -> NO hay forma
+  //    de filtrar ninguna tabla del resumen en el cliente, porque
+  //    el API no devuelve el detalle por trabajador. En ese caso
+  //    ocultamos las tablas/rankings y mostramos un aviso, en vez
+  //    de mostrar datos de otros distritos/trabajadores que
+  //    confundirían al usuario.
+  //  - "por_tipo_programa" nunca se puede filtrar por distrito en
+  //    el cliente porque esa fila no trae el campo distrito.
+  // ==========================================================
+  const hayFiltroDistrito = Boolean(distritoFiltro);
+  const hayFiltroTrabajador = Boolean(ccodprsFiltro);
+
+  const distritosConEfectividad = (resumen.por_distrito || []).map((d) => {
+    const total = Number(d?.total_ordenes ?? 0);
+    const ejec = Number(d?.ejecutadas ?? 0);
+    return {
+      ...d,
+      efectividadCalc: total > 0 ? (ejec / total) * 100 : 0,
+    };
+  });
+
+  // Filtrado en cliente por distrito (seguro, el campo coincide)
+  const distritosFiltradosCliente = hayFiltroDistrito
+    ? distritosConEfectividad.filter((d) =>
+        (d?.distrito || "")
+          .toLowerCase()
+          .includes(distritoFiltro.toLowerCase())
+      )
+    : distritosConEfectividad;
+
+  // Tabla "por distrito": disponible salvo que haya filtro de trabajador
+  const mostrarTablaDistrito = !hayFiltroTrabajador;
+  const datosTablaDistrito = mostrarTablaDistrito ? distritosFiltradosCliente : [];
+
+  // Tabla "por tipo de programa": nunca se puede filtrar en cliente,
+  // así que solo se muestra sin ningún filtro de distrito/trabajador
+  const mostrarTablaPrograma = !hayFiltroDistrito && !hayFiltroTrabajador;
+
+  // Rankings destacados: mezclan distrito + programa, así que solo
+  // tienen sentido sin filtro de distrito/trabajador activo
+  const mostrarRankings = !hayFiltroDistrito && !hayFiltroTrabajador;
+
+  const mejorDistrito =
+    distritosFiltradosCliente.length > 0
+      ? [...distritosFiltradosCliente].sort(
+          (a, b) => b.efectividadCalc - a.efectividadCalc
+        )[0]
+      : null;
+
+  const peorDistrito =
+    distritosFiltradosCliente.length > 0
+      ? [...distritosFiltradosCliente].sort(
+          (a, b) => a.efectividadCalc - b.efectividadCalc
+        )[0]
+      : null;
+
+  const distritoMayorDeuda =
+    distritosFiltradosCliente.length > 0
+      ? [...distritosFiltradosCliente].sort(
+          (a, b) => Number(b?.deuda_total ?? 0) - Number(a?.deuda_total ?? 0)
+        )[0]
+      : null;
+
+  const programaMayorVolumen =
+    resumen.por_tipo_programa.length > 0
+      ? [...resumen.por_tipo_programa].sort(
+          (a, b) => Number(b?.total_ordenes ?? 0) - Number(a?.total_ordenes ?? 0)
+        )[0]
+      : null;
+
+  // ==========================================================
   // RENDER
   // ==========================================================
   return (
@@ -476,7 +611,7 @@ export default function CortesKPI({ idSeleccionado }) {
           FILTROS
       ====================================================== */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-end gap-4 flex-wrap">
           {/* PERIODO */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -555,6 +690,48 @@ export default function CortesKPI({ idSeleccionado }) {
             </div>
           </div>
 
+          {/* DISTRITO */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Distrito
+            </label>
+            <div className="relative">
+              <MapPin
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <input
+                type="text"
+                placeholder="Todos"
+                value={distritoInput}
+                onChange={(e) => setDistritoInput(e.target.value)}
+                disabled={loading}
+                className="h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition disabled:opacity-50 disabled:cursor-not-allowed min-w-[150px]"
+              />
+            </div>
+          </div>
+
+          {/* TRABAJADOR (ccodprs) */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Trabajador
+            </label>
+            <div className="relative">
+              <Hash
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <input
+                type="text"
+                placeholder="Código"
+                value={ccodprsInput}
+                onChange={(e) => setCcodprsInput(e.target.value)}
+                disabled={loading}
+                className="h-10 pl-10 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none focus:border-[#006cb7] focus:ring-2 focus:ring-blue-100 transition disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
+              />
+            </div>
+          </div>
+
           {/* BOTÓN LIMPIAR */}
           <div className="flex items-center gap-2">
             <button
@@ -568,6 +745,15 @@ export default function CortesKPI({ idSeleccionado }) {
             </button>
           </div>
         </div>
+
+        {(distritoFiltro || ccodprsFiltro) && (
+          <p className="text-[10px] text-[#006cb7] font-semibold mt-3">
+            {distritoFiltro && `Distrito: ${distritoFiltro}`}
+            {distritoFiltro && ccodprsFiltro && " · "}
+            {ccodprsFiltro && `Trabajador: ${ccodprsFiltro}`}
+            {" — los indicadores principales de arriba sí respetan este filtro; el análisis por distrito/programa se adapta o se oculta según lo que el API pueda filtrar (ver avisos abajo)."}
+          </p>
+        )}
       </div>
 
       {/* ======================================================
@@ -644,6 +830,8 @@ export default function CortesKPI({ idSeleccionado }) {
         <>
           {/* ==================================================
               INDICADORES PRINCIPALES
+              (estos SÍ respetan distrito/ccodprs, vienen de
+              /dashboard, que sí soporta esos filtros)
           ================================================== */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -807,7 +995,140 @@ export default function CortesKPI({ idSeleccionado }) {
           </div>
 
           {/* ==================================================
+              COMPARATIVAS DESTACADAS
+              (calculadas a partir del resumen por distrito/programa;
+              solo se muestran sin filtro de distrito/trabajador,
+              porque el API de resumen no soporta esos filtros)
+          ================================================== */}
+          {mostrarRankings ? (
+            (mejorDistrito || peorDistrito || distritoMayorDeuda || programaMayorVolumen) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {mejorDistrito && (
+                  <Tooltip
+                    title="Distrito más efectivo"
+                    text="Distrito con la mayor tasa de efectividad (ejecutadas / total) dentro del período consultado."
+                    width="w-80"
+                  >
+                    <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help h-full">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                          <Trophy size={16} />
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Distrito más efectivo
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 truncate">
+                        {mejorDistrito.distrito || "Sin distrito"}
+                      </p>
+                      <p className="text-xl font-bold text-emerald-600 mt-1">
+                        {formatearPorcentaje(mejorDistrito.efectividadCalc)}
+                      </p>
+                    </div>
+                  </Tooltip>
+                )}
+
+                {peorDistrito && (
+                  <Tooltip
+                    title="Distrito que requiere atención"
+                    text="Distrito con la menor tasa de efectividad dentro del período consultado."
+                    width="w-80"
+                  >
+                    <div className="bg-white border border-red-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help h-full">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-xl bg-red-50 text-red-600 shrink-0">
+                          <CircleAlert size={16} />
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Requiere atención
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 truncate">
+                        {peorDistrito.distrito || "Sin distrito"}
+                      </p>
+                      <p className="text-xl font-bold text-red-600 mt-1">
+                        {formatearPorcentaje(peorDistrito.efectividadCalc)}
+                      </p>
+                    </div>
+                  </Tooltip>
+                )}
+
+                {distritoMayorDeuda && (
+                  <Tooltip
+                    title="Distrito con mayor deuda"
+                    text="Distrito que concentra el mayor monto de deuda total dentro del período consultado."
+                    width="w-80"
+                  >
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help h-full">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-xl bg-blue-50 text-[#006cb7] shrink-0">
+                          <MapPin size={16} />
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Mayor deuda por distrito
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 truncate">
+                        {distritoMayorDeuda.distrito || "Sin distrito"}
+                      </p>
+                      <p className="text-lg font-bold text-slate-700 mt-1 truncate">
+                        {formatearMonto(distritoMayorDeuda.deuda_total)}
+                      </p>
+                    </div>
+                  </Tooltip>
+                )}
+
+                {programaMayorVolumen && (
+                  <Tooltip
+                    title="Programa con más órdenes"
+                    text="Tipo de programa con el mayor volumen de órdenes de corte dentro del período consultado."
+                    width="w-80"
+                  >
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 cursor-help h-full">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-xl bg-blue-50 text-[#006cb7] shrink-0">
+                          <BarChart3 size={16} />
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Mayor volumen
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 truncate">
+                        Programa {programaMayorVolumen.ctipprg ?? "--"}
+                      </p>
+                      <p className="text-xl font-bold text-[#006cb7] mt-1">
+                        {Number(programaMayorVolumen.total_ordenes ?? 0).toLocaleString("en-US")}{" "}
+                        <span className="text-xs font-semibold text-slate-400">órdenes</span>
+                      </p>
+                    </div>
+                  </Tooltip>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="bg-white border border-amber-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+                  <AlertTriangle size={16} />
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Los indicadores destacados (distrito más efectivo, mayor
+                  deuda, programa con más volumen, etc.) se ocultan con el
+                  filtro actual porque comparan varios distritos y programas
+                  a la vez, y el API de resumen no distingue por trabajador.
+                  Revisa las tarjetas de arriba: esas sí reflejan el filtro
+                  aplicado con exactitud.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================
               ANÁLISIS POR DISTRITO
+              Se filtra en el cliente si solo hay filtro de distrito.
+              Se oculta si hay filtro de trabajador (ccodprs), porque
+              el API de resumen no distingue por trabajador y no
+              podemos saber qué distritos le corresponden.
           ================================================== */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
@@ -824,8 +1145,12 @@ export default function CortesKPI({ idSeleccionado }) {
               </div>
             </div>
             <div className="border border-slate-200 rounded-xl overflow-auto max-h-[450px]">
-              {resumen.por_distrito?.length > 0 ? (
-                <table className="w-full min-w-[850px] text-left text-xs border-collapse">
+              {!mostrarTablaDistrito ? (
+                <AvisoFiltroNoSoportado
+                  mensaje="No disponible al filtrar por trabajador: el API de resumen no distingue por trabajador, así que esta tabla mostraría distritos que no le corresponden. Quita el filtro de trabajador para verla, o usa las tarjetas de arriba, que sí respetan el filtro."
+                />
+              ) : datosTablaDistrito.length > 0 ? (
+                <table className="w-full min-w-[950px] text-left text-xs border-collapse">
                   <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase">
                     <tr className="border-b border-slate-200">
                       <th className="px-5 py-3 font-bold bg-slate-50">
@@ -840,20 +1165,18 @@ export default function CortesKPI({ idSeleccionado }) {
                       <th className="px-5 py-3 font-bold text-center bg-slate-50">
                         Pendientes
                       </th>
+                      <th className="px-5 py-3 font-bold bg-slate-50 min-w-[160px]">
+                        Efectividad
+                      </th>
                       <th className="px-5 py-3 font-bold text-right bg-slate-50">
                         Deuda total
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {resumen.por_distrito.map((item, index) => {
-                      const total = Number(item?.total_ordenes ?? 0);
-                      const ejecutadasDistrito = Number(
-                        item?.ejecutadas ?? 0
-                      );
-                      const efectividadDistrito =
-                        total > 0 ? (ejecutadasDistrito / total) * 100 : 0;
-                      return (
+                    {[...datosTablaDistrito]
+                      .sort((a, b) => Number(b.total_ordenes ?? 0) - Number(a.total_ordenes ?? 0))
+                      .map((item, index) => (
                         <tr
                           key={`distrito-${index}`}
                           className="hover:bg-slate-50/70 transition-colors"
@@ -869,34 +1192,42 @@ export default function CortesKPI({ idSeleccionado }) {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-center font-bold text-slate-700">
-                            {total.toLocaleString("en-US")}
+                            {Number(item?.total_ordenes ?? 0).toLocaleString("en-US")}
                           </td>
                           <td className="px-5 py-4 text-center">
                             <span className="font-bold text-emerald-600">
-                              {ejecutadasDistrito.toLocaleString("en-US")}
+                              {Number(item?.ejecutadas ?? 0).toLocaleString("en-US")}
                             </span>
                           </td>
                           <td className="px-5 py-4 text-center">
                             <span className="font-bold text-amber-600">
-                              {Number(item?.pendientes ?? 0).toLocaleString(
-                                "en-US"
-                              )}
+                              {Number(item?.pendientes ?? 0).toLocaleString("en-US")}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="flex flex-col items-end">
-                              <span className="font-bold text-slate-700">
-                                {formatearMonto(item?.deuda_total)}
-                              </span>
-                              <span className="text-[9px] text-slate-400 mt-0.5">
-                                {formatearPorcentaje(efectividadDistrito)}{" "}
-                                efectividad
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-16 bg-slate-100 rounded-full overflow-hidden shrink-0">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    item.efectividadCalc >= 75
+                                      ? "bg-emerald-500"
+                                      : item.efectividadCalc >= 50
+                                      ? "bg-amber-400"
+                                      : "bg-red-400"
+                                  }`}
+                                  style={{ width: `${Math.min(item.efectividadCalc, 100)}%` }}
+                                />
+                              </div>
+                              <span className="font-bold text-slate-700 whitespace-nowrap">
+                                {formatearPorcentaje(item.efectividadCalc)}
                               </span>
                             </div>
                           </td>
+                          <td className="px-5 py-4 text-right font-bold text-slate-700">
+                            {formatearMonto(item?.deuda_total)}
+                          </td>
                         </tr>
-                      );
-                    })}
+                      ))}
                   </tbody>
                 </table>
               ) : (
@@ -905,8 +1236,9 @@ export default function CortesKPI({ idSeleccionado }) {
                     <Database size={24} />
                   </div>
                   <p className="text-xs font-medium text-slate-500">
-                    No hay información por distrito para el período
-                    seleccionado.
+                    {hayFiltroDistrito
+                      ? "No hay información para el distrito y período seleccionados."
+                      : "No hay información por distrito para el período seleccionado."}
                   </p>
                 </div>
               )}
@@ -915,6 +1247,9 @@ export default function CortesKPI({ idSeleccionado }) {
 
           {/* ==================================================
               ANÁLISIS POR TIPO DE PROGRAMA
+              No se puede filtrar en cliente (el resumen no trae
+              distrito por fila), así que se oculta con cualquier
+              filtro de distrito o trabajador activo.
           ================================================== */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
@@ -931,8 +1266,12 @@ export default function CortesKPI({ idSeleccionado }) {
               </div>
             </div>
             <div className="border border-slate-200 rounded-xl overflow-auto max-h-[450px]">
-              {resumen.por_tipo_programa?.length > 0 ? (
-                <table className="w-full min-w-[850px] text-left text-xs border-collapse">
+              {!mostrarTablaPrograma ? (
+                <AvisoFiltroNoSoportado
+                  mensaje="No disponible con este filtro: el API de resumen no distingue por distrito ni por trabajador, así que esta tabla mostraría programas que no corresponden al filtro aplicado. Quita el filtro para verla, o usa las tarjetas de arriba."
+                />
+              ) : resumen.por_tipo_programa?.length > 0 ? (
+                <table className="w-full min-w-[950px] text-left text-xs border-collapse">
                   <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase">
                     <tr className="border-b border-slate-200">
                       <th className="px-5 py-3 font-bold bg-slate-50">
@@ -946,6 +1285,9 @@ export default function CortesKPI({ idSeleccionado }) {
                       </th>
                       <th className="px-5 py-3 font-bold text-center bg-slate-50">
                         Pendientes
+                      </th>
+                      <th className="px-5 py-3 font-bold bg-slate-50 min-w-[160px]">
+                        Efectividad
                       </th>
                       <th className="px-5 py-3 font-bold text-right bg-slate-50">
                         Deuda total
@@ -986,16 +1328,27 @@ export default function CortesKPI({ idSeleccionado }) {
                               )}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="flex flex-col items-end">
-                              <span className="font-bold text-slate-700">
-                                {formatearMonto(item?.deuda_total)}
-                              </span>
-                              <span className="text-[9px] text-slate-400 mt-0.5">
-                                {formatearPorcentaje(efectividadPrograma)}{" "}
-                                efectividad
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-16 bg-slate-100 rounded-full overflow-hidden shrink-0">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    efectividadPrograma >= 75
+                                      ? "bg-emerald-500"
+                                      : efectividadPrograma >= 50
+                                      ? "bg-amber-400"
+                                      : "bg-red-400"
+                                  }`}
+                                  style={{ width: `${Math.min(efectividadPrograma, 100)}%` }}
+                                />
+                              </div>
+                              <span className="font-bold text-slate-700 whitespace-nowrap">
+                                {formatearPorcentaje(efectividadPrograma)}
                               </span>
                             </div>
+                          </td>
+                          <td className="px-5 py-4 text-right font-bold text-slate-700">
+                            {formatearMonto(item?.deuda_total)}
                           </td>
                         </tr>
                       );

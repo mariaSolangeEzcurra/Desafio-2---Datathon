@@ -18,7 +18,8 @@ import CortesKPI from "../Pages/CortesKPI";
 import MapaLectura from "../Pages/MapaLectura";
 import MapaCortes from "../Pages/MapaCortes";
 import ReporteCortes from "../Pages/Supervisor/ReportesCortes";
-
+import TrabajadoresCortes from "../Pages/Supervisor/TrabajadoresCortes";
+import AlertasCortes from "../Pages/Supervisor/AlertasCortes";
 
 //GERENCIA
 import Resumen from "../Pages/Gerencia/Resumen";
@@ -42,7 +43,9 @@ export default function DashboardLayout({
     if (seccionActiva === "lecturas_mapa") return <MapaLectura tipoProceso="lectura" />;
     if (seccionActiva === "lecturas_reportes") return <ReportesLectura />;
     if (seccionActiva === "cortes_kpis") return <CortesKPI />;
+    if (seccionActiva === "cortes_personal") return <TrabajadoresCortes />;
     if (seccionActiva === "cortes_mapa") return <MapaCortes />;
+    if (seccionActiva === "cortes_alertas") return <AlertasCortes />;
     if (seccionActiva === "cortes_reporte") return <ReporteCortes />;
 
     // 2. ti

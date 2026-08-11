@@ -19,12 +19,16 @@ import {
   X,
   Info,
   Filter,
+  CheckCircle2,
+  Clock3,
+  Hash,
+  FileWarning,
 } from "lucide-react";
 import {
   MapContainer,
   TileLayer,
   CircleMarker,
-  Popup,
+  Tooltip as LeafletTooltip,
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
@@ -146,6 +150,15 @@ const OPCIONES_PERIODO = [
   { value: "mes", label: "Este mes" },
   { value: "3meses", label: "Últimos 3 meses" },
 ];
+
+// ============================================================
+// FORMATO MONEDA
+// ============================================================
+const formatearMonto = (valor) =>
+  Number(valor ?? 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 // ============================================================
 // CONVERSIÓN UTM -> LAT/LNG
@@ -316,6 +329,288 @@ function AjustarMapa({ puntos, activo }) {
 }
 
 // ============================================================
+// GLOSARIO DE CAMPOS
+// Explicación de cada campo que devuelve el API, para mostrarla
+// en la cartilla de detalle del punto/impedimento seleccionado.
+// ============================================================
+const GLOSARIO_CAMPOS = {
+  ccodcnx:
+    "Código único que identifica la conexión de agua potable en el sistema.",
+  distrito: "Distrito donde se ubica físicamente la conexión.",
+  direccion: "Dirección registrada de la conexión (referencia catastral).",
+  deuda:
+    "Monto de deuda pendiente asociado a la conexión, expresado en soles (S/).",
+  ejecutada:
+    "Indica si la orden de corte de esta conexión ya fue ejecutada en campo, o si todavía está pendiente de ejecución.",
+  csitreg:
+    "Situación de registro del impedimento. El valor 'S' indica que la conexión presenta un impedimento activo que impide ejecutar el corte en este momento.",
+  ccodacc:
+    "Código interno del motivo específico por el que no se puede ejecutar el corte.",
+  cdesacc:
+    "Descripción del motivo por el que no se pudo o no se puede ejecutar el corte (por ejemplo, acceso restringido, cliente con amparo, etc.).",
+};
+
+// ============================================================
+// CARTILLA FLOTANTE (hover sobre el mapa)
+// En vez de un panel fijo debajo del mapa, el detalle aparece
+// como una tarjeta flotante justo sobre el punto/impedimento al
+// pasar el mouse, usando el Tooltip nativo de Leaflet con un
+// diseño propio (blanco, redondeado, con glosario incluido).
+// ============================================================
+function ContenidoImpedimento({ item }) {
+  return (
+    <div className="cartilla-mapa">
+      <div className="cartilla-header cartilla-header--rojo">
+        <span className="cartilla-header-icon cartilla-header-icon--rojo">
+          <AlertCircle size={14} />
+        </span>
+        <div>
+          <p className="cartilla-titulo">Impedimento de corte</p>
+          <p className="cartilla-subtitulo">Conexión {item.ccodcnx || "--"}</p>
+        </div>
+      </div>
+
+      <div className="cartilla-body">
+        <div className="cartilla-fila">
+          <MapPin size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Distrito</p>
+            <p className="cartilla-valor">{item.distrito || "--"}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila">
+          <DollarSign size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Deuda</p>
+            <p className="cartilla-valor">S/ {formatearMonto(item.deuda)}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila">
+          <FileWarning size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Motivo del impedimento</p>
+            <p className="cartilla-valor">{item.cdesacc || "--"}</p>
+            <p className="cartilla-hint">
+              Código {item.ccodacc || "--"} · {GLOSARIO_CAMPOS.cdesacc}
+            </p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila">
+          <AlertTriangle size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Situación de registro (csitreg)</p>
+            <p className="cartilla-valor">
+              {item.csitreg === "S" ? "S — Impedimento activo" : item.csitreg || "--"}
+            </p>
+            <p className="cartilla-hint">{GLOSARIO_CAMPOS.csitreg}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila cartilla-fila--direccion">
+          <Hash size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Dirección</p>
+            <p className="cartilla-valor cartilla-valor--direccion">
+              {item.direccion || "--"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContenidoPunto({ item }) {
+  const ejecutada = item.ejecutada === true;
+  return (
+    <div className="cartilla-mapa">
+      <div className="cartilla-header cartilla-header--azul">
+        <span className="cartilla-header-icon cartilla-header-icon--azul">
+          <MapPin size={14} />
+        </span>
+        <div>
+          <p className="cartilla-titulo">Punto de deuda</p>
+          <p className="cartilla-subtitulo">Conexión {item.ccodcnx || "--"}</p>
+        </div>
+        <span
+          className={`cartilla-badge ${
+            ejecutada ? "cartilla-badge--verde" : "cartilla-badge--ambar"
+          }`}
+        >
+          {ejecutada ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}
+          {ejecutada ? "Ejecutada" : "Pendiente"}
+        </span>
+      </div>
+
+      <div className="cartilla-body">
+        <div className="cartilla-fila">
+          <MapPin size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Distrito</p>
+            <p className="cartilla-valor">{item.distrito || "--"}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila">
+          <DollarSign size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Deuda</p>
+            <p className="cartilla-valor">S/ {formatearMonto(item.deuda)}</p>
+            <p className="cartilla-hint">{GLOSARIO_CAMPOS.deuda}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila">
+          {ejecutada ? (
+            <CheckCircle2 size={12} className="cartilla-fila-icon" />
+          ) : (
+            <Clock3 size={12} className="cartilla-fila-icon" />
+          )}
+          <div>
+            <p className="cartilla-label">Estado de ejecución</p>
+            <p className="cartilla-valor">
+              {ejecutada ? "Ejecutada" : "Pendiente"}
+            </p>
+            <p className="cartilla-hint">{GLOSARIO_CAMPOS.ejecutada}</p>
+          </div>
+        </div>
+
+        <div className="cartilla-fila cartilla-fila--direccion">
+          <Hash size={12} className="cartilla-fila-icon" />
+          <div>
+            <p className="cartilla-label">Dirección</p>
+            <p className="cartilla-valor cartilla-valor--direccion">
+              {item.direccion || "--"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ESTILOS DE LA CARTILLA FLOTANTE
+// Sobrescribe el look por defecto del tooltip de Leaflet (caja
+// blanca simple con flecha) para que se vea como una tarjeta
+// propia del diseño del dashboard.
+// ============================================================
+function EstilosCartillaMapa() {
+  return (
+    <style>{`
+      .leaflet-tooltip.cartilla-tooltip {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        opacity: 1 !important;
+        pointer-events: none;
+      }
+      .leaflet-tooltip.cartilla-tooltip::before {
+        display: none;
+      }
+      .cartilla-mapa {
+        width: 958px;
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 12px 30px -8px rgba(15, 23, 42, 0.25);
+        overflow: hidden;
+        font-family: inherit;
+      }
+      .cartilla-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      .cartilla-header--azul { background: #eff8ff; }
+      .cartilla-header--rojo { background: #fef2f2; }
+      .cartilla-header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 9px;
+        flex-shrink: 0;
+      }
+      .cartilla-header-icon--azul { background: #dbeefe; color: #006cb7; }
+      .cartilla-header-icon--rojo { background: #fee2e2; color: #dc2626; }
+      .cartilla-titulo {
+        font-size: 11px;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1.1;
+      }
+      .cartilla-subtitulo {
+        font-size: 9px;
+        color: #94a3b8;
+        margin-top: 2px;
+      }
+      .cartilla-badge {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 8.5px;
+        font-weight: 800;
+        padding: 3px 6px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .cartilla-badge--verde { background: #dcfce7; color: #15803d; }
+      .cartilla-badge--ambar { background: #fef3c7; color: #b45309; }
+      .cartilla-body {
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .cartilla-fila {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+      }
+      .cartilla-fila-icon {
+        color: #006cb7;
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+      .cartilla-label {
+        font-size: 8.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #94a3b8;
+      }
+      .cartilla-valor {
+        font-size: 11px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-top: 1px;
+        line-height: 1.3;
+      }
+      .cartilla-valor--direccion {
+        font-weight: 600;
+        font-size: 10px;
+        color: #475569;
+      }
+      .cartilla-hint {
+        font-size: 9px;
+        color: #94a3b8;
+        margin-top: 2px;
+        line-height: 1.35;
+      }
+    `}</style>
+  );
+}
+
+// ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 export default function MapasCortes() {
@@ -337,18 +632,20 @@ export default function MapasCortes() {
   const [fechaInicio, setFechaInicio] = useState("2026-03-30");
   const [fechaFin, setFechaFin] = useState(hoy);
   const [periodo, setPeriodo] = useState("");
+  const [distritoInput, setDistritoInput] = useState("");
+  const [distritoFiltro, setDistritoFiltro] = useState("");
   const [heatmap, setHeatmap] = useState({
     total_puntos: 0,
     puntos: [],
   });
   const [impedimentos, setImpedimentos] = useState({
     total_impedimentos: 0,
+    monto_total_impedimentos: 0,
     impedimentos: [],
   });
   const [modoMapa, setModoMapa] = useState("heatmap");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [seleccionado, setSeleccionado] = useState(null);
 
   // ==========================================================
   // VALIDACIÓN
@@ -359,29 +656,47 @@ export default function MapasCortes() {
     !periodo && fechaInicio && fechaFin && fechaFin < fechaInicio;
 
   // ==========================================================
+  // DEBOUNCE DISTRITO
+  // Evita disparar un fetch por cada letra escrita.
+  // ==========================================================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDistritoFiltro(distritoInput.trim());
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [distritoInput]);
+
+  // ==========================================================
   // CARGAR DATOS
   // Si hay un periodo seleccionado, tiene prioridad sobre las
   // fechas (que además quedan deshabilitadas en la UI).
+  // Solo se filtra por distrito (a propósito no se expone el
+  // filtro por trabajador/ccodprs en esta vista).
   // ==========================================================
-  const cargarDatos = async () => {
+  const cargarDatos = async (inicio, fin, periodoActual, distrito) => {
     if (fechasInvalidas) {
       setError("La fecha fin no puede ser anterior a la fecha de inicio.");
       return;
     }
     setLoading(true);
     setError(null);
-    setSeleccionado(null);
     try {
-      const inicioConsulta = periodo ? "" : fechaInicio;
-      const finConsulta = periodo ? "" : fechaFin;
+      const inicioConsulta = periodoActual ? "" : inicio;
+      const finConsulta = periodoActual ? "" : fin;
 
       const [heatmapData, impedimentosData] = await Promise.all([
-        cortesGeoService.obtenerHeatmap(inicioConsulta, finConsulta, periodo),
-        cortesGeoService.obtenerImpedimentos(
-          inicioConsulta,
-          finConsulta,
-          periodo
-        ),
+        cortesGeoService.obtenerHeatmap({
+          fechaInicio: inicioConsulta,
+          fechaFin: finConsulta,
+          periodo: periodoActual,
+          distrito,
+        }),
+        cortesGeoService.obtenerImpedimentos({
+          fechaInicio: inicioConsulta,
+          fechaFin: finConsulta,
+          periodo: periodoActual,
+          distrito,
+        }),
       ]);
       console.log("Heatmap cortes:", heatmapData);
       console.log("Impedimentos cortes:", impedimentosData);
@@ -400,6 +715,8 @@ export default function MapasCortes() {
       setImpedimentos({
         total_impedimentos:
           impedimentosData?.total_impedimentos ?? listaImpedimentos.length,
+        monto_total_impedimentos:
+          impedimentosData?.monto_total_impedimentos ?? 0,
         impedimentos: listaImpedimentos,
       });
     } catch (err) {
@@ -423,14 +740,14 @@ export default function MapasCortes() {
   };
 
   // ==========================================================
-  // CARGAR AL CAMBIAR FECHAS O PERIODO
+  // CARGAR AL CAMBIAR FECHAS, PERIODO O DISTRITO
   // ==========================================================
   useEffect(() => {
     if (!fechasInvalidas) {
-      cargarDatos();
+      cargarDatos(fechaInicio, fechaFin, periodo, distritoFiltro);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaInicio, fechaFin, periodo]);
+  }, [fechaInicio, fechaFin, periodo, distritoFiltro]);
 
   // ==========================================================
   // CAMBIO DE PERIODO
@@ -450,6 +767,8 @@ export default function MapasCortes() {
     setFechaInicio("2026-03-30");
     setFechaFin(hoy);
     setPeriodo("");
+    setDistritoInput("");
+    setDistritoFiltro("");
     // La carga se dispara sola vía useEffect al cambiar los filtros
   };
 
@@ -472,7 +791,7 @@ export default function MapasCortes() {
   );
 
   // ==========================================================
-  // TOTAL DEUDA
+  // TOTAL DEUDA (puntos del mapa de calor)
   // ==========================================================
   const deudaTotal = useMemo(
     () => puntosMapa.reduce((total, item) => total + Number(item?.deuda ?? 0), 0),
@@ -484,11 +803,13 @@ export default function MapasCortes() {
   // ==========================================================
   return (
     <div className="space-y-5 text-left">
+      <EstilosCartillaMapa />
+
       {/* ====================================================
           FILTROS
       ==================================================== */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-end gap-4 flex-wrap">
           {/* PERIODO */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -618,6 +939,46 @@ export default function MapasCortes() {
               />
             </div>
           </div>
+
+          {/* DISTRITO */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Distrito
+            </label>
+            <div className="relative">
+              <MapPin
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#006cb7] pointer-events-none"
+              />
+              <input
+                type="text"
+                placeholder="Todos"
+                value={distritoInput}
+                onChange={(e) => setDistritoInput(e.target.value)}
+                disabled={loading}
+                className="
+                  h-10
+                  pl-10
+                  pr-3
+                  rounded-lg
+                  border
+                  border-slate-200
+                  bg-white
+                  text-xs
+                  text-slate-700
+                  outline-none
+                  focus:border-[#006cb7]
+                  focus:ring-2
+                  focus:ring-blue-100
+                  transition
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  min-w-[170px]
+                "
+              />
+            </div>
+          </div>
+
           {/* BOTÓN LIMPIAR */}
           <div className="flex items-center gap-2">
             <button
@@ -631,6 +992,13 @@ export default function MapasCortes() {
             </button>
           </div>
         </div>
+
+        {distritoFiltro && (
+          <p className="text-[10px] text-[#006cb7] font-semibold mt-3">
+            Distrito: {distritoFiltro} — el mapa, los indicadores y la lista
+            de impedimentos muestran solo este distrito.
+          </p>
+        )}
       </div>
 
       {/* ====================================================
@@ -676,11 +1044,11 @@ export default function MapasCortes() {
       {/* ====================================================
           KPIs DEL MAPA
       ==================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* PUNTOS */}
         <Tooltip
           title="Puntos georreferenciados"
-          text="Cantidad de conexiones con deuda que cuentan con coordenadas válidas dentro del período seleccionado, y que por lo tanto se muestran en el mapa de calor."
+          text="Cantidad de conexiones con deuda que cuentan con coordenadas válidas dentro del período (y distrito, si aplica) seleccionado, y que por lo tanto se muestran en el mapa de calor."
           width="w-80"
         >
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm cursor-help">
@@ -702,7 +1070,7 @@ export default function MapasCortes() {
         {/* IMPEDIMENTOS */}
         <Tooltip
           title="Impedimentos"
-          text="Cantidad de conexiones georreferenciadas que presentan una situación especial o impedimento que evita realizar el corte, dentro del período seleccionado."
+          text="Cantidad de conexiones georreferenciadas que presentan una situación especial o impedimento (csitreg = 'S') que evita realizar el corte, dentro del período y distrito seleccionados."
           width="w-80"
         >
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm cursor-help">
@@ -721,10 +1089,32 @@ export default function MapasCortes() {
             </div>
           </div>
         </Tooltip>
+        {/* MONTO EN IMPEDIMENTOS */}
+        <Tooltip
+          title="Deuda en impedimentos"
+          text="Suma de la deuda de todas las conexiones que presentan un impedimento activo para el corte, dentro del período y distrito seleccionados. Es deuda que hoy no se puede recuperar mediante corte porque hay una situación que lo impide."
+          width="w-80"
+        >
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm cursor-help">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  Deuda en impedimentos
+                </p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">
+                  {formatearMonto(impedimentos.monto_total_impedimentos)}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-orange-50 text-orange-600">
+                <FileWarning size={20} />
+              </div>
+            </div>
+          </div>
+        </Tooltip>
         {/* DEUDA */}
         <Tooltip
           title="Deuda georreferenciada"
-          text="Suma de la deuda de todas las conexiones que cuentan con coordenadas válidas y se muestran en el mapa de calor, dentro del período seleccionado."
+          text="Suma de la deuda de todas las conexiones que cuentan con coordenadas válidas y se muestran en el mapa de calor, dentro del período y distrito seleccionados."
           width="w-80"
         >
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm cursor-help">
@@ -734,10 +1124,7 @@ export default function MapasCortes() {
                   Deuda georreferenciada
                 </p>
                 <p className="text-2xl font-bold text-slate-800 mt-1">
-                  {deudaTotal.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatearMonto(deudaTotal)}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
@@ -853,43 +1240,15 @@ export default function MapasCortes() {
                     fillOpacity: 0.75,
                     weight: 2,
                   }}
-                  eventHandlers={{
-                    click: () => setSeleccionado(item),
-                  }}
                 >
-                  <Popup>
-                    <div className="min-w-[240px]">
-                      <p className="font-bold text-slate-800 text-sm mb-2">
-                        Impedimento de corte
-                      </p>
-                      <div className="space-y-1.5 text-xs">
-                        <p>
-                          <strong>Conexión:</strong> {item.ccodcnx || "--"}
-                        </p>
-                        <p>
-                          <strong>Distrito:</strong> {item.distrito || "--"}
-                        </p>
-                        <p>
-                          <strong>Impedimento:</strong> {item.cdesacc || "--"}
-                        </p>
-                        <p>
-                          <strong>Código:</strong> {item.ccodacc || "--"}
-                        </p>
-                        <p>
-                          <strong>Situación:</strong> {item.csitreg || "--"}
-                        </p>
-                        <p>
-                          <strong>Deuda:</strong>{" "}
-                          {Number(item.deuda ?? 0).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </p>
-                        <p className="pt-1 border-t border-slate-100">
-                          <strong>Dirección:</strong> {item.direccion || "--"}
-                        </p>
-                      </div>
-                    </div>
-                  </Popup>
+                  <LeafletTooltip
+                    direction="top"
+                    offset={[0, -8]}
+                    opacity={1}
+                    className="cartilla-tooltip"
+                  >
+                    <ContenidoImpedimento item={item} />
+                  </LeafletTooltip>
                 </CircleMarker>
               ))}
             {/* ============================================
@@ -902,36 +1261,20 @@ export default function MapasCortes() {
                   center={[item.latMapa, item.lngMapa]}
                   radius={4}
                   pathOptions={{
-                    color: "#2563eb",
-                    fillColor: "#3b82f6",
-                    fillOpacity: 0.25,
+                    color: item.ejecutada ? "#16a34a" : "#2563eb",
+                    fillColor: item.ejecutada ? "#22c55e" : "#3b82f6",
+                    fillOpacity: 0.3,
                     weight: 1,
                   }}
                 >
-                  <Popup>
-                    <div className="min-w-[230px]">
-                      <p className="font-bold text-slate-800 text-sm mb-2">
-                        Punto de deuda
-                      </p>
-                      <div className="space-y-1.5 text-xs">
-                        <p>
-                          <strong>Conexión:</strong> {item.ccodcnx || "--"}
-                        </p>
-                        <p>
-                          <strong>Distrito:</strong> {item.distrito || "--"}
-                        </p>
-                        <p>
-                          <strong>Deuda:</strong>{" "}
-                          {Number(item.deuda ?? 0).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </p>
-                        <p className="pt-1 border-t border-slate-100">
-                          <strong>Dirección:</strong> {item.direccion || "--"}
-                        </p>
-                      </div>
-                    </div>
-                  </Popup>
+                  <LeafletTooltip
+                    direction="top"
+                    offset={[0, -6]}
+                    opacity={1}
+                    className="cartilla-tooltip"
+                  >
+                    <ContenidoPunto item={item} />
+                  </LeafletTooltip>
                 </CircleMarker>
               ))}
           </MapContainer>
@@ -963,6 +1306,12 @@ export default function MapasCortes() {
                   Mayor concentración
                 </span>
               </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100 mt-1">
+                <span className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="text-[10px] text-slate-600">
+                  Punto ya ejecutado
+                </span>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -988,7 +1337,10 @@ export default function MapasCortes() {
               </h3>
               <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
                 Representa espacialmente la concentración de deuda de las
-                conexiones georreferenciadas durante el período seleccionado.
+                conexiones georreferenciadas durante el período (y distrito,
+                si se aplicó) seleccionados. Las zonas en rojo concentran
+                mayor deuda; los puntos en verde ya fueron ejecutados. Pasa
+                el mouse sobre cualquier punto para ver su detalle completo.
               </p>
             </div>
           </div>
@@ -1004,7 +1356,9 @@ export default function MapasCortes() {
               </h3>
               <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
                 Permite identificar espacialmente las conexiones donde existe
-                una situación especial o impedimento para realizar el corte.
+                una situación especial o impedimento (csitreg = 'S') para
+                realizar el corte, junto con el motivo específico. Pasa el
+                mouse sobre cualquier marcador para ver el detalle completo.
               </p>
             </div>
           </div>

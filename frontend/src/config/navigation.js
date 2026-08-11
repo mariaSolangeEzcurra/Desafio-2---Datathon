@@ -38,8 +38,10 @@ const navigation = [
       icon: Eye,
       roles: ["Supervisor"],
       children: [
-        { id: "cortes_kpis", label: "KPI's de Cortes", icon: FileText }, 
+        { id: "cortes_kpis", label: "KPI's de Cortes", icon: FileText },
+        { id: "cortes_personal", label: "Personal Asignado", icon: Users }, 
         { id: "cortes_mapa", label: "Mapa GIS", icon: Map },
+        { id: "cortes_alertas", label: "Alertas", icon: Bell },
         { id: "cortes_reporte", label: "Reportes", icon: FileBarChart },
       ]
     },

@@ -6,16 +6,21 @@ export const cortesKPIService = {
   // ==========================================================
   // DASHBOARD KPIs
   // GET /api/cortes/kpis/dashboard
+  //
   // Filtros:
-  // - fecha_inicio
-  // - fecha_fin
-  // - periodo (hoy, semana, mes, 3meses)
+  // - periodo: hoy, semana, mes, 3meses
+  // - fecha_inicio: YYYY-MM-DD
+  // - fecha_fin: YYYY-MM-DD
+  // - distrito
+  // - ccodprs
   // ==========================================================
-  obtenerDashboardKpis: async (
+  obtenerDashboardKpis: async ({
+    periodo = "",
     fechaInicio = "",
     fechaFin = "",
-    periodo = ""
-  ) => {
+    distrito = "",
+    ccodprs = "",
+  } = {}) => {
     const params = {};
 
     if (periodo) {
@@ -28,6 +33,14 @@ export const cortesKPIService = {
 
     if (fechaFin) {
       params.fecha_fin = fechaFin;
+    }
+
+    if (distrito) {
+      params.distrito = distrito;
+    }
+
+    if (ccodprs) {
+      params.ccodprs = ccodprs;
     }
 
     const response = await axios.get(
@@ -46,16 +59,17 @@ export const cortesKPIService = {
   // ==========================================================
   // RESUMEN ANALÍTICO
   // GET /api/cortes/kpis/resumen
+  //
   // Filtros:
-  // - fecha_inicio
-  // - fecha_fin
-  // - periodo (hoy, semana, mes, 3meses)
+  // - periodo: hoy, semana, mes, 3meses
+  // - fecha_inicio: YYYY-MM-DD
+  // - fecha_fin: YYYY-MM-DD
   // ==========================================================
-  obtenerResumen: async (
+  obtenerResumen: async ({
+    periodo = "",
     fechaInicio = "",
     fechaFin = "",
-    periodo = ""
-  ) => {
+  } = {}) => {
     const params = {};
 
     if (periodo) {

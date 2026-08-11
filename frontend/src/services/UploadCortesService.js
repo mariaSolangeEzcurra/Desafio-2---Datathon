@@ -1,20 +1,11 @@
 import axios from "axios";
 
-// ============================================================
-// CONFIGURACIÓN BASE
-// ============================================================
-
 const API_URL = import.meta.env.VITE_API_URL;
 
-// ============================================================
-// SERVICE PARA CARGA DE CORTES
-// ============================================================
-
 export const uploadService = {
-
   // ==========================================================
   // SUBIR EXCEL DE CORTES
-  // POST /api/cortes/upload-excel
+  // POST /api/cortes/cargas/upload
   // ==========================================================
   uploadArchivo: async (archivo, proceso = "Corte") => {
     const formData = new FormData();
@@ -23,11 +14,10 @@ export const uploadService = {
     formData.append("proceso", proceso);
 
     const response = await axios.post(
-      `${API_URL}/api/cortes/upload-excel`,
+      `${API_URL}/api/cortes/cargas/upload`,
       formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data",
           Accept: "application/json",
         },
       }
@@ -37,13 +27,16 @@ export const uploadService = {
   },
 
   // ==========================================================
-  // OBTENER HISTORIAL
-  // GET /api/cortes/historial
+  // OBTENER HISTORIAL DE CARGAS
+  // GET /api/cortes/cargas/historial
   // ==========================================================
-  getHistorial: async () => {
+  getHistorial: async (limit = 50) => {
     const response = await axios.get(
-      `${API_URL}/api/cortes/historial`,
+      `${API_URL}/api/cortes/cargas/historial`,
       {
+        params: {
+          limit,
+        },
         headers: {
           Accept: "application/json",
         },
@@ -55,11 +48,11 @@ export const uploadService = {
 
   // ==========================================================
   // REVERTIR CARGA
-  // DELETE /api/cortes/historial/{id_carga}
+  // DELETE /api/cortes/cargas/historial/{id_carga}
   // ==========================================================
   revertirCarga: async (idCarga) => {
     const response = await axios.delete(
-      `${API_URL}/api/cortes/historial/${idCarga}`,
+      `${API_URL}/api/cortes/cargas/historial/${idCarga}`,
       {
         headers: {
           Accept: "application/json",
@@ -69,5 +62,4 @@ export const uploadService = {
 
     return response.data;
   },
-
 };

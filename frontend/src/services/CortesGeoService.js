@@ -2,30 +2,16 @@ import axios from "axios";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/cortes/geo`;
 
-// ============================================================
-// SERVICE: GEOLOCALIZACIÓN DE CORTES
-// ============================================================
-
 export const cortesGeoService = {
-  // ==========================================================
-  // HEATMAP
-  // GET /api/cortes/geo/heatmap
-  //
-  // Filtros:
-  // - fecha_inicio
-  // - fecha_fin
-  // - periodo (hoy, semana, mes, 3meses)
-  // ==========================================================
-  obtenerHeatmap: async (
+  obtenerHeatmap: async ({
     fechaInicio = "",
     fechaFin = "",
-    periodo = ""
-  ) => {
+    periodo = "",
+    distrito = "",
+    ccodprs = "",
+    limite = 2000,
+  } = {}) => {
     const params = {};
-
-    if (periodo) {
-      params.periodo = periodo;
-    }
 
     if (fechaInicio) {
       params.fecha_inicio = fechaInicio;
@@ -33,6 +19,22 @@ export const cortesGeoService = {
 
     if (fechaFin) {
       params.fecha_fin = fechaFin;
+    }
+
+    if (periodo) {
+      params.periodo = periodo;
+    }
+
+    if (distrito) {
+      params.distrito = distrito;
+    }
+
+    if (ccodprs) {
+      params.ccodprs = ccodprs;
+    }
+
+    if (limite) {
+      params.limite = limite;
     }
 
     const response = await axios.get(`${API_URL}/heatmap`, {
@@ -50,20 +52,22 @@ export const cortesGeoService = {
   // GET /api/cortes/geo/impedimentos
   //
   // Filtros:
-  // - fecha_inicio
-  // - fecha_fin
-  // - periodo (hoy, semana, mes, 3meses)
+  // - fecha_inicio: YYYY-MM-DD
+  // - fecha_fin: YYYY-MM-DD
+  // - periodo: hoy, semana, mes, 3meses
+  // - distrito
+  // - ccodprs
+  // - limite: máximo de puntos a retornar
   // ==========================================================
-  obtenerImpedimentos: async (
+  obtenerImpedimentos: async ({
     fechaInicio = "",
     fechaFin = "",
-    periodo = ""
-  ) => {
+    periodo = "",
+    distrito = "",
+    ccodprs = "",
+    limite = 2000,
+  } = {}) => {
     const params = {};
-
-    if (periodo) {
-      params.periodo = periodo;
-    }
 
     if (fechaInicio) {
       params.fecha_inicio = fechaInicio;
@@ -71,6 +75,22 @@ export const cortesGeoService = {
 
     if (fechaFin) {
       params.fecha_fin = fechaFin;
+    }
+
+    if (periodo) {
+      params.periodo = periodo;
+    }
+
+    if (distrito) {
+      params.distrito = distrito;
+    }
+
+    if (ccodprs) {
+      params.ccodprs = ccodprs;
+    }
+
+    if (limite) {
+      params.limite = limite;
     }
 
     const response = await axios.get(`${API_URL}/impedimentos`, {
