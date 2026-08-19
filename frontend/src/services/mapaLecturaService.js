@@ -29,11 +29,18 @@ export async function obtenerPersonal(filtros = {}) {
 
 /**
  * Obtener discrepancias espaciales
+ *
+ * Endpoint:
+ * GET /api/maps/discrepancias
+ *
+ * Parámetros:
+ * - fecha_inicio
+ * - fecha_fin
+ * - periodo
+ * - zona_id
+ * - cmetfac
  */
-export async function obtenerDiscrepancias(
-    filtros = {}
-) {
-
+export async function obtenerDiscrepancias(filtros = {}) {
     const params = new URLSearchParams();
 
     // ========================================================
@@ -46,7 +53,6 @@ export async function obtenerDiscrepancias(
     ) {
         params.append("periodo", filtros.periodo);
     } else {
-
         if (
             filtros.fecha_inicio &&
             filtros.fecha_inicio !== "TODOS"
@@ -69,11 +75,10 @@ export async function obtenerDiscrepancias(
     }
 
     // ========================================================
-    // RESTO DE FILTROS
+    // FILTROS ADICIONALES
     // ========================================================
 
     ["zona_id", "cmetfac"].forEach((campo) => {
-
         if (
             filtros[campo] !== undefined &&
             filtros[campo] !== null &&
@@ -82,7 +87,6 @@ export async function obtenerDiscrepancias(
         ) {
             params.append(campo, filtros[campo]);
         }
-
     });
 
     const url =
@@ -106,11 +110,18 @@ export async function obtenerDiscrepancias(
 
 /**
  * Obtener heatmap de impedimentos
+ *
+ * Endpoint:
+ * GET /api/maps/heatmap-impedimentos
+ *
+ * Parámetros:
+ * - fecha_inicio
+ * - fecha_fin
+ * - periodo
+ * - zona_id
+ * - cmetfac
  */
-export async function obtenerHeatmapImpedimentos(
-    filtros = {}
-) {
-
+export async function obtenerHeatmapImpedimentos(filtros = {}) {
     const params = new URLSearchParams();
 
     // ========================================================
@@ -123,7 +134,6 @@ export async function obtenerHeatmapImpedimentos(
     ) {
         params.append("periodo", filtros.periodo);
     } else {
-
         if (
             filtros.fecha_inicio &&
             filtros.fecha_inicio !== "TODOS"
@@ -146,11 +156,10 @@ export async function obtenerHeatmapImpedimentos(
     }
 
     // ========================================================
-    // RESTO DE FILTROS
+    // FILTROS ADICIONALES
     // ========================================================
 
     ["zona_id", "cmetfac"].forEach((campo) => {
-
         if (
             filtros[campo] !== undefined &&
             filtros[campo] !== null &&
@@ -159,7 +168,6 @@ export async function obtenerHeatmapImpedimentos(
         ) {
             params.append(campo, filtros[campo]);
         }
-
     });
 
     const url =
@@ -185,10 +193,9 @@ export async function obtenerHeatmapImpedimentos(
  * Obtener catálogo
  *
  * Ejemplo:
- * /api/catalogos/observaciones
+ * GET /api/catalogos/observaciones
  */
 export async function obtenerCatalogo(tipo) {
-
     const response = await fetch(
         `${API_URL}/api/catalogos/${tipo}`
     );
@@ -207,36 +214,29 @@ export async function obtenerCatalogo(tipo) {
 // OBTENER GRUPOS DE FACTURACIÓN
 // ============================================================
 export async function obtenerGruposFacturacion() {
-
     const response = await fetch(
         `${API_URL}/api/catalogos/grupos`
     );
 
     if (!response.ok) {
-
         let mensaje =
             "Error obteniendo grupos de facturación";
 
         try {
-
             const errorData =
                 await response.json();
 
             if (errorData?.detail) {
-
                 mensaje =
                     typeof errorData.detail === "string"
                         ? errorData.detail
                         : JSON.stringify(errorData.detail);
-
             }
-
         } catch {
             // Mantener mensaje por defecto
         }
 
         throw new Error(mensaje);
-
     }
 
     const data = await response.json();

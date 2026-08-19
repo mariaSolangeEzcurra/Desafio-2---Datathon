@@ -29,14 +29,17 @@ import {
 } from "../services/mapaLecturaService";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
+
 // =========================================================
 // CONFIGURACIÓN GENERAL
 // =========================================================
 const CENTRO_AREQUIPA = [-16.409, -71.537];
+
 // =========================================================
 // COLOR DE MARCA (mismo utilizado en TrabajadoresDesempeno)
 // =========================================================
 const COLOR_MARCA = "#006cb7";
+
 // =========================================================
 // ICONOS LEAFLET
 // =========================================================
@@ -49,6 +52,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl:
         "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
 });
+
 // =========================================================
 // ICONO UBICACIÓN REAL
 // =========================================================
@@ -62,6 +66,7 @@ const iconReal = new L.Icon({
     popupAnchor: [1, -34],
     tooltipAnchor: [0, -35]
 });
+
 // =========================================================
 // ICONO UBICACIÓN TEÓRICA
 // =========================================================
@@ -75,6 +80,7 @@ const iconTeorica = new L.Icon({
     popupAnchor: [1, -34],
     tooltipAnchor: [0, -35]
 });
+
 // =========================================================
 // VALIDAR COORDENADAS
 // =========================================================
@@ -93,6 +99,7 @@ function coordenadasValidas(punto) {
         lng <= 180
     );
 }
+
 // =========================================================
 // FORMATEAR DISTANCIA
 // =========================================================
@@ -110,6 +117,7 @@ function formatearDistancia(valor) {
     }
     return `${numero.toFixed(2)} m`;
 }
+
 // =========================================================
 // FORMATEAR COORDENADA
 // =========================================================
@@ -127,6 +135,7 @@ function formatearCoordenada(valor) {
     }
     return numero.toFixed(7);
 }
+
 // =========================================================
 // OBTENER NOMBRE DEL TRABAJADOR
 // =========================================================
@@ -147,6 +156,7 @@ function obtenerNombreTrabajador(
     }
     return "Nombre no disponible";
 }
+
 function interpretarMotivo(motivo) {
     if (
         motivo === null ||
@@ -207,6 +217,7 @@ function interpretarMotivo(motivo) {
         textoOriginal: texto
     };
 }
+
 // =========================================================
 // AJUSTAR MAPA AUTOMÁTICAMENTE
 // =========================================================
@@ -250,6 +261,7 @@ function AjustarMapa({
     ]);
     return null;
 }
+
 // =========================================================
 // HEATMAP
 // =========================================================
@@ -303,11 +315,13 @@ function HeatmapLayer({
     ]);
     return null;
 }
+
 // =========================================================
 // COMPONENTE PRINCIPAL
 // =========================================================
 export default function Mapa({
-    filtros
+    filtros,
+    onLoadingChange
 }) {
     // =====================================================
     // FILTROS
@@ -315,6 +329,7 @@ export default function Mapa({
     const {
         fecha_inicio = "",
         fecha_fin = "",
+        periodo = "",
         zona_id = "",
         cmetfac = "",
         capa = "discrepancias"
@@ -362,13 +377,22 @@ export default function Mapa({
         async function cargarDatos() {
             try {
                 setLoading(true);
+                if (onLoadingChange) {
+                    onLoadingChange(true);
+                }
                 setError("");
                 // =================================================
                 // FILTROS EXACTAMENTE COMO LOS ACEPTA EL API
+                //
+                // periodo y fecha_inicio/fecha_fin son excluyentes.
+                // La lógica de exclusión ya vive en el service
+                // (mapaLecturaService.js), así que basta con pasar
+                // todos los valores tal cual.
                 // =================================================
                 const filtrosAPI = {
                     fecha_inicio,
                     fecha_fin,
+                    periodo,
                     zona_id,
                     cmetfac
                 };
@@ -494,6 +518,9 @@ export default function Mapa({
             finally {
                 if (activo) {
                     setLoading(false);
+                    if (onLoadingChange) {
+                        onLoadingChange(false);
+                    }
                 }
             }
         }
@@ -501,9 +528,11 @@ export default function Mapa({
         return () => {
             activo = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         fecha_inicio,
         fecha_fin,
+        periodo,
         zona_id,
         cmetfac,
         capa
@@ -655,66 +684,7 @@ export default function Mapa({
                         </div>
                     </div>
                 )
-            }
-            {/* =================================================
-                INFORMACIÓN DE DISCREPANCIAS
-            ================================================= */}
-            {
-                capa === "discrepancias" && (
-                    <div className="mb-5 bg-blue-50 border border-blue-100 rounded-xl p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="p-1.5 rounded-lg bg-white text-[#006cb7] shrink-0 mt-0.5">
-                                <Info size={15} />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-700">
-                                    ¿Qué significa "Fuera de Punto"?
-                                </p>
-                                <p className="text-[11px] text-slate-600 leading-relaxed mt-1.5">
-                                    El endpoint de discrepancias identifica lecturas cuyo desfase espacial supera el umbral establecido por el servicio. El resultado de validación, la distancia y las coordenadas mostradas en el mapa provienen directamente del API.
-                                </p>
-                                {
-                                    cantidadSinTeorica > 0 && (
-                                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2.5">
-                                            <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                                            <p className="text-[11px] text-amber-700 leading-relaxed">
-                                                El API está devolviendo registros donde{" "}
-                                                <strong className="text-amber-800">teorica.lat</strong> y{" "}
-                                                <strong className="text-amber-800">teorica.lng</strong> son nulos.
-                                                Por eso el Frontend muestra únicamente el punto real y no inventa una ubicación teórica ni una línea de desfase.
-                                            </p>
-                                        </div>
-                                    )
-                                }
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-            {/* =================================================
-                INFORMACIÓN HEATMAP
-            ================================================= */}
-            {
-                capa === "heatmap" && (
-                    <div className="mb-5 bg-orange-50 border border-orange-100 rounded-xl p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="p-1.5 rounded-lg bg-white text-orange-600 shrink-0 mt-0.5">
-                                <Flame size={15} />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-700">
-                                    ¿Qué representa el mapa de calor?
-                                </p>
-                                <p className="text-[11px] text-slate-600 leading-relaxed mt-1.5">
-                                    El mapa representa los puntos devueltos por el endpoint{" "}
-                                    <strong className="text-slate-700">/api/maps/heatmap-impedimentos</strong>.
-                                    El campo <strong className="text-slate-700">peso</strong> es utilizado para determinar la intensidad de la representación térmica.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            }           
             {/* =================================================
                 LEYENDA
             ================================================= */}
@@ -972,9 +942,6 @@ export default function Mapa({
                                                                         <p className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
                                                                             <MapPin size={13} /> Ubicación teórica
                                                                         </p>
-                                                                        <div className="bg-blue-50 rounded-lg p-3 mb-3 text-slate-600">
-                                                                            Este punto representa la ubicación teórica proporcionada por el API.
-                                                                        </div>
                                                                         <div className="space-y-2.5">
                                                                             <div>
                                                                                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -1291,14 +1258,14 @@ export default function Mapa({
                                                                                     El registro corresponde a una{" "}
                                                                                     <strong className="text-slate-700">observación</strong> identificada con el código{" "}
                                                                                     <strong className="text-slate-700">{info.codigo}</strong>.
-                                                                                    El motivo registrado por el API es:{" "}
+                                                                                    El motivo registrado es:{" "}
                                                                                     <strong className="text-slate-700">{info.descripcion}</strong>.
                                                                                 </p>
                                                                             )
                                                                             : (
                                                                                 <p className="text-slate-600">
                                                                                     El registro corresponde a un{" "}
-                                                                                    <strong className="text-slate-700">impedimento</strong> o incidencia reportada por el API.
+                                                                                    <strong className="text-slate-700">impedimento</strong> o incidencia reportada.
                                                                                     El motivo recibido es:{" "}
                                                                                     <strong className="text-slate-700">{info.descripcion}</strong>.
                                                                                 </p>
@@ -1331,28 +1298,6 @@ export default function Mapa({
                     }
                 </MapContainer>
             </div>
-            {/* =================================================
-                PIE INFORMATIVO
-            ================================================= */}
-            {
-                capa === "discrepancias" && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-5 gap-y-1.5 text-[10px] font-medium text-slate-400">
-                        <span>🔴 Punto rojo = ubicación real</span>
-                        <span>🔵 Punto azul = ubicación teórica</span>
-                        <span>┄ Línea = desfase espacial</span>
-                        <span>ℹ️ Los valores provienen del API</span>
-                    </div>
-                )
-            }
-            {
-                capa === "heatmap" && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-5 gap-y-1.5 text-[10px] font-medium text-slate-400">
-                        <span>🔥 Heatmap = concentración espacial</span>
-                        <span>🟠 Punto = registro interactivo</span>
-                        <span>ℹ️ El peso es proporcionado por el API</span>
-                    </div>
-                )
-            }
         </div>
     );
 }

@@ -461,7 +461,7 @@ function ModalAlerta({
               </h2>
 
               <p className="mt-1 text-xs text-slate-500">
-                Información proporcionada por el API de riesgo operativo.
+                Información proporcionada de riesgo operativo.
               </p>
             </div>
           </div>
@@ -557,7 +557,7 @@ function ModalAlerta({
             <div className="mt-3 rounded-lg bg-slate-50 p-4">
               <p className="text-sm leading-6 text-slate-600">
                 {alerta.motivo ||
-                  "El API no proporcionó un motivo."}
+                  "No se proporcionó un motivo."}
               </p>
             </div>
           </div>
@@ -1065,7 +1065,7 @@ export default function GerenciaLecturas() {
             value={formatearPorcentaje(
               resumen?.eficiencia_promedio
             )}
-            description="Eficiencia promedio proporcionada directamente por el API de resumen. El API entrega el valor en decimal, por ejemplo 0.99 representa 99%."
+            description="Eficiencia promedio proporcionada directamente por el resumen. Entregado en decimal, por ejemplo 0.99 representa 99%."
             detail={`Valor actual: ${formatearPorcentaje(
               resumen?.eficiencia_promedio
             )}.`}
@@ -1264,7 +1264,7 @@ export default function GerenciaLecturas() {
 
               <InfoTooltip
                 title="Ranking de personal"
-                text="El ranking es proporcionado directamente por el endpoint. La eficiencia del API se entrega como decimal: 0.99 equivale a 99%. La tabla la transforma únicamente para su visualización."
+                text="La eficiencia se entrega como decimal: 0.99 equivale a 99%. La tabla la transforma únicamente para su visualización."
               />
 
             </div>
@@ -1357,7 +1357,7 @@ export default function GerenciaLecturas() {
 
             <Tooltip
               title="Mayor eficiencia del ranking"
-              text="Trabajador con la eficiencia más alta dentro de los registros recibidos del API."
+              text="Trabajador con la eficiencia más alta dentro de los registros recibidos."
               width="w-80"
             >
               <div className="cursor-help rounded-xl border border-emerald-100 bg-emerald-50 p-4">
@@ -1407,7 +1407,7 @@ export default function GerenciaLecturas() {
 
             <Tooltip
               title="Menor eficiencia del ranking"
-              text="Trabajador con la eficiencia más baja dentro de los registros recibidos del API."
+              text="Trabajador con la eficiencia más baja dentro de los registros recibidos."
               width="w-80"
             >
               <div className="cursor-help rounded-xl border border-amber-100 bg-amber-50 p-4">
@@ -1498,7 +1498,7 @@ export default function GerenciaLecturas() {
                   <th className="p-3 text-left text-[10px] font-bold uppercase text-slate-500">
                     <Tooltip
                       title="Eficiencia"
-                      text="El API entrega la eficiencia como decimal. Por ejemplo, 0.99 equivale a 99%. La barra convierte ese valor a porcentaje únicamente para visualizarlo correctamente."
+                      text="La eficiencia se entrega como decimal. Por ejemplo, 0.99 equivale a 99%. La barra convierte ese valor a porcentaje únicamente para visualizarlo correctamente."
                       width="w-80"
                     >
                       <span className="cursor-help">
@@ -1522,7 +1522,7 @@ export default function GerenciaLecturas() {
                   <th className="p-3 text-right text-[10px] font-bold uppercase text-slate-500">
                     <Tooltip
                       title="Duración total"
-                      text="Tiempo total registrado para completar las lecturas del trabajador. El API entrega este valor en minutos."
+                      text="Tiempo total registrado para completar las lecturas del trabajador. Se entrega este valor en minutos."
                       width="w-80"
                     >
                       <span className="cursor-help">
@@ -1837,7 +1837,7 @@ export default function GerenciaLecturas() {
 
             <InfoTooltip
               title="Distribución por nivel"
-              text="Agrupación de las alertas recibidas desde el API según el nivel de severidad registrado."
+              text="Agrupación de las alertas recibidas según el nivel de severidad registrado."
             />
 
           </div>
@@ -2153,8 +2153,7 @@ export default function GerenciaLecturas() {
               el volumen de lecturas, eficiencia,
               registros analizados y lectores
               evaluados. El ranking permite comparar
-              el desempeño individual utilizando los
-              valores proporcionados por el API.
+              el desempeño individual.
               La eficiencia se presenta como porcentaje,
               convirtiendo valores como 0.99 en 99%.
               Finalmente, el módulo de riesgo operativo

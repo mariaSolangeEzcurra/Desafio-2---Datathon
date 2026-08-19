@@ -333,7 +333,7 @@ export default function CortesKPI({ idSeleccionado }) {
       const inicioConsulta = periodoActual ? "" : inicio;
       const finConsulta = periodoActual ? "" : fin;
 
-      console.log("Consultando API de cortes:", {
+      console.log("Consultando cortes:", {
         periodo: periodoActual,
         fecha_inicio: inicioConsulta,
         fecha_fin: finConsulta,
@@ -479,7 +479,7 @@ export default function CortesKPI({ idSeleccionado }) {
       nombre: "Tasa de efectividad",
       valor: formatearPorcentaje(efectividad),
       descripcion:
-        "Porcentaje de efectividad de las órdenes de corte según los resultados procesados por el API.",
+        "Porcentaje de efectividad de las órdenes de corte.",
       formula: "(Órdenes ejecutadas / Total de órdenes) × 100",
       datos: "tasa_efectividad_porcentaje",
       icon: Gauge,
@@ -496,7 +496,7 @@ export default function CortesKPI({ idSeleccionado }) {
       nombre: "Deuda recuperada",
       valor: formatearMonto(deudaRecuperada),
       descripcion:
-        "Monto de deuda que ha sido recuperado según los datos proporcionados por el API.",
+        "Monto de deuda que ha sido recuperado.",
       datos: "monto_deuda_recuperada",
       icon: CheckCircle2,
     },
@@ -504,7 +504,7 @@ export default function CortesKPI({ idSeleccionado }) {
       nombre: "Deuda en riesgo",
       valor: formatearMonto(deudaRiesgo),
       descripcion:
-        "Monto de deuda identificado como deuda en riesgo según los datos procesados por el API.",
+        "Monto de deuda identificado como deuda en riesgo.",
       datos: "monto_deuda_en_riesgo",
       icon: CircleAlert,
     },
@@ -751,7 +751,7 @@ export default function CortesKPI({ idSeleccionado }) {
             {distritoFiltro && `Distrito: ${distritoFiltro}`}
             {distritoFiltro && ccodprsFiltro && " · "}
             {ccodprsFiltro && `Trabajador: ${ccodprsFiltro}`}
-            {" — los indicadores principales de arriba sí respetan este filtro; el análisis por distrito/programa se adapta o se oculta según lo que el API pueda filtrar (ver avisos abajo)."}
+            {" — los indicadores principales de arriba sí respetan este filtro; el análisis por distrito/programa se adapta o se oculta según lo que se pueda filtrar (ver avisos abajo)."}
           </p>
         )}
       </div>
@@ -1115,7 +1115,7 @@ export default function CortesKPI({ idSeleccionado }) {
                   Los indicadores destacados (distrito más efectivo, mayor
                   deuda, programa con más volumen, etc.) se ocultan con el
                   filtro actual porque comparan varios distritos y programas
-                  a la vez, y el API de resumen no distingue por trabajador.
+                  a la vez.
                   Revisa las tarjetas de arriba: esas sí reflejan el filtro
                   aplicado con exactitud.
                 </p>
@@ -1147,7 +1147,7 @@ export default function CortesKPI({ idSeleccionado }) {
             <div className="border border-slate-200 rounded-xl overflow-auto max-h-[450px]">
               {!mostrarTablaDistrito ? (
                 <AvisoFiltroNoSoportado
-                  mensaje="No disponible al filtrar por trabajador: el API de resumen no distingue por trabajador, así que esta tabla mostraría distritos que no le corresponden. Quita el filtro de trabajador para verla, o usa las tarjetas de arriba, que sí respetan el filtro."
+                  mensaje="No disponible al filtrar por trabajador: Usa las tarjetas de arriba, que sí respetan el filtro."
                 />
               ) : datosTablaDistrito.length > 0 ? (
                 <table className="w-full min-w-[950px] text-left text-xs border-collapse">
@@ -1268,7 +1268,7 @@ export default function CortesKPI({ idSeleccionado }) {
             <div className="border border-slate-200 rounded-xl overflow-auto max-h-[450px]">
               {!mostrarTablaPrograma ? (
                 <AvisoFiltroNoSoportado
-                  mensaje="No disponible con este filtro: el API de resumen no distingue por distrito ni por trabajador, así que esta tabla mostraría programas que no corresponden al filtro aplicado. Quita el filtro para verla, o usa las tarjetas de arriba."
+                  mensaje="No disponible con este filtro: Usa las tarjetas de arriba."
                 />
               ) : resumen.por_tipo_programa?.length > 0 ? (
                 <table className="w-full min-w-[950px] text-left text-xs border-collapse">

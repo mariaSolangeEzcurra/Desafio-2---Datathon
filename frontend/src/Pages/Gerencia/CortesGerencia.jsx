@@ -1479,7 +1479,7 @@ export default function CortesGerencia() {
                     listaImpedimentos.length
                   )}
                 </strong>{" "}
-                registros. El resto permanece disponible en la respuesta de la API.
+                registros.
               </div>
             )}
           </div>

@@ -870,7 +870,7 @@ export default function Alertas() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Tooltip
           title="Alertas totales"
-          text="Cantidad total de alertas devueltas por el API según los filtros seleccionados."
+          text="Cantidad total de alertas devueltas según los filtros seleccionados."
         >
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-help">
             <div className="flex items-center justify-between gap-4">
@@ -960,9 +960,6 @@ export default function Alertas() {
               <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                 Alertas registradas
               </h2>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Alertas obtenidas directamente desde el API.
-              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -995,7 +992,7 @@ export default function Alertas() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
               <Loader2 className="animate-spin text-[#006cb7]" size={26} />
-              <p className="text-xs">Consultando alertas desde el API...</p>
+              <p className="text-xs">Consultando alertas ...</p>
             </div>
           ) : alertasFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
@@ -1215,7 +1212,7 @@ export default function Alertas() {
                       Motivo
                     </p>
                     <p className="text-xs text-slate-700 mt-1 leading-relaxed">
-                      {detalle.motivo || "El API no proporcionó un motivo."}
+                      {detalle.motivo || "No se proporcionó un motivo."}
                     </p>
                   </div>
                 </div>
