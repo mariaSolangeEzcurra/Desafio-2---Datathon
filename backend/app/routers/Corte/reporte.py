@@ -26,10 +26,6 @@ def exportar_reporte_financiero(
     periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Genera un archivo Excel agrupado por Distrito/CMETFAC con el balance de deuda
-    recuperada vs en riesgo, e incluye una pestaña con las Alertas Operativas (KPIs).
-    """
     buffer, media_type, filename = CortesReportesService.exportar_reporte_financiero_excel(
         db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
     )
@@ -56,10 +52,6 @@ def exportar_reporte_ineficiencia(
     periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Genera un archivo Excel detallado con todas las órdenes que registraron algún
-    tipo de bloqueo operativo (`CSITREG == 'S'`) o código de impedimento (`CCODACC` / `CIMPCRP`).
-    """
     buffer, media_type, filename = CortesReportesService.exportar_reporte_ineficiencia_excel(
         db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
     )
@@ -86,10 +78,6 @@ def exportar_reporte_personal(
     periodo: Optional[str] = Query(None, description="Período predefinido (hoy, semana, mes, 3meses)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Genera un archivo Excel consolidado por operario/técnico (`CCODPRS`), indicando total
-    de órdenes asignadas, ejecutadas, impedimentos y su % de efectividad operativa.
-    """
     buffer, media_type, filename = CortesReportesService.exportar_reporte_personal_excel(
         db, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, periodo=periodo
     )

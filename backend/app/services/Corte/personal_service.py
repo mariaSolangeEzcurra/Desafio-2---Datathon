@@ -30,10 +30,7 @@ def obtener_rendimiento_personal(
     fecha_fin: Optional[date] = None,
     periodo: Optional[str] = None,
     distrito: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    """
-    Agrupa el trabajo por operario/trabajador y calcula KPIs de rendimiento.
-    """
+) -> List[Dict[str, Any]]:    
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
 
     es_ejecutada = OrdenCorte.dejecuc.isnot(None)
@@ -87,10 +84,7 @@ def obtener_detalle_por_trabajador(
     periodo: Optional[str] = None,
     pagina: int = 1,
     limite: int = 50
-) -> Dict[str, Any]:
-    """
-    Obtiene el detalle paginado de órdenes asignadas a un trabajador específico.
-    """
+) -> Dict[str, Any]:   
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
 
     trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == ccodprs).first()

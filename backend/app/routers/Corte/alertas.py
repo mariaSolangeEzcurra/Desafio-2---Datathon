@@ -20,9 +20,6 @@ def get_alertas_operativas(
     distrito: Optional[str] = Query(None, description="Filtrar por distrito"),
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene la evaluación exacta de las 4 alertas operativas determinísticas para órdenes de corte.
-    """
     return evaluar_alertas_cortes(
         db=db,
         fecha_inicio=fecha_inicio,

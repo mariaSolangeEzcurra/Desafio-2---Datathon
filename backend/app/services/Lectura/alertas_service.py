@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, case
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from fastapi import HTTPException
 from typing import Optional, List
 import logging
@@ -13,8 +13,6 @@ class AlertasService:
 
     @staticmethod
     def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
-        """Calcula automáticamente las fechas si se pasa un período predefinido o rango personalizado"""
-        # Si se envía al menos una fecha explícita, se respetan las fechas recibidas
         if fecha_inicio or fecha_fin:
             return fecha_inicio, fecha_fin
             
@@ -50,7 +48,6 @@ class AlertasService:
         if ccodprs:
             query = query.filter(Alerta.ccodprs == ccodprs)
 
-        # Manejo de fecha individual o por período/rango
         f_inicio, f_fin = AlertasService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
         
         if fecha:
@@ -111,11 +108,9 @@ class AlertasService:
 
     @staticmethod
     def evaluar_y_generar_alertas(db: Session, fecha_evaluacion: Optional[date] = None) -> int:
-        """Evalúa los 7 KPIs operativos y espaciales por trabajador y genera alertas automáticas ante desviaciones."""
+        """Evalúa los KPIs por trabajador y genera alertas automáticas."""
         target_fecha = fecha_evaluacion or date.today()
-        alertas_creadas = 0
-        
-        # Cargar alertas existentes para evitar duplicados en el mismo día
+        alertas_creadas = 0        
         alertas_existentes = set(
             res[0] for res in db.query(Alerta.alerta_id).filter(Alerta.fecha == target_fecha).all()
         )
@@ -124,7 +119,7 @@ class AlertasService:
             def registrar_alerta(ccodprs, zona, kpi_nombre, cod_kpi, valor, umbral, motivo, nivel_prioridad):
                 nonlocal alertas_creadas
                 zona_limpia = zona.strip() if isinstance(zona, str) and zona.strip() else None              
-                alerta_id = f"ALT-{ccodprs}-{target_fecha.strftime('%Y%m%d')}-{cod_kpi}"
+                alerta_id = f"ALT-{str(ccodprs).strip()}-{target_fecha.strftime('%Y%m%d')}-{cod_kpi}"
                 
                 if alerta_id not in alertas_existentes:
                     nueva = Alerta(
@@ -134,7 +129,7 @@ class AlertasService:
                         motivo=motivo,
                         fecha=target_fecha,
                         estado_alerta="Pendiente",
-                        ccodprs=ccodprs,
+                        ccodprs=str(ccodprs).strip(),
                         zona_id=zona_limpia,  
                         valor_actual=round(float(valor), 2),
                         valor_umbral=float(umbral),
@@ -144,10 +139,9 @@ class AlertasService:
                     alertas_existentes.add(alerta_id)
                     alertas_creadas += 1
 
-            # --- EVALUACIÓN DE KPIS 1 AL 5 (Desde ResumenDiarioLector) ---
             resumenes = db.query(ResumenDiarioLector, Trabajador)\
                 .join(Trabajador, ResumenDiarioLector.ccodprs == Trabajador.ccodprs)\
-                .filter(ResumenDiarioLector.fecha == target_fecha)\
+                .filter(func.date(ResumenDiarioLector.fecha) == target_fecha)\
                 .all()
 
             for resumen, trabajador in resumenes:
@@ -166,33 +160,23 @@ class AlertasService:
                 pct_imp = (impedimentos / prog * 100) if prog > 0 else 0.0
                 pct_obs = (observaciones / real * 100) if real > 0 else 0.0
                 
-                # KPI 1: Cumplimiento
-                if prog > 0 and cumplimiento < 80:
-                    nivel = "Alto" if cumplimiento < 70 else "Medio"
+                if prog > 0 and cumplimiento < 80.0:
+                    nivel = "Alto" if cumplimiento < 70.0 else "Medio"
                     registrar_alerta(ccodprs, zona, "Cumplimiento de lectura", "CUMP", cumplimiento, 80.0, 
                                      f"Cumplimiento bajo: {round(cumplimiento, 2)}% (Mínimo esperado: 80%).", nivel)
-
-                # KPI 2: Productividad
                 if horas_campo > 0 and productividad < 15.0:
                     registrar_alerta(ccodprs, zona, "Productividad de lectura", "PROD", productividad, 15.0, 
                                      f"Productividad baja: {round(productividad, 2)} lect./hora.", "Medio")
-
-                # KPI 3: Tiempo promedio
                 if real > 0 and tiempo_prom > 2.0:
                     registrar_alerta(ccodprs, zona, "Tiempo promedio de lectura", "TPROM", tiempo_prom, 2.0, 
                                      f"Tiempo promedio elevado: {round(tiempo_prom, 2)} min/lectura.", "Medio")
-
-                # KPI 4: Impedimentos
-                if prog > 0 and pct_imp > 20:
+                if prog > 0 and pct_imp > 20.0:
                     registrar_alerta(ccodprs, zona, "Impedimentos de lectura", "IMP", pct_imp, 20.0, 
                                      f"Alto índice de impedimentos: {round(pct_imp, 2)}% (Umbral máximo: 20%).", "Alto")
-
-                # KPI 5: Observaciones
-                if real > 0 and pct_obs > 4:
+                if real > 0 and pct_obs > 4.0:
                     registrar_alerta(ccodprs, zona, "Observaciones de lectura", "OBS", pct_obs, 4.0, 
                                      f"Exceso de observaciones: {round(pct_obs, 2)}% (Umbral máximo: 4%).", "Alto")
 
-            # --- EVALUACIÓN DE KPIS 6 Y 7 (Desde Actividad) ---
             condicion_fuera = case((func.lower(Actividad.resultado).like("%fuera%"), 1), else_=0)
             condicion_valido = case((func.lower(Actividad.resultado).in_(["en punto", "conforme", "valido", "ok"]), 1), else_=0)
 
@@ -202,7 +186,7 @@ class AlertasService:
                 func.count(Actividad.actividad_id).label("total"),
                 func.sum(condicion_fuera).label("fuera"),
                 func.sum(condicion_valido).label("valido")
-            ).filter(Actividad.fecha == target_fecha)\
+            ).filter(func.date(Actividad.fecha) == target_fecha)\
             .group_by(Actividad.ccodprs, Actividad.cmetfac)\
             .all()
 
@@ -212,15 +196,12 @@ class AlertasService:
                 gps_valido = valido or 0
 
                 if total_act > 0:
-                    # KPI 6: Cobertura georreferenciada
                     cobertura_gps = (gps_valido / total_act) * 100
-                    if cobertura_gps < 80:
+                    if cobertura_gps < 80.0:
                         registrar_alerta(ccodprs, zona_act, "Cobertura georreferenciada", "GPS", cobertura_gps, 80.0,
                                          f"Cobertura GPS baja: {round(cobertura_gps, 2)}% (Mínimo esperado: 80%).", "Medio")
-
-                    # KPI 7: Actividades fuera de punto
                     pct_fuera = (fuera_punto / total_act) * 100
-                    if pct_fuera > 10:
+                    if pct_fuera > 10.0:
                         registrar_alerta(ccodprs, zona_act, "Actividades fuera de punto", "FUERA", pct_fuera, 10.0,
                                          f"Exceso de lecturas fuera del radio permitido: {round(pct_fuera, 2)}% (Umbral máximo: 10%).", "Alto")
 

@@ -37,7 +37,6 @@ def evaluar_alertas_cortes(
     if distrito:
         query = query.filter(OrdenCorte.distrito == distrito.strip().upper())
 
-    # Condiciones SQL precisas
     es_ejecutada = OrdenCorte.dejecuc.isnot(None)
     es_impedimento = OrdenCorte.csitreg == "S"
     tiene_gps = (
@@ -47,7 +46,6 @@ def evaluar_alertas_cortes(
         (OrdenCorte.cutmy != 0)
     )
 
-    # Consulta consolidada
     stats = query.with_entities(
         func.count(OrdenCorte.id_orden).label("total_programados"),
         func.coalesce(func.sum(case((es_ejecutada, 1), else_=0)), 0).label("ejecutados"),

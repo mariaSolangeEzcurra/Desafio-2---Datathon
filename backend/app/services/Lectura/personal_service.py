@@ -1,15 +1,15 @@
 from typing import Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc,and_, func, cast, Date, nullslast
+from sqlalchemy import desc, func, cast, Date
 from datetime import date, timedelta
-from app.model import (Actividad,Alerta,Conexion,EvaluacionDesempeno,ResumenDiarioLector,Trabajador,)
+from app.model import (Actividad, Alerta, Conexion, EvaluacionDesempeno, ResumenDiarioLector, Trabajador)
 
 class PersonalService:
 
     @staticmethod
-    def _calcular_fechas_por_periodo(periodo: str, fecha: date = None):
-        if fecha:
+    def _calcular_fechas_por_periodo(periodo: Optional[str], fecha: Optional[date] = None):
+        if fecha and not periodo:
             return fecha, fecha        
         hoy = date.today()
         if periodo == "hoy":
@@ -20,6 +20,9 @@ class PersonalService:
             return hoy - timedelta(days=30), hoy
         elif periodo == "3meses":
             return hoy - timedelta(days=90), hoy            
+        if fecha:
+            return fecha, fecha
+            
         return None, None
     
     @classmethod
@@ -37,15 +40,13 @@ class PersonalService:
         
         if f_inicio and f_fin:
             if f_inicio == f_fin:
-                # Si es una sola fecha exacta (o "hoy")
                 query = query.join(
                     ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
-                ).filter(ResumenDiarioLector.fecha == f_inicio)
+                ).filter(func.date(ResumenDiarioLector.fecha) == f_inicio)
             else:
-                # Si es un rango (semana, mes, 3meses)
                 query = query.join(
                     ResumenDiarioLector, Trabajador.ccodprs == ResumenDiarioLector.ccodprs
-                ).filter(ResumenDiarioLector.fecha.between(f_inicio, f_fin)).distinct()
+                ).filter(func.date(ResumenDiarioLector.fecha).between(f_inicio, f_fin)).distinct()
              
         return query.offset(skip).limit(limit).all()
 
@@ -63,36 +64,41 @@ class PersonalService:
                 fecha_eval = f_inicio
 
             if not fecha_eval:
-                fecha_eval = db.query(func.max(ResumenDiarioLector.fecha)).scalar()
+                fecha_eval = db.query(func.max(func.date(ResumenDiarioLector.fecha))).scalar()
                 if not fecha_eval:
                     raise HTTPException(
                         status_code=400, 
                         detail="No hay registros diarios de lectura para evaluar."
                     )
-            query_resumenes = db.query(ResumenDiarioLector).filter(ResumenDiarioLector.fecha == fecha_eval)
+                    
+            query_resumenes = db.query(ResumenDiarioLector).filter(func.date(ResumenDiarioLector.fecha) == fecha_eval)            
             if ccodprs:
-                query_resumenes = query_resumenes.filter(ResumenDiarioLector.ccodprs == ccodprs)            
+                query_resumenes = query_resumenes.filter(ResumenDiarioLector.ccodprs == str(ccodprs).strip())                        
             resumenes = query_resumenes.all()
             if not resumenes:
                 raise HTTPException(
                     status_code=404, 
                     detail=f"No se encontraron resúmenes diarios para la fecha {fecha_eval}."
-                )
+                )                
             codigos_lectores = [r.ccodprs for r in resumenes]
+            
             trabajadores_map = {
                 t.ccodprs: t for t in db.query(Trabajador).filter(Trabajador.ccodprs.in_(codigos_lectores)).all()
             }
             evals_existentes_map = {
                 e.ccodprs: e for e in db.query(EvaluacionDesempeno).filter(
-                    EvaluacionDesempeno.fecha == fecha_eval,
+                    func.date(EvaluacionDesempeno.fecha) == fecha_eval,
                     EvaluacionDesempeno.ccodprs.in_(codigos_lectores)
                 ).all()
             }
+            
             actualizados = 0
             nuevas_evaluaciones = []
+            
             for r in resumenes:
                 eficiencia_val = float(r.eficiencia or 0.0)
                 puntaje = round(eficiencia_val * 100, 2)
+                
                 if puntaje >= 95:
                     clasificacion = "Excelente"
                 elif puntaje >= 85:
@@ -101,6 +107,7 @@ class PersonalService:
                     clasificacion = "Regular"
                 else:
                     clasificacion = "Crítico"
+                    
                 if r.ccodprs in evals_existentes_map:
                     eval_existente = evals_existentes_map[r.ccodprs]
                     eval_existente.puntaje = puntaje
@@ -115,14 +122,17 @@ class PersonalService:
                         eficiencia=eficiencia_val,
                         tendencia="Estable"
                     ))
+                    
                 trabajador = trabajadores_map.get(r.ccodprs)
                 if trabajador:
                     trabajador.ultimo_puntaje = puntaje
                     trabajador.ultima_clasificacion = clasificacion
                     trabajador.fecha_ultima_evaluacion = fecha_eval
                 actualizados += 1
+                
             if nuevas_evaluaciones:
                 db.bulk_save_objects(nuevas_evaluaciones)
+                
             db.commit()
             return {
                 "status": "success",
@@ -138,21 +148,22 @@ class PersonalService:
 
     @staticmethod
     def obtener_ficha_trabajador(db: Session, ccodprs: str) -> Optional[Dict]:
-        trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == ccodprs).first()
+        codigo_limpio = str(ccodprs).strip()
+        trabajador = db.query(Trabajador).filter(Trabajador.ccodprs == codigo_limpio).first()
         if not trabajador:
             return None
+            
         resumenes = (
             db.query(ResumenDiarioLector)
-            .filter(ResumenDiarioLector.ccodprs == ccodprs)
+            .filter(ResumenDiarioLector.ccodprs == codigo_limpio)
             .order_by(desc(ResumenDiarioLector.fecha))
             .limit(30)
             .all()
         )
-        if not resumenes:
-            fechas_resumen = []
-        else:
-            fechas_resumen = [r.fecha for r in resumenes]
+        
+        fechas_resumen = [r.fecha.date() if hasattr(r.fecha, 'date') else r.fecha for r in resumenes]
         mapa_rutas_metfac = {}
+        
         if fechas_resumen:
             actividades_agrupadas = (
                 db.query(
@@ -162,26 +173,27 @@ class PersonalService:
                 )
                 .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
                 .filter(
-                    Actividad.ccodprs == ccodprs,
+                    Actividad.ccodprs == codigo_limpio,
                     cast(Actividad.fecha, Date).in_(fechas_resumen)
                 )
                 .group_by(cast(Actividad.fecha, Date))
                 .all()
             )
             for act in actividades_agrupadas:
-                llave_fecha = str(act.fecha_corta)
-                mapa_rutas_metfac[llave_fecha] = {
+                mapa_rutas_metfac[act.fecha_corta] = {
                     "cmetfac": act.cmetfac,
                     "ruta_id": act.ruta_id
                 }
+                
         historial_enriquecido = []
         for r in resumenes:
-            fecha_str = str(r.fecha)
-            info_extra = mapa_rutas_metfac.get(fecha_str, {})            
+            fecha_obj = r.fecha.date() if hasattr(r.fecha, 'date') else r.fecha
+            info_extra = mapa_rutas_metfac.get(fecha_obj, {})            
             cmet_val = info_extra.get("cmetfac")
             ruta_val = info_extra.get("ruta_id")
+            
             historial_enriquecido.append({
-                "fecha": r.fecha,  
+                "fecha": fecha_obj,  
                 "ruta_id": ruta_val if ruta_val else "Sin ruta",
                 "cmetfac": cmet_val if cmet_val else "Sin metfac",
                 "cantidad_lecturas": r.cantidad_lecturas or 0,
@@ -194,12 +206,13 @@ class PersonalService:
                 "promedio_min": float(r.promedio_min or 0.0),
                 "eficiencia": float(r.eficiencia or 0.0)
             })
+            
         ultima_actividad = (
             db.query(Conexion.ruta_id, Actividad.cmetfac)
             .select_from(Actividad)
             .outerjoin(Conexion, Actividad.ccodcnx == Conexion.ccodcnx)
             .filter(
-                Actividad.ccodprs == ccodprs,
+                Actividad.ccodprs == codigo_limpio,
                 Actividad.cmetfac.isnot(None),
                 Actividad.cmetfac != ""
             )
@@ -209,9 +222,10 @@ class PersonalService:
 
         ruta_actual = ultima_actividad.ruta_id if (ultima_actividad and ultima_actividad.ruta_id) else "No asignada"
         metfac_actual = ultima_actividad.cmetfac if (ultima_actividad and ultima_actividad.cmetfac) else "No asignada"
+        
         alertas_pendientes_count = (
             db.query(Alerta)
-            .filter(Alerta.ccodprs == ccodprs, Alerta.estado_alerta == "Pendiente")
+            .filter(Alerta.ccodprs == codigo_limpio, Alerta.estado_alerta == "Pendiente")
             .count()
         )
 

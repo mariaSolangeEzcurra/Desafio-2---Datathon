@@ -45,10 +45,10 @@ def parsear_hhmmss_a_minutos(val) -> float:
     try:
         if ":" in val_str:
             partes = val_str.split(":")
-            if len(partes) == 3: # HH:MM:SS
+            if len(partes) == 3:
                 h, m, s = map(float, partes)
                 return round(h * 60.0 + m + s / 60.0, 2)
-            elif len(partes) == 2: # MM:SS
+            elif len(partes) == 2:
                 m, s = map(float, partes)
                 return round(m + s / 60.0, 2)
         return round(float(val_str), 2)
@@ -98,6 +98,7 @@ def procesar_archivo_reporte_diario(
         df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error leyendo Excel: {e}")        
+    
     df.columns = [str(col).upper().strip() for col in df.columns]    
     faltantes = COLUMNAS_OBLIGATORIAS_REPORTE - set(df.columns)
     if faltantes:
@@ -105,8 +106,10 @@ def procesar_archivo_reporte_diario(
             status_code=400,
             detail=f"Faltan columnas en el reporte diario: {sorted(list(faltantes))}"
         )        
+    
     if df.empty:
         raise HTTPException(status_code=400, detail="El archivo Excel está vacío.")
+
     log_carga = RegistroCarga(
         nombre_archivo=filename,
         tipo_archivo="Reporte Diario",
@@ -118,10 +121,12 @@ def procesar_archivo_reporte_diario(
     )
     db.add(log_carga)
     db.flush()  
+    trabajadores_cache = {t.ccodprs: t for t in db.query(Trabajador).all()}
     registros_insertados = 0
     registros_actualizados = 0
     errores_filas = []
     filas = df.to_dict("records")
+
     try:
         for idx, row in enumerate(filas):
             fila_excel = idx + 2
@@ -130,20 +135,14 @@ def procesar_archivo_reporte_diario(
                 if not raw_cod or raw_cod.lower() == "nan":
                     raise ValueError("CODIGO SEDAPAR vacío")
                 cod_corto = raw_cod.zfill(4)
-                if len(raw_cod) <= 4:
-                    ccodprs = f"0501{cod_corto}"
-                else:
-                    ccodprs = raw_cod.zfill(8)
+                ccodprs = f"0501{cod_corto}" if len(raw_cod) <= 4 else raw_cod.zfill(8)
                 raw_nombre = _valor_o_none(row, "NOMBRES")
-                if raw_nombre:
-                    cnomprs = normalizar_nombre(str(raw_nombre))
-                else:
-                    cnomprs = f"Trabajador {ccodprs}"            
-                trabajador = db.query(Trabajador).filter_by(ccodprs=ccodprs).first()
+                cnomprs = normalizar_nombre(str(raw_nombre)) if raw_nombre else f"Trabajador {ccodprs}"
+                trabajador = trabajadores_cache.get(ccodprs)
                 if not trabajador:
                     trabajador = Trabajador(ccodprs=ccodprs, nombre=cnomprs)
                     db.add(trabajador)
-                    db.flush() # Guardar temporalmente para asegurar disponibilidad
+                    trabajadores_cache[ccodprs] = trabajador
                 elif cnomprs and cnomprs != f"Trabajador {ccodprs}":
                     trabajador.nombre = cnomprs
                 dt_inicio = parsear_a_datetime(_valor_o_none(row, "FECHA INICIO"), _valor_o_none(row, "HORA INICIO"))
@@ -201,7 +200,6 @@ def procesar_archivo_reporte_diario(
                     resumen.duracion_total_min = duracion_min
                     resumen.promedio_min = promedio_min
                     registros_actualizados += 1
-
                 if (registros_insertados + registros_actualizados) % 200 == 0:
                     db.flush()
             except Exception as e_fila:
@@ -209,12 +207,11 @@ def procesar_archivo_reporte_diario(
                 continue
         total_procesados = registros_insertados + registros_actualizados
         registros_error = len(errores_filas)
-        estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if total_procesados > 0 else "Fallido")
+        estado_carga = "Exitoso" if registros_error == 0 else ("Con errores" if total_procesados > 0 else "Fallido")        
         log_carga.estado = estado_carga
         log_carga.registros_insertados = total_procesados
-        log_carga.registros_error = registros_error
-        log_carga.detalle_errores = "\n".join(errores_filas[:50]) if errores_filas else None
-
+        log_carga.registros_error = registros_error        
+        log_carga.detalle_errores = "\n".join(errores_filas[:50])[:2000] if errores_filas else None
         if total_procesados == 0 and registros_error > 0:
             db.rollback()
             raise HTTPException(
@@ -227,7 +224,6 @@ def procesar_archivo_reporte_diario(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error inesperado en BD: {e}")
-
     return {
         "status": "success",
         "id_carga": log_carga.id_carga,

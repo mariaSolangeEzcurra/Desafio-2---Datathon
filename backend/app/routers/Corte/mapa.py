@@ -39,10 +39,6 @@ def get_heatmap(
     ),
     db: Session = Depends(get_db),
 ):
-    """
-    Retorna los puntos geolocalizados para el mapa de calor.
-    Si no se especifica rango de fechas ni período, aplica 'mes' por defecto.
-    """
     return obtener_datos_heatmap(
         db,
         fecha_inicio=fecha_inicio,
@@ -80,10 +76,6 @@ def get_impedimentos(
     ),
     db: Session = Depends(get_db),
 ):
-    """
-    Retorna los puntos geolocalizados que presentan impedimentos de ejecución (csitreg == 'S').
-    Si no se especifica rango de fechas ni período, aplica 'mes' por defecto.
-    """
     return obtener_datos_impedimentos(
         db,
         fecha_inicio=fecha_inicio,

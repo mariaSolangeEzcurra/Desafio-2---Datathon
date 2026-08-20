@@ -36,12 +36,10 @@ def _to_float(valor):
         return None
 
 def _clean_str_code(valor):
-    """Convierte floats o integers leídos por Pandas a String limpio (ej: '1.0' -> '1')."""
     val = _valor_o_none({"v": valor}, "v")
     if val is None:
         return None
     try:
-        # Maneja enteros importados como float por Pandas (ej: 1050.0 -> '1050')
         return str(int(float(val)))
     except (ValueError, TypeError):
         return str(val).strip()
@@ -91,8 +89,6 @@ def procesar_archivo_cortes(
     
     df = df.replace({pd.NaT: None, np.nan: None})
     df = df.where(pd.notnull(df), None)
-
-    # Pre-cargamos trabajadores para acelerar búsqueda y evitar errores de FK
     trabajadores = db.query(Trabajador).all()
     trabajadores_por_nombre = {t.nombre.strip().upper(): t.ccodprs for t in trabajadores if t.nombre}
     trabajadores_existentes_ids = {t.ccodprs for t in trabajadores}
@@ -137,19 +133,13 @@ def procesar_archivo_cortes(
                 
                 distrito_val = _valor_o_none(row, "DISTRITO")
                 distrito = str(distrito_val or "VARIOS").strip().upper()
-
-                # --- RESOLUCIÓN TRABAJADOR (ccodprs) ---
                 nombre_trabajador = str(_valor_o_none(row, "CNOMPRS") or "").strip().upper()
                 raw_ccodprs = _clean_str_code(row.get("CCODPRS"))
-
-                # Normalización a 8 dígitos (ej: 5010172 -> 05010172)
                 ccodprs_excel = raw_ccodprs.zfill(8) if (raw_ccodprs and raw_ccodprs.isdigit()) else raw_ccodprs
 
                 ccodprs = trabajadores_por_nombre.get(nombre_trabajador)
                 if not ccodprs and ccodprs_excel in trabajadores_existentes_ids:
                     ccodprs = ccodprs_excel
-
-                # Auto-creación de trabajador no existente
                 if not ccodprs and (ccodprs_excel or nombre_trabajador):
                     id_nuevo = ccodprs_excel or f"AUT-{idx+1}"
                     nuevo_trabajador = Trabajador(
@@ -163,8 +153,6 @@ def procesar_archivo_cortes(
                         trabajadores_por_nombre[nombre_trabajador] = id_nuevo
                     trabajadores_existentes_ids.add(id_nuevo)
                     ccodprs = id_nuevo
-
-                # --- 1. ZONA ---
                 zona_id = f"Z-{distrito[:3]}-{cmetfac}"
                 zona = zonas_cache.get(zona_id)
                 if not zona:
@@ -173,8 +161,6 @@ def procesar_archivo_cortes(
                     zona = Zona(zona_id=zona_id, distrito=distrito, cmetfac=cmetfac)
                     db.add(zona)
                 zonas_cache[zona_id] = zona
-
-                # --- 2. CONEXIÓN ---
                 conexion = conexiones_cache.get(ccodcnx)
                 if not conexion:
                     conexion = db.query(Conexion).filter_by(ccodcnx=ccodcnx).first()
@@ -205,17 +191,12 @@ def procesar_archivo_cortes(
                     if categoria and not conexion.categoria: conexion.categoria = categoria
                     if cnromdr and not conexion.cnromdr: conexion.cnromdr = cnromdr
                     if utm_x and not conexion.utm_x: conexion.utm_x = utm_x
-                    if utm_y and not conexion.utm_y: conexion.utm_y = utm_y
-                
+                    if utm_y and not conexion.utm_y: conexion.utm_y = utm_y            
                 conexiones_cache[ccodcnx] = conexion
-
-                # --- 3. FECHAS ---
                 dgenprg_dt = _limpiar_fecha(row.get("DGENPRG"))
                 dejecuc_dt = _limpiar_fecha(row.get("DEJECUC"))
                 dgenprg_date = dgenprg_dt.date() if dgenprg_dt else None
                 dejecuc_date = dejecuc_dt.date() if dejecuc_dt else None
-
-                # --- 4. ORDEN DE CORTE ---
                 orden = OrdenCorte(
                     id_carga=log_carga.id_carga,
                     ccodprs=ccodprs,

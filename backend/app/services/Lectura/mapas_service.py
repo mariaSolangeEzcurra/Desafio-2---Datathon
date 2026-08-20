@@ -11,7 +11,6 @@ class MapasService:
 
     @staticmethod
     def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
-        """Calcula automáticamente las fechas si se pasa un período predefinido"""
         if fecha_inicio and fecha_fin:
             return fecha_inicio, fecha_fin
             
@@ -28,12 +27,7 @@ class MapasService:
         return None, None
 
     @staticmethod
-    def _sanitizar_coordenada(lat, lng) -> tuple[float | None, float | None]:
-        """
-        Valida que latitud y longitud existan, sean convertibles a float y
-        estén dentro de los límites geográficos reales de la Tierra.
-        Descarta valores centinela como 9999999999 o 0.0.
-        """
+    def _sanitizar_coordenada(lat, lng) -> tuple[float | None, float | None]:      
         if lat is None or lng is None:
             return None, None
         try:
@@ -80,13 +74,9 @@ class MapasService:
         for act, det, cnx in resultados:
             if not det:
                 continue
-
-            # Validar coordenada REAL (GPS capturado)
             lat_real, lng_real = cls._sanitizar_coordenada(det.cgpslat, det.cgpslon)
             if lat_real is None or lng_real is None:
                 continue 
-
-            # Validar coordenada TEÓRICA (Base de conexiones)
             raw_lat_teo = getattr(cnx, 'latitud_real', getattr(cnx, 'CUTMY', None))
             raw_lng_teo = getattr(cnx, 'longitud_real', getattr(cnx, 'CUTMX', None))
             lat_teo, lng_teo = cls._sanitizar_coordenada(raw_lat_teo, raw_lng_teo)
@@ -158,10 +148,7 @@ class MapasService:
         puntos_calor = []
 
         for det, act, cnx, desc_imp, desc_obs in resultados:
-            # Intentar obtener la coordenada real del GPS primero
             lat, lng = cls._sanitizar_coordenada(det.cgpslat, det.cgpslon)
-
-            # Si el GPS del detalle no es válido, usar la coordenada teórica como respaldo
             if lat is None or lng is None:
                 raw_lat_teo = getattr(cnx, 'latitud_real', getattr(cnx, 'CUTMY', None))
                 raw_lng_teo = getattr(cnx, 'longitud_real', getattr(cnx, 'CUTMX', None))

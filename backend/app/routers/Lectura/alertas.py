@@ -23,9 +23,6 @@ def listar_alertas(
     periodo: Optional[str] = Query(None, description="Filtro rápido por período: 'hoy', 'semana', 'mes', '3meses'"),
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene el listado de alertas filtradas por estado, trabajador, zona o rangos/períodos de fecha.
-    """
     return AlertasService.listar_alertas(
         db=db,
         estado=estado,
@@ -43,9 +40,6 @@ def evaluar_alertas_diarias(
     fecha: Optional[date] = Query(None, description="Fecha a evaluar (por defecto la fecha actual)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Ejecuta el motor de evaluación de KPIs operativos y espaciales generando las alertas del día.
-    """
     total = AlertasService.evaluar_y_generar_alertas(db=db, fecha_evaluacion=fecha)
     return {
         "mensaje": "Evaluación de KPIs completada con éxito.",
@@ -58,9 +52,6 @@ def obtener_detalle_alerta(
     alerta_id: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna el detalle completo de una alerta por su ID único.
-    """
     alerta = db.query(Alerta).filter(Alerta.alerta_id == alerta_id).first()
     if not alerta:
         raise HTTPException(status_code=404, detail="Alerta no encontrada.")
@@ -73,9 +64,6 @@ def cambiar_estado_alerta(
     payload: CambiarEstadoAlertaRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Cambia el estado operativo de una alerta y registra la intervención correspondiente.
-    """
     return AlertasService.cambiar_estado_operativo(
         db=db,
         alerta_id=alerta_id,

@@ -12,7 +12,6 @@ class CortesReportesService:
 
     @staticmethod
     def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
-        """Calcula automáticamente las fechas si se pasa un período predefinido"""
         if fecha_inicio and fecha_fin:
             return fecha_inicio, fecha_fin
             
@@ -110,8 +109,6 @@ class CortesReportesService:
         ]
 
         df_finanzas = pd.DataFrame(data)
-
-        # Generar hoja con resumen de Alertas KPI
         alertas_res = evaluar_alertas_cortes(db, f_inicio, f_fin, periodo)
         df_alertas = pd.DataFrame(alertas_res["alertas"])
 
@@ -176,10 +173,7 @@ class CortesReportesService:
         fecha_fin: Optional[date] = None,
         periodo: Optional[str] = None
     ) -> Tuple[io.BytesIO, str, str]:
-        """Reporte de rendimiento por operario / técnico en campo (CCODPRS / CNOMPRS)"""
         f_inicio, f_fin = CortesReportesService._calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
-
-        # Detección segura de la columna de nombre de personal
         col_nombre = getattr(OrdenCorte, 'cnomprs', getattr(OrdenCorte, 'CNOMPRS', OrdenCorte.ccodprs))
 
         q = db.query(

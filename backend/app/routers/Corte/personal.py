@@ -20,9 +20,6 @@ def get_rendimiento_personal(
     distrito: Optional[str] = Query(None, description="Filtrar operarios por distrito"),
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene el resumen de rendimiento y volumen de trabajo agrupado por personal/operario.
-    """
     return obtener_rendimiento_personal(
         db=db,
         fecha_inicio=fecha_inicio,
@@ -41,9 +38,6 @@ def get_detalle_trabajador(
     limite: int = Query(50, ge=1, le=500, description="Cantidad de registros por página"),
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene las órdenes de corte asignadas a un operario específico de forma paginada.
-    """
     resultado = obtener_detalle_por_trabajador(
         db=db,
         ccodprs=ccodprs,

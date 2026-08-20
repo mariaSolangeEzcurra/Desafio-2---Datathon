@@ -8,7 +8,6 @@ def _calcular_fechas_por_periodo(
     fecha_inicio: Optional[date] = None, 
     fecha_fin: Optional[date] = None
 ) -> Tuple[Optional[date], Optional[date]]:
-    """Calcula automáticamente las fechas si se pasa un período predefinido."""
     if fecha_inicio and fecha_fin:
         return fecha_inicio, fecha_fin
         
@@ -25,26 +24,17 @@ def _calcular_fechas_por_periodo(
     return fecha_inicio, fecha_fin
 
 def _sanitizar_coordenada(lat: Any, lng: Any) -> Tuple[Optional[float], Optional[float]]:
-    """
-    Valida y convierte a float.
-    Filtra valores nulos, vacíos, no numéricos o fuera de rangos terrestres válidos.
-    """
     if lat is None or lng is None:
         return None, None
     try:
         v_lat = float(lat)
         v_lng = float(lng)
-
-        # Si están guardando Lat/Lng (-90 a 90, -180 a 180)
         if (-90.0 <= v_lat <= 90.0) and (-180.0 <= v_lng <= 180.0):
             if v_lat == 0.0 and v_lng == 0.0:
                 return None, None
             return v_lat, v_lng
-
-        # Si están usando UTM en Perú (Zona 18S/19S: X entre 100k-900k, Y entre 7M-9M)
         if (100000.0 <= v_lng <= 900000.0) and (7000000.0 <= v_lat <= 9000000.0):
             return v_lat, v_lng
-
         return None, None
     except (ValueError, TypeError):
         return None, None
@@ -58,16 +48,9 @@ def obtener_datos_heatmap(
     ccodprs: Optional[str] = None,
     limite: int = 2000
 ) -> Dict[str, Any]:
-    """
-    Obtiene los puntos geográficos para el mapa de calor.
-    """
-    # Si no se pasa fecha ni período, aplicamos 'mes' por defecto para evitar sobrecargar
     if not fecha_inicio and not fecha_fin and not periodo:
         periodo = "mes"
-
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
-
-    # Consulta segura usando solo filtros compatibles con números en SQL
     query = db.query(
         OrdenCorte.ccodcnx,
         OrdenCorte.cutmy,
@@ -127,9 +110,6 @@ def obtener_datos_impedimentos(
     ccodprs: Optional[str] = None,
     limite: int = 2000
 ) -> Dict[str, Any]:
-    """
-    Obtiene los impedimentos geolocalizados (csitreg == 'S').
-    """
     if not fecha_inicio and not fecha_fin and not periodo:
         periodo = "mes"
 

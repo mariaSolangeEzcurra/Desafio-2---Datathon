@@ -11,7 +11,6 @@ class ReportesService:
 
     @staticmethod
     def _calcular_fechas_por_periodo(periodo: Optional[str], fecha_inicio: Optional[date] = None, fecha_fin: Optional[date] = None):
-        """Calcula automáticamente las fechas si se pasa un período predefinido"""
         if fecha_inicio and fecha_fin:
             return fecha_inicio, fecha_fin
             

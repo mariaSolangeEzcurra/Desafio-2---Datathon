@@ -9,7 +9,6 @@ def _calcular_fechas_por_periodo(
     fecha_inicio: Optional[date] = None, 
     fecha_fin: Optional[date] = None
 ):
-    """Calcula automáticamente el rango de fechas si se proporciona un período predefinido."""
     if fecha_inicio and fecha_fin:
         return fecha_inicio, fecha_fin
         
@@ -33,9 +32,6 @@ def calcular_dashboard_kpis(
     distrito: Optional[str] = None,
     ccodprs: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Calcula los indicadores principales (KPIs) de las órdenes de corte.
-    """
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
     es_ejecutada = OrdenCorte.dejecuc.isnot(None)
     es_pendiente = OrdenCorte.dejecuc.is_(None)
@@ -85,9 +81,6 @@ def calcular_resumen_cortes(
     fecha_fin: Optional[date] = None,
     periodo: Optional[str] = None
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Agrupa los resúmenes por Distrito y por Tipo de Programa (CTIPPRG).
-    """
     f_inicio, f_fin = _calcular_fechas_por_periodo(periodo, fecha_inicio, fecha_fin)
 
     es_ejecutada = OrdenCorte.dejecuc.isnot(None)
